@@ -192,6 +192,8 @@ const G={
   '긍정':['#주제.eun# 같이 해보면 길이 보여.','네 기록 덕분에 #주제.i# 한결 또렷해졌어.','#주제.eun# 각자 한 조각씩 맡으면 되겠다.','#장소#에서 #주제# 이야기를 이어가 보자.','#주제#라면 내가 본 게 조금 있어.','#주제.eun# 지금이 딱 움직일 때야.'],
   '신중':['#주제.eun# 조금 더 확인하고 움직이자.','서두르면 마을이 헷갈릴 수 있어.','단정하지 말고 #주제#부터 기록으로 남기자.','#주제.eun# 근거를 붙인 다음에 정하자.','#장소#에서 한 번 더 맞춰보고 하자.'],
   '맞장구':['응, 짧게 남겨둘게.','좋아. #장소#에서 다시 맞춰보자.','내가 확인할 부분을 볼게.','그 말은 기억해 둘게.','한 걸음씩 가자.','알겠어, 근거부터 볼게.'],
+  '마찰':['생각보다 서로 보는 곳이 다르네.','#주제.eun# 오늘은 접어두자. 지금은 아닌 것 같아.','그 방식엔 동의하기 어려워.','#주제# 얘기만 나오면 자꾸 어긋난다.'],
+  '마찰수긍':['…그래, 오늘은 여기까지 하자.','서로 시간이 필요한 것 같아.','알겠어. 다음에 다시 이야기하자.'],
   '사건':['#사건장소#에서 #사건꼬리#','#사건장소# 근처에서 #사건꼬리#'],
   '사건장소':['나루터 게이트','별빛 광장','공방','온실 정원','기억 도서관','작은 무대','관측대'],
   '사건꼬리':['낯선 발자국이 발견됐다','오래된 초대장이 나왔다','밤사이 이상한 빛이 보였다는 소문이 돈다','새 작물이 자라 함께 나눌 수 있을 것 같다','외부 연구자가 마을 기록을 보고 싶다는 말을 남겼다','모임 시간을 조정해야 할지 모른다는 예보가 들어왔다','누군가 두고 간 쪽지가 발견됐다']
@@ -269,7 +271,7 @@ function projectAt(place){return projects.filter(p=>p.place===place&&!p.done).so
 function hasSkill(name){return skills.some(s=>s.name===name)}
 // ── DF 전설 모드식 연대기: 일대기는 90줄에서 잘리지만, 굵직한 사건은 영구층(연대기)에 남아
 //    인물·장소·종류 축으로 교차 열람된다 (docs/research/dwarf-fortress.md) ──
-const CHRON_KINDS=['시작','아침','소식','확인','완성','성격','사건','감독','따라잡기'];
+const CHRON_KINDS=['시작','아침','소식','확인','완성','성격','사건','감독','따라잡기','낡음'];
 function chron(text,kind){
   if(!CHRON_KINDS.includes(kind))return;
   state.chronicle.unshift({time:timeText(),day:state.day,text,kind,
@@ -303,15 +305,17 @@ function makeBundle(a){
     '관계':`${a.name}은 가까운 관계가 일을 빠르게 움직이지만, 확인 없는 동의는 마을을 헷갈리게 만든다고 느꼈다.`,
     '기술':`${a.name}은 반복되는 일을 작은 도구로 묶으면 마을이 오래 버틴다고 보았다.`,
     '문화':`${a.name}은 행사가 단순한 놀이가 아니라 주민들이 같은 시간을 약속하는 방식이라고 여겼다.`,
-    '확인':`${a.name}은 소식이 퍼지기 전에 한 번 멈춰 근거를 보는 습관이 중요하다고 묶어두었다.`
+    '확인':`${a.name}은 소식이 퍼지기 전에 한 번 멈춰 근거를 보는 습관이 중요하다고 묶어두었다.`,
+    '갈등':`${a.name}은 어긋난 말들이 쌓일 땐 밀어붙이기보다 거리와 시간이 필요하다고 정리했다.`,
+    '낡음':`${a.name}은 만든 것을 지키는 일이 만드는 일만큼 크다는 것을 깨달았다.`
   };
   const text=lines[topic]||`${a.name}은 최근의 여러 일을 묶어 ${topic} 쪽이 다음 움직임의 열쇠라고 보았다.`;
   memory(a,text,[topic,'묶음','기억'],8,'묶음',{},false); a.thought=text;
   // 기억이 영구층으로 내려가는 순간 성격이 반드시 이동한다 — 기억→성격→행동의 되먹임 고리
-  const drift={'소식':['신중',2],'확인':['신중',3],'관계':['사교',2],'대화':['사교',2],'기술':['끈기',3],'도구':['끈기',2],'발전':['끈기',2],'문화':['낙관',3],'회복':['낙관',2],'혼선':['신중',2],'계획':['끈기',2],'기록':['신중',2]}[topic]||['끈기',1];
+  const drift={'소식':['신중',2],'확인':['신중',3],'관계':['사교',2],'대화':['사교',2],'갈등':['신중',2],'낡음':['끈기',2],'기술':['끈기',3],'도구':['끈기',2],'발전':['끈기',2],'문화':['낙관',3],'회복':['낙관',2],'혼선':['신중',2],'계획':['끈기',2],'기록':['신중',2]}[topic]||['끈기',1];
   shiftPers(a,drift[0],drift[1],`${topic}의 기억이 굳었다`);
-  if(a.mood<38)shiftPers(a,'낙관',-2,'힘든 시기의 기억이 굳었다');
-  else if(a.mood>72)shiftPers(a,'낙관',1,'좋은 시기의 기억이 굳었다');
+  if(a.mood<45)shiftPers(a,'낙관',-2,'힘든 시기의 기억이 굳었다');
+  else if(a.mood>78)shiftPers(a,'낙관',1,'좋은 시기의 기억이 굳었다');
   addLife(`${a.name}의 기억이 묶여 성격에 내려앉았다 — ${topic} 쪽으로 마음이 기울었다.`,'성격');
 }
 function buildPlan(a){
@@ -370,7 +374,7 @@ function finishOperation(a){
   if(op.type==='project'){
     const pr=project(op.projectId); if(pr&&!pr.done){
       const boost=(hasSkill('반복 작업 묶기')?1.18:1)*(hasSkill('기억 색인')&&op.place==='library'?1.14:1);
-      const gain=clamp(8+rnd()*10+norm(a.focus,30,95)*8,7,23)*boost;
+      const gain=clamp(4+rnd()*6+norm(a.focus,30,95)*5,3,13)*boost;
       pr.p=clamp(pr.p+gain,0,100); state.resources[pr.need]=clamp((state.resources[pr.need]||0)+.9,0,100); a.focus=clamp(a.focus-4,0,100); a.mood=clamp(a.mood+1.5,0,100);
       text=`${a.name}이 ${place.name}에서 ${pr.name}을 ${Math.round(gain)}만큼 진척했다.`; memory(a,`${pr.name}에 손을 보태 진행이 또렷해졌다.`,[pr.need,op.place,'발전'],6,'작업',{project:pr.id});
       if(pr.p>=100)completeProject(pr,a,place);
@@ -401,6 +405,13 @@ function completeProject(pr,a,place){
   addLife(`${a.name}이 ${place.name}에서 「${title}」을 완성했다.`, '완성');
   agents.forEach(o=>{memory(o,`${pr.name}이 완성되어 마을의 다음 행동이 쉬워졌다.`,['발전',pr.need,pr.place],7,'소식',{project:pr.id}); if(o!==a)o.rel[a.id]=clamp(o.rel[a.id]+5,0,100)});
   toast(`${title} 완성`);
+}
+// DF의 교훈 "Losing is fun": 망가질 수 없는 마을은 이야기를 못 쓴다 —
+// 완성된 것은 세월과 사건에 낡아 다시 손질거리가 된다 (기술 서랍과 건물 레벨은 역사로 남는다)
+function decayProject(pr,why){
+  if(!pr||!pr.done)return; pr.done=false; pr.p=55+rnd()*15;
+  addLife(`${pr.name}이 낡아 다시 손질이 필요해졌다 (${why}).`,'낡음');
+  agents.filter(a=>a.baseTags.includes(pr.need)).forEach(a=>memory(a,`${pr.name}이 낡은 것을 보고 손볼 일을 마음에 두었다.`,[pr.need,pr.place,'낡음'],5,'관찰'));
 }
 function nearbyBuilding(a){return buildings.find(b=>Math.abs(a.x-b.x)<b.w*.55&&Math.abs(a.y-b.y)<b.h*.55)}
 // ── The Sims식 광고: 건물이 "여기서 할 수 있는 일과 효용"을 광고하고,
@@ -442,14 +453,22 @@ function converse(a,b){
     line=`그 말은 둘 다 들었지만, 근거를 한 번 더 보자.`; kind='조율'; summary=`${speaker.name}와 ${listener.name}이 같은 소식을 두고 확인이 필요하다고 맞췄다.`; delta=2; setTarget(speaker,'tower','함께 소식을 확인하러 가는 중'); if(rnd()<.45)setTarget(listener,'tower','함께 소식을 확인하러 가는 중');
   } else {
     const topic=pick(G['주제']);
-    const good=(speaker.mood+listener.mood+speaker.rel[listener.id]+listener.rel[speaker.id])/4 + rnd()*16 + (speaker.pers.낙관-50)*.25>56;
-    line=good?gen('긍정',{'주제':topic}):gen('신중',{'주제':topic});
-    summary=`${speaker.name}와 ${listener.name}이 ${topic}에 대해 짧게 맞췄다.`; delta=(good?3:0)+(speaker.pers.사교>62?1:0); kind=good?'대화':'조율';
+    // 기분이 가라앉은 날엔 말이 어긋나기 쉽다 — 갈등도 마을의 이야기다
+    const frict=rnd()<((speaker.mood+listener.mood)/2<46?.5:.08);
+    if(frict){
+      line=gen('마찰',{'주제':topic}); summary=`${speaker.name}와 ${listener.name}이 ${topic}을 두고 서로 어긋났다.`; delta=-2; kind='갈등';
+      speaker.mood=clamp(speaker.mood-2,0,100); listener.mood=clamp(listener.mood-3,0,100);
+    } else {
+      const good=(speaker.mood+listener.mood+speaker.rel[listener.id]+listener.rel[speaker.id])/4 + rnd()*16 + (speaker.pers.낙관-50)*.25>56;
+      line=good?gen('긍정',{'주제':topic}):gen('신중',{'주제':topic});
+      summary=`${speaker.name}와 ${listener.name}이 ${topic}에 대해 짧게 맞췄다.`; delta=(good?3:0)+(speaker.pers.사교>62?1:0); kind=good?'대화':'조율';
+    }
   }
-  speaker.bubble=line; listener.bubble=gen('맞장구'); speaker.bubbleT=listener.bubbleT=3.4; speaker.cool=listener.cool=5.4;
+  speaker.bubble=line; listener.bubble=kind==='갈등'?gen('마찰수긍'):gen('맞장구'); speaker.bubbleT=listener.bubbleT=3.4; speaker.cool=listener.cool=5.4;
   speaker.rel[listener.id]=clamp(speaker.rel[listener.id]+delta,0,100); listener.rel[speaker.id]=clamp(listener.rel[speaker.id]+delta,0,100); state.resources.신뢰=clamp(state.resources.신뢰+delta*.12,0,100);
   addLife(summary,kind); addTalk(speaker.name,`${listener.name}에게: ${line}`,kind);
-  memory(speaker,summary,['관계','대화',speaker.place],5,'대화',{with:listener.id,recall:recall.map(m=>m.id)}); memory(listener,summary,['관계','대화',listener.place],5,'대화',{with:speaker.id});
+  const mtag=kind==='갈등'?'갈등':'대화', mimp=kind==='갈등'?6:5;
+  memory(speaker,summary,['관계',mtag,speaker.place],mimp,'대화',{with:listener.id,recall:recall.map(m=>m.id)}); memory(listener,summary,['관계',mtag,listener.place],mimp,'대화',{with:speaker.id});
 }
 // ── RimWorld식 사건 감독: 시뮬레이션 규칙과 분리된 레이어가 마을 상태(활기·혼선·발전·경과)를
 //    읽고 사건 풀에서 뽑아 투하만 한다 — 전개는 전적으로 시뮬레이션에 맡긴다 (docs/research/rimworld.md) ──
@@ -463,8 +482,8 @@ const INCIDENTS=[
   {kind:'회복',title:'축제 기운',make(){state.resources.문화=clamp(state.resources.문화+6,0,100);state.resources.활기=clamp(state.resources.활기+3,0,100);return '작은 무대 주변에 축제 기운이 돌아 주민들의 발걸음이 가벼워졌다'}},
   {kind:'긴장',title:'수상한 소문',news:true,make(){return gen('사건')}},
   {kind:'긴장',title:'낯선 방문객',news:true,make(){state.resources.문화=clamp(state.resources.문화+2,0,100);return '나루터 게이트에 낯선 방문객이 도착해 바깥 소식을 풀어놓았다는 말이 돈다'}},
-  {kind:'위기',title:'도구 고장',make(){state.resources.기술=clamp(state.resources.기술-4,0,100);state.resources.혼선=clamp(state.resources.혼선+6,0,100);const pr=projects.find(p=>!p.done&&p.place==='workshop');if(pr)pr.p=clamp(pr.p-8,0,100);return '공방의 도구 하나가 밤사이 망가져 작업 리듬이 헝클어졌다'}},
-  {kind:'위기',title:'궂은 날씨',make(){state.weather='옅은 비';state.resources.활기=clamp(state.resources.활기-6,0,100);agents.forEach(a=>a.energy=clamp(a.energy-6,0,100));return '갑작스런 궂은 날씨가 마을을 덮어 하루의 리듬이 느려졌다'}}
+  {kind:'위기',title:'도구 고장',make(){state.resources.기술=clamp(state.resources.기술-4,0,100);state.resources.혼선=clamp(state.resources.혼선+6,0,100);const done=projects.filter(p=>p.done);if(done.length)decayProject(pick(done),'도구 고장');else{const pr=projects.find(p=>!p.done);if(pr)pr.p=clamp(pr.p-8,0,100)}return '공방의 도구 하나가 밤사이 망가져 작업 리듬이 헝클어졌다'}},
+  {kind:'위기',title:'궂은 날씨',make(){state.weather='옅은 비';state.resources.활기=clamp(state.resources.활기-6,0,100);agents.forEach(a=>{a.energy=clamp(a.energy-6,0,100);a.mood=clamp(a.mood-5,0,100)});return '갑작스런 궂은 날씨가 마을을 덮어 하루의 리듬이 느려졌다'}}
 ];
 function directorProfile(){return DIRECTORS.find(d=>d.id===state.director.id)||DIRECTORS[0]}
 function villageWealth(){return skills.length+projects.filter(p=>p.done).length*2+buildings.reduce((s,b)=>s+b.lv-1,0)}
@@ -500,6 +519,10 @@ function daily(){
   state.day++; state.hour=6.75; state.generation++; state.weather=pick(['맑음','구름 많음','옅은 비','별빛 선명']);
   agents.forEach(a=>{a.energy=clamp(a.energy+26+rnd()*16,0,100);a.focus=clamp(a.focus+12+rnd()*12,0,100);a.mood=clamp(a.mood+3-rnd()*2,0,100);buildPlan(a);const r=retrieve(a,['계획','소식','관계']); if(r[0])a.thought=`어제의 “${r[0].text.slice(0,30)}…”을 오늘의 출발점으로 삼았다.`;});
   const unresolved=state.news.filter(n=>!n.verified).length; if(unresolved>2)state.resources.혼선=clamp(state.resources.혼선+unresolved*.9,0,100);
+  // 밤사이 마모와 망각 — 자원은 새고, 극단으로 벌어진 관계는 평균으로 조금 돌아온다
+  state.resources.기술=clamp(state.resources.기술-2,0,100); state.resources.신뢰=clamp(state.resources.신뢰-1.5,0,100); state.resources.문화=clamp(state.resources.문화-2,0,100); state.resources.활기=clamp(state.resources.활기-1,0,100);
+  agents.forEach(a=>agents.forEach(b=>{if(a!==b)a.rel[b.id]=Math.round(clamp(a.rel[b.id]+(50-a.rel[b.id])*.02,0,100))}));
+  const worn=projects.filter(p=>p.done); if(worn.length&&rnd()<.10+worn.length*.04)decayProject(pick(worn),'세월의 마모');
   addLife(`${state.day}일차가 시작됐다. 날씨는 ${state.weather}, 아직 확인 중인 소식은 ${unresolved}개다.`, '아침');
 }
 function sceneText(){const h=state.hour;return h<6?'깊은 밤':h<8.5?'아침 정리':h<12?'오전 작업':h<14?'점심 대화':h<18?'마을 발전':h<21?'저녁 조율':'밤의 기록'}
