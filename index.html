@@ -97,9 +97,10 @@ button:focus-visible,input:focus-visible{outline:2px solid rgba(137,216,255,.72)
   .worldCard{height:62vh;min-height:440px}
   .dock{height:64vh}
   #app.mv-village .inspect,#app.mv-village .dock{display:none}
-  #app.mv-status .worldCard,#app.mv-status .seedBox,#app.mv-status .dock{display:none}
-  #app.mv-observe .worldCard,#app.mv-observe .seedBox,#app.mv-observe .dock{display:none}
-  #app.mv-records .worldCard,#app.mv-records .seedBox,#app.mv-records .inspect{display:none}
+  /* AI마을 헤더 카드는 '마을' 화면에서만 — 나머지 화면은 탭 바부터 시작한다 */
+  #app.mv-status .top,#app.mv-status .worldCard,#app.mv-status .seedBox,#app.mv-status .dock{display:none}
+  #app.mv-observe .top,#app.mv-observe .worldCard,#app.mv-observe .seedBox,#app.mv-observe .dock{display:none}
+  #app.mv-records .top,#app.mv-records .worldCard,#app.mv-records .seedBox,#app.mv-records .inspect{display:none}
   #app.mv-records .dock{height:auto;min-height:0;flex:1 1 0}
   #app.mv-records .dock .panel.active{max-height:calc(100dvh - 250px)}
   .legend{display:none}
