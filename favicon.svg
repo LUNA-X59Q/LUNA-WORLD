@@ -4,10 +4,5 @@
 <path d="M 104 268 L 256 124 L 408 268"/>
 <path d="M 148 258 L 148 396 L 364 396 L 364 258"/>
 <path stroke-width="20" d="M 272 396 L 272 316 L 330 316 L 330 396"/>
-<rect stroke-width="15" x="176" y="290" width="68" height="60" rx="6"/>
-<g stroke-width="9">
-<line x1="210" y1="290" x2="210" y2="350"/>
-<line x1="176" y1="320" x2="244" y2="320"/>
-</g>
 </g>
 </svg>

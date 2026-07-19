@@ -1,6 +1,6 @@
 {
-  "name": "AI 마을 — LUNA WORLD",
-  "short_name": "AI 마을",
+  "name": "AI마을",
+  "short_name": "AI마을",
   "description": "LLM·API 호출 0 — 규칙만으로 주민들이 살아가는 브라우저 마을 시뮬레이션",
   "lang": "ko",
   "start_url": "./",
