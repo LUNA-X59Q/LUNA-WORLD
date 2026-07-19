@@ -84,20 +84,20 @@ button:focus-visible,input:focus-visible{outline:2px solid rgba(137,216,255,.72)
 .inspectBody::-webkit-scrollbar,.panel::-webkit-scrollbar{width:10px}.inspectBody::-webkit-scrollbar-track,.panel::-webkit-scrollbar-track{background:transparent}.inspectBody::-webkit-scrollbar-thumb,.panel::-webkit-scrollbar-thumb{background:rgba(255,255,255,.11);border:3px solid transparent;background-clip:content-box;border-radius:999px}.inspectBody::-webkit-scrollbar-thumb:hover,.panel::-webkit-scrollbar-thumb:hover{background:rgba(137,216,255,.24);border:3px solid transparent;background-clip:content-box}
 @media(max-width:1180px){
   body{overflow:auto}
-  #app{height:auto;min-height:100vh;grid-template-columns:1fr;grid-template-rows:auto auto minmax(480px,62vh) auto minmax(300px,38vh) auto}
+  #app{height:auto;min-height:100vh;grid-template-columns:1fr;grid-template-rows:auto auto minmax(480px,62vh) auto minmax(300px,44vh) minmax(300px,38vh)}
   .top{grid-column:1;grid-template-columns:1fr;gap:10px;padding:14px}
   .hud{grid-column:1;grid-row:2}
   .worldCard{grid-column:1;grid-row:3}
   .seedBox{grid-column:1;grid-row:4}
-  .dock{grid-column:1;grid-row:5}
-  .inspect{grid-column:1;grid-row:6}
+  .inspect{grid-column:1;grid-row:5}
+  .dock{grid-column:1;grid-row:6}
   .legend{display:none}
   .grid3{grid-template-columns:repeat(2,minmax(0,1fr))}
   .stats,.controls{justify-content:flex-start;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
   .stats::-webkit-scrollbar,.controls::-webkit-scrollbar{display:none}
 }
 @media(max-width:720px){
-  #app{padding:10px;gap:10px;grid-template-rows:auto auto minmax(400px,56vh) auto minmax(300px,38vh) auto}
+  #app{padding:10px;gap:10px;grid-template-rows:auto auto minmax(400px,56vh) auto minmax(280px,42vh) minmax(300px,38vh)}
   .top{border-radius:22px;padding:12px}
   .brand{gap:10px}
   .brand h1{font-size:18px}
