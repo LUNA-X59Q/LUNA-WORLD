@@ -83,23 +83,33 @@ button:focus-visible,input:focus-visible{outline:2px solid rgba(137,216,255,.72)
 .card{border:1px solid var(--line);background:linear-gradient(180deg,rgba(255,255,255,.063),rgba(255,255,255,.033));border-radius:21px;padding:13px;margin-bottom:10px;box-shadow:inset 0 1px 0 rgba(255,255,255,.055)}.card:hover{border-color:rgba(255,255,255,.16)}.cap{margin:0 0 10px;font-size:10px;letter-spacing:.11em;text-transform:uppercase;color:rgba(244,248,255,.55);font-weight:850}.note{font-size:13px;line-height:1.62;color:var(--soft)}.subtle{color:var(--muted)}.meterGrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.meter span{display:flex;justify-content:space-between;margin-bottom:7px;font-size:11px;color:var(--muted)}.meter em{font-style:normal}.meter b{color:var(--soft)}.bar{height:7px;border-radius:999px;background:rgba(255,255,255,.075);overflow:hidden;box-shadow:inset 0 1px 2px rgba(0,0,0,.22)}.bar i{display:block;height:100%;width:50%;border-radius:999px;background:linear-gradient(90deg,var(--blue),var(--green));box-shadow:0 0 20px rgba(137,216,255,.22)}.bar.rose i{background:linear-gradient(90deg,var(--gold),var(--rose));box-shadow:0 0 20px rgba(255,154,170,.18)}.tags{display:flex;gap:7px;flex-wrap:wrap}.tag{padding:6px 9px;border:1px solid var(--line);border-radius:999px;background:rgba(255,255,255,.052);font-size:11px;color:var(--soft);transition:.16s}.tag.on{background:rgba(137,216,255,.16);border-color:rgba(137,216,255,.44);color:#fff;box-shadow:0 0 18px rgba(137,216,255,.12)}.chronBar{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:11px}button.tag:hover,.tag:hover{background:rgba(137,216,255,.12);border-color:rgba(137,216,255,.28);transform:translateY(-1px)}.miniList{display:grid;gap:8px}.mini{padding:10px;border:1px solid rgba(255,255,255,.082);border-radius:16px;background:rgba(255,255,255,.034);font-size:12px;line-height:1.5;color:var(--soft)}.mini b{color:#fff}.schedule{display:grid;gap:7px}.slot{display:grid;grid-template-columns:56px 1fr;gap:8px;padding:9px;border-radius:15px;background:rgba(255,255,255,.028);border:1px solid transparent;font-size:12px;color:var(--muted)}.slot.now{background:linear-gradient(135deg,rgba(137,216,255,.12),rgba(217,183,255,.07));border-color:rgba(137,216,255,.28);color:#fff;box-shadow:0 0 26px rgba(137,216,255,.08)}.rels{display:grid;gap:8px}.rel{display:grid;grid-template-columns:74px 1fr 32px;gap:8px;align-items:center;font-size:12px;color:var(--soft)}.relLine{height:7px;border-radius:999px;background:rgba(255,255,255,.075);overflow:hidden}.relLine i{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,var(--rose),var(--gold),var(--green))}.empty{border:1px dashed rgba(255,255,255,.16);border-radius:21px;background:rgba(255,255,255,.026);padding:17px;font-size:13px;line-height:1.68;color:var(--muted)}
 .dock{grid-column:1/2;grid-row:5/6;min-height:0;display:flex;flex-direction:column;border:1px solid var(--line);border-radius:var(--r);background:linear-gradient(180deg,rgba(12,18,32,.84),rgba(6,9,18,.73));backdrop-filter:blur(22px);box-shadow:var(--shadow);overflow:hidden}.tabs{display:flex;gap:6px;padding:12px 12px 0;overflow:auto;scrollbar-width:none;flex-shrink:0}.tabs::-webkit-scrollbar{display:none}.tab{position:relative;padding:10px 12px;border-radius:16px;background:transparent;border:1px solid transparent;color:var(--muted);font-size:12px;white-space:nowrap;transition:.16s}.tab:hover{color:var(--soft);background:rgba(255,255,255,.045)}.tab.active{background:rgba(137,216,255,.12);border-color:rgba(137,216,255,.25);color:#fff}.tab.active::after{content:"";position:absolute;left:14px;right:14px;bottom:4px;height:2px;border-radius:999px;background:linear-gradient(90deg,var(--blue),var(--violet))}.panel{display:none;min-height:0;overflow:auto;padding:12px 13px 14px;scrollbar-gutter:stable}.panel.active{display:block;flex:1 1 0}.timeline{display:grid;gap:8px}.event{position:relative;display:grid;grid-template-columns:64px 1fr auto;gap:10px;align-items:start;padding:11px 12px;border:1px solid var(--line);border-radius:17px;background:linear-gradient(180deg,rgba(255,255,255,.052),rgba(255,255,255,.028));box-shadow:inset 0 1px 0 rgba(255,255,255,.05)}.event::before{content:"";position:absolute;left:0;top:12px;bottom:12px;width:3px;border-radius:999px;background:linear-gradient(var(--blue),var(--violet));opacity:.65}.event .time{font-size:11px;color:var(--muted)}.event .text{font-size:13px;line-height:1.48;color:var(--soft)}.event .kind{font-size:10px;padding:4px 7px;border-radius:999px;background:rgba(255,255,255,.07);color:var(--muted);white-space:nowrap}.chat{display:grid;grid-template-columns:76px 1fr auto;gap:10px;padding:10px 0;border-bottom:1px solid rgba(255,255,255,.07)}.chat b{font-size:12px;color:#fff}.chat p{margin:0;font-size:13px;color:var(--soft);line-height:1.5}.chat span{font-size:11px;color:var(--muted)}.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.tile{position:relative;padding:13px;border:1px solid var(--line);border-radius:19px;background:linear-gradient(180deg,rgba(255,255,255,.058),rgba(255,255,255,.03));text-align:left;color:inherit;box-shadow:inset 0 1px 0 rgba(255,255,255,.055);transition:transform .16s ease,border-color .16s ease,background .16s ease}.tile:hover{transform:translateY(-2px);border-color:rgba(137,216,255,.25);background:linear-gradient(180deg,rgba(137,216,255,.075),rgba(255,255,255,.036))}.tile h4{margin:0 0 6px;font-size:13px;letter-spacing:-.015em}.tile p{margin:0 0 10px;font-size:12px;color:var(--muted);line-height:1.55}.tile small{color:var(--muted)}.newsHead{display:flex;justify-content:space-between;gap:8px;align-items:flex-start}.pill{padding:4px 7px;border-radius:999px;background:rgba(255,255,255,.07);border:1px solid var(--line);font-size:10px;color:var(--muted)}.ok{color:var(--green);border-color:rgba(168,243,189,.24);background:rgba(168,243,189,.08)}.bad{color:var(--rose);border-color:rgba(255,154,170,.24);background:rgba(255,154,170,.08)}.artifact b,.engine b{display:block;font-size:13px;margin-bottom:6px}.artifact p,.engine p{margin:0;color:var(--muted);font-size:12px;line-height:1.55}.progressLabel{display:flex;justify-content:space-between;gap:10px;font-size:11px;color:var(--muted);margin-top:8px}
 .sideTabs{display:flex;gap:7px;margin-bottom:12px}.sideTabs .tag{flex:1;text-align:center;padding:10px 11px;font-size:12px;border-radius:14px}
+.mobileTabs{display:none}
 .inspectBody::-webkit-scrollbar,.panel::-webkit-scrollbar{width:10px}.inspectBody::-webkit-scrollbar-track,.panel::-webkit-scrollbar-track{background:transparent}.inspectBody::-webkit-scrollbar-thumb,.panel::-webkit-scrollbar-thumb{background:rgba(255,255,255,.11);border:3px solid transparent;background-clip:content-box;border-radius:999px}.inspectBody::-webkit-scrollbar-thumb:hover,.panel::-webkit-scrollbar-thumb:hover{background:rgba(137,216,255,.24);border:3px solid transparent;background-clip:content-box}
 @media(max-width:1180px){
   body{overflow:auto}
-  #app{height:auto;min-height:100vh;grid-template-columns:1fr;grid-template-rows:auto auto minmax(480px,62vh) auto auto minmax(300px,38vh)}
-  .top{grid-column:1;grid-template-columns:1fr;gap:10px;padding:14px}
-  .hud{grid-column:1;grid-row:2}
-  .worldCard{grid-column:1;grid-row:3}
-  .seedBox{grid-column:1;grid-row:4}
-  .inspect{grid-column:1;grid-row:5}
-  .dock{grid-column:1;grid-row:6}
+  #app{display:flex;flex-direction:column;height:auto;min-height:100vh}
+  .top{grid-template-columns:1fr;gap:10px;padding:14px}
+  /* ── 모바일 상단 탭: 예시처럼 헤더 바로 아래에 붙어 화면(마을/현황/관찰/기록)을 전환한다 ── */
+  .mobileTabs{display:flex;gap:6px;position:sticky;top:0;z-index:40;padding:10px 2px;margin:-8px 0;background:linear-gradient(180deg,#10182b 82%,rgba(16,24,43,0))}
+  .mobileTabs button{flex:1;padding:11px 6px;border-radius:14px;border:1px solid transparent;color:var(--muted);font-size:13px;white-space:nowrap;transition:.16s}
+  .mobileTabs button.on{background:rgba(137,216,255,.13);border-color:rgba(137,216,255,.3);color:#fff;font-weight:700}
+  .sideTabs{display:none} /* 패널 안 탭은 상단 탭이 대신한다 */
+  .worldCard{height:62vh;min-height:440px}
+  .dock{height:64vh}
+  #app.mv-village .inspect,#app.mv-village .dock{display:none}
+  /* AI마을 헤더 카드는 '마을' 화면에서만 — 나머지 화면은 탭 바부터 시작한다 */
+  #app.mv-status .top,#app.mv-status .worldCard,#app.mv-status .seedBox,#app.mv-status .dock{display:none}
+  #app.mv-observe .top,#app.mv-observe .worldCard,#app.mv-observe .seedBox,#app.mv-observe .dock{display:none}
+  #app.mv-records .top,#app.mv-records .worldCard,#app.mv-records .seedBox,#app.mv-records .inspect{display:none}
+  #app.mv-records .dock{height:auto;min-height:0;flex:1 1 0}
+  #app.mv-records .dock .panel.active{max-height:calc(100dvh - 250px)}
   .legend{display:none}
   .grid3{grid-template-columns:repeat(2,minmax(0,1fr))}
   .stats,.controls{justify-content:flex-start;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
   .stats::-webkit-scrollbar,.controls::-webkit-scrollbar{display:none}
 }
 @media(max-width:720px){
-  #app{padding:10px;gap:10px;grid-template-rows:auto auto minmax(400px,56vh) auto auto minmax(300px,38vh)}
+  #app{padding:10px;gap:10px}
   .top{border-radius:22px;padding:12px}
   .brand{gap:10px}
   .brand h1{font-size:18px}
@@ -108,7 +118,7 @@ button:focus-visible,input:focus-visible{outline:2px solid rgba(137,216,255,.72)
   .stats{gap:7px}
   .controls{gap:8px}
   .btn{padding:8px 12px;border-radius:14px;font-size:12px;min-width:max-content}
-  .worldCard{min-height:400px}
+  .worldCard{height:56vh;min-height:400px}
   .hud{gap:6px}
   .chip{padding:7px 10px;font-size:11px}
   .seedBox{grid-template-columns:minmax(0,1fr) auto auto;padding:6px 6px 6px 10px;border-radius:18px;gap:6px}
@@ -133,12 +143,14 @@ button:focus-visible,input:focus-visible{outline:2px solid rgba(137,216,255,.72)
 </style>
 </head>
 <body>
-<div id="app">
+<div id="app" class="mv-village">
   <header class="top">
     <div class="brand"><div class="mark">✦</div><div><h1>AI 마을</h1><p>주민이 걷고, 소식이 퍼지고, 작은 기술이 쌓이는 연구형 마을 시뮬레이션</p></div></div>
     <div class="stats" id="stats"></div>
     <div class="controls"><button class="btn primary" id="pauseBtn">멈춤</button><button class="btn" id="stepBtn">한 걸음</button><button class="btn" id="speedBtn">속도 1x</button><button class="btn" id="directorBtn" title="사건 감독 교체">감독 🎭 카산드라</button><button class="btn warn" id="saveBtn">저장</button><button class="btn" id="resetBtn">새 마을</button></div>
   </header>
+
+  <nav class="mobileTabs" id="mobileTabs"><button data-mtab="village" class="on">마을</button><button data-mtab="status">AI마을 현황</button><button data-mtab="observe">AI마을 관찰</button><button data-mtab="records">기록</button></nav>
 
   <div class="hud"><div class="chip">시간 <b id="clock">1일 07:00</b></div><div class="chip">마을 <b id="scene">아침 정리</b></div><div class="chip">입력 <b id="inputState">0</b></div></div>
 
@@ -1403,13 +1415,21 @@ function renderChronicle(){
   const list=state.chronicle.filter(e=>f.type==='all'||(f.type==='who'&&e.who.includes(f.id))||(f.type==='where'&&e.where.includes(f.id))||(f.type==='kind'&&e.kind===f.id)).slice(0,160);
   setHTML($('#chronLog'),list.map(e=>`<div class="event"><div class="time">${e.time}</div><div class="text">${esc(e.text)}</div><div class="kind">${esc(e.kind)}</div></div>`).join('')||'<div class="empty">아직 연대기에 남을 만큼 굵직한 일이 없어. 인물·장소·종류 단추로 역사를 걸러 볼 수 있어.</div>');
 }
+// ── 모바일 상단 탭: 좁은 화면에선 마을/현황/관찰/기록을 한 화면씩 보여준다 (넓은 화면에선 무시됨) ──
+let mview='village';
+function setMview(v){
+  mview=v; const app=$('#app');
+  ['mv-village','mv-status','mv-observe','mv-records'].forEach(c=>app.classList.remove(c)); app.classList.add('mv-'+v);
+  $$('#mobileTabs [data-mtab]').forEach(b=>b.classList.toggle('on',b.dataset.mtab===v));
+  renderSide(); window.scrollTo(0,0);
+}
 // ── 선택은 한 곳으로: 히스토리에 잡혀(폰 뒤로가기=복귀) 좁은 화면에선 패널로 시선을 데려간다 ──
 function setSelected(id){
   if(id){
     const first=!selected; selected=id;
     if(first){try{history.pushState({sel:1},'')}catch(e){}}
     updateUI();
-    if(window.innerWidth<=1180)document.querySelector('.inspect').scrollIntoView({behavior:'smooth',block:'start'});
+    if(window.innerWidth<=1180)setMview('status'); // 좁은 화면: 상세는 현황 화면에서 보여준다
   } else if(selected){
     if(history.state&&history.state.sel){try{history.back();return}catch(e){}} // popstate가 마저 지운다
     selected=null; updateUI();
@@ -1507,6 +1527,12 @@ function init(){
   $('#sideBody').addEventListener('input',e=>{if(e.target.matches('[data-knob]'))state.knobs[e.target.dataset.knob]=e.target.value/100});
   // 마을 전체 패널 상단 탭 — 재렌더에도 살아남게 위임으로 묶는다
   $('#sideBody').addEventListener('click',e=>{const t=e.target.closest('[data-sidetab]');if(t&&t.dataset.sidetab!==sideTab){sideTab=t.dataset.sidetab;renderSide();$('#sideBody').scrollTop=0}});
+  // 모바일 상단 탭 — 현황/관찰 탭은 사이드 패널의 해당 탭과 동기화된다
+  $$('#mobileTabs [data-mtab]').forEach(b=>b.onclick=()=>{
+    const v=b.dataset.mtab;
+    if(v==='status'||v==='observe'){sideTab=v; if(selected)setSelected(null)}
+    setMview(v);
+  });
   $('#sideBody').addEventListener('pointerdown',e=>{if(e.target.matches('[data-knob]'))knobHold=true});
   document.addEventListener('pointerup',()=>{if(knobHold){knobHold=false;renderSide()}});
   // 복귀: ← 버튼과 폰/브라우저 뒤로가기 둘 다 '마을 전체'로 돌아온다
