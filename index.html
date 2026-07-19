@@ -169,14 +169,13 @@ button:focus-visible,input:focus-visible{outline:2px solid rgba(137,216,255,.72)
   </aside>
 
   <section class="dock">
-    <div class="tabs"><button class="tab active" data-tab="life">일대기</button><button class="tab" data-tab="chron">연대기</button><button class="tab" data-tab="talk">대화</button><button class="tab" data-tab="news">소식지도</button><button class="tab" data-tab="dev">발전·기술</button><button class="tab" data-tab="work">산출물</button><button class="tab" data-tab="research">연구 대응표</button></div>
+    <div class="tabs"><button class="tab active" data-tab="life">일대기</button><button class="tab" data-tab="chron">연대기</button><button class="tab" data-tab="talk">대화</button><button class="tab" data-tab="news">소식지도</button><button class="tab" data-tab="dev">발전·기술</button><button class="tab" data-tab="work">산출물</button></div>
     <div class="panel active" id="panel-life"><div class="timeline" id="lifeLog"></div></div>
     <div class="panel" id="panel-chron"><div class="grid2" id="storyList" style="margin-bottom:11px"></div><div class="chronBar" id="chronBar"></div><div class="timeline" id="chronLog"></div></div>
     <div class="panel" id="panel-talk"><div id="talkLog"></div></div>
     <div class="panel" id="panel-news"><div class="grid2" id="newsList"></div></div>
     <div class="panel" id="panel-dev"><div class="grid3" id="devList"></div></div>
     <div class="panel" id="panel-work"><div class="grid2" id="workList"></div></div>
-    <div class="panel" id="panel-research"><div class="grid2" id="researchList"></div></div>
   </section>
 </div><script>
 (()=>{
@@ -1363,45 +1362,9 @@ function updateUI(){
   setHTML($('#newsList'),state.news.map(n=>`<button class="tile" data-pick="${n.id}"><div class="newsHead"><h4>${n.verified?'확인된 소식':'확인 중'}</h4><span class="pill ${n.verified?'ok':(n.confidence<45?'bad':'')}">${spreadRate(n)}%</span></div><p>${esc(n.text)}</p><div class="bar ${n.verified?'':'rose'}"><i style="width:${spreadRate(n)}%"></i></div><div class="progressLabel"><span>${esc(n.origin)}</span><b>확신 ${Math.round(n.confidence)}</b></div></button>`).join('')||'<div class="empty">입력창으로 목표나 소식을 넣으면, 몇몇 주민에게 먼저 들어간 뒤 대화로 퍼져.</div>'); bindPick();
   setHTML($('#devList'),projects.map(pr=>`<div class="tile"><h4>${esc(pr.name)}</h4><p>${esc(pr.desc)}</p><div class="bar"><i style="width:${pr.p}%"></i></div><div class="progressLabel"><span>${building(pr.place).name} · ${pr.need}</span><b>${pr.done?'완성':Math.round(pr.p)+'%'}</b></div></div>`).join('')+skills.map(s=>`<div class="tile"><h4>기술 서랍 · ${esc(s.name)}</h4><p>${esc(s.desc)}</p><small>${esc(s.source)} · Lv.${s.level}</small></div>`).join(''));
   setHTML($('#workList'),(state.artifacts.map(a=>`<div class="tile artifact"><b>${esc(a.title)}</b><p>${esc(a.text)}<br>— ${esc(a.by)} · ${esc(a.where)} · ${a.time}</p></div>`).join('')||'<div class="empty">프로젝트, 도구 시험, 확인 작업이 끝나면 결과물이 쌓여.</div>')+state.inputs.slice(0,8).map(i=>`<div class="tile"><h4>입력 ${esc(i.id)} · ${esc(i.status)}</h4><p>${esc(i.text)}</p><small>${timeTextFrom(i.time)}</small></div>`).join(''));
-  setHTML($('#researchList'),researchCards().map(c=>`<div class="tile engine"><b>${esc(c.title)}</b><p>${esc(c.body)}</p></div>`).join(''));
   renderChronicle();
   renderSide();
 }
-function researchCards(){return [
-  {title:'Generative Agents · 기억 흐름',body:'주민마다 시간, 무게, 최근 접근, 태그가 붙은 기억 조각을 갖고 현재 장소와 대화 주제에 맞춰 상위 기억을 꺼낸다.'},
-  {title:'Generative Agents · 계획과 반응',body:'아침에 하루 동선을 만들고, 에너지 저하·확인 안 된 소식·미완성 프로젝트가 생기면 장소를 바꾼다.'},
-  {title:'Generative Agents · 사회적 결과',body:'소식 확산률, 관계 밀도, 공동 프로젝트 참석처럼 마을 단위의 결과가 일대기와 수치에 남는다.'},
-  {title:'AI Town · 입력과 틱',body:'사용자 입력은 바로 세계를 바꾸지 않고 대기열에 들어갔다가 틱에서 처리된다. 주민도 동시에 여러 작업을 하지 않는다.'},
-  {title:'AI Town · 대화 요약 기억',body:'대화가 끝나면 양쪽 주민에게 짧은 요약 기억을 남기고, 다음 대화에서 관련 기억을 다시 꺼낸다.'},
-  {title:'AI Village · 도구 사용과 실패',body:'공방·게이트·무대에서는 도구를 시험한다. 성공하면 산출물과 기술이 쌓이고, 실패하면 혼선이 잠깐 오른다.'},
-  {title:'AI Village · 혼선 전파',body:'확인되지 않은 말도 퍼질 수 있다. 확신이 낮은 주민은 관측대로 이동해 근거를 붙이려 하고, 확인되면 혼선이 내려간다.'},
-  {title:'Voyager · 기술 서랍',body:'완성된 프로젝트는 다음 행동에 쓰이는 작은 기술로 남는다. 마을발전기 코어가 켜지면 반복 작업 효율이 오른다.'},
-  {title:'The Sims · 광고하는 건물',body:'건물이 "여기서 할 수 있는 일과 효용"을 광고하고, 주민은 자기 욕구·역할과 곱해 점수만 계산한다. 주민 패널의 행동 점수표가 그 계산을 그대로 보여준다.'},
-  {title:'Tracery · 문법 대화',body:'대화와 사건 문장은 고정 문장이 아니라 치환 문법에서 매번 조합되고, 받침에 따라 조사(이/가, 은/는)가 맞춰진다.'},
-  {title:'Veloren rtsim · 따라잡기',body:'탭이 닫히거나 가려져 있던 시간은 이동·대화 같은 고해상도 연출을 건너뛰고 진척·소식·관계·약속만 저해상도 규칙으로 흘러, 다시 보면 마을이 그만큼 살아 있다.'},
-  {title:'Veloren · 관심 LOD',body:'선택한 주민·건물에서 먼 이들은 인지 판단(일 선택·관찰·광장 글·대화 시도)을 3틱에 1번, 보정된 확률로 굴린다. 화면의 움직임은 매 틱 그대로 — 생각의 해상도만 낮춰 주민 수가 늘어도 마을이 가볍다.'},
-  {title:'Dwarf Fortress · 기억→성격',body:'기억이 묶여 영구층으로 내려가는 순간 성격 축(낙관·신중·사교·끈기)이 반드시 이동하고, 바뀐 성격은 광고 점수·대화·작업 확률에 되먹임된다.'},
-  {title:'RimWorld · 사건 감독',body:'시뮬레이션과 분리된 감독(카산드라·피비·랜디)이 활기·혼선·발전 수준·경과 시간을 읽고 사건을 투하한다. 위기 직후엔 회복이 보장되고, 전개는 시뮬레이션에 맡긴다.'},
-  {title:'Dwarf Fortress · 전설 모드',body:'일대기는 90줄에서 잘리지만 굵직한 사건은 연대기에 영구히 남고, 인물·장소·종류 단추로 마을의 역사를 교차 열람한다. 시뮬레이션의 산출물은 게임이 아니라 역사책이다.'},
-  {title:'루나의 도서관 · 약속과 쌍 중력',body:'대화에서 방문·공동작업 약속이 생기고, 닫히지 않은 약속·풀지 못한 어긋남·미확인 소식이 쌍 중력이 되어 다음 만남을 끌어당긴다. 파기가 쌓이면 평판 소문과 마을의 첫 관습이 된다.'},
-  {title:'루나의 도서관 · 기억-정합 소문',body:'소문은 듣는 이의 기억에 비추어 내려앉는다 — 겪은 것과 일치하면 증폭되고, 충돌하면 의심과 역소문의 씨앗이 되며, 겪은 게 없으면 그대로 첫인상이 된다.'},
-  {title:'루나의 도서관 · 욕망 되먹임',body:'갈등은 화해의 바람을, 완성은 나누고 싶은 마음을, 낡음은 손보고 싶은 마음을 남긴다. 바람은 행동 점수와 동선에 선택압으로 되먹이고, 풀리면 스스로 사라진다.'},
-  {title:'루나의 도서관 · 개인 거주지',body:'주민마다 내면이 드러나는 거처가 있다. 밤을 여닫는 곳이자 방문 약속의 무대이며, 굳은 기억이 방 안의 흔적으로 남는다. 장소에는 사건의 결(장소의 역사)이 쌓인다.'},
-  {title:'루나의 도서관 · 광장 글',body:'같은 자리에 없어도 광장에 남긴 글을 시간차로 읽으며 소식이 퍼진다 — 오프라인 co-presence를 보완하는 온라인 채널.'},
-  {title:'Smallville · 주민 발의 행사',body:'행사는 감독만 던지지 않는다. 주민이 모임을 발의하면 초대장이 소문의 길을 타고 퍼지고, 참석은 관계·성격·기분이 정한다 — 발렌타인 파티 문법. 아무도 오지 않은 저녁도 하나의 이야기다.'},
-  {title:'Dwarf Fortress · 취향 테이블',body:'주민마다 "여섯 번째 계단의 삐걱임" 같은 무의미하게 구체적인 취향이 있다. 취향은 대화 주제·광장 글·거처의 흔적·모임 이름에 스며들고, 같은 걸 좋아하는 둘이 그걸 처음 알게 되는 순간 관계가 한 뼘 가까워진다.'},
-  {title:'Tracery · 말투와 기억 인용',body:'주민마다 문법 일부를 자기 말투로 덮어쓰고(기록자는 색인에 넣고, 축제지기는 등불을 켠다), 대화는 방금 회상한 기억을 실제로 인용한다 — 같은 템플릿도 역사가 실리면 매번 다른 말이 된다.'},
-  {title:'Talk of the Town · 소문 왜곡',body:'말은 사람을 타며 미끄러진다 — 장소가 바뀌고, 표현이 부풀고, 꼬리가 붙는다. 주민마다 자기가 들은 판본을 갖고, 글(게시판)은 왜곡되지 않으며, 관측대의 확인이 판본을 원본으로 교정한다.'},
-  {title:'Talk of the Town · 이야기 발굴',body:'시뮬레이션은 원재료를 만들고, 이야기는 큐레이션이 찾아낸다 — 사건 로그·관계·약속·소문에서 부딪히는 두 사람, 다시 이어진 매듭, 말이 걸어간 길 같은 서사 패턴을 사후 검색한다 (drama.py).'},
-  {title:'Project Sid · 관습의 여러 씨앗',body:'관습은 한 축에서만 나오지 않는다 — 어그러진 약속(확인하는 관습), 바로잡힌 말(되묻는 관습), 성공한 모임(자리를 여는 관습), 이뤄진 화해(먼저 말 거는 관습)가 각자 쌓여 마을의 규범이 되고, 생긴 관습은 행동 확률에 되먹인다.'},
-  {title:'Ensemble · 사회 물리 규칙표',body:'대화의 수(화해·전달·조율·취향·회상·갈등·약속·잡담)는 코드 분기가 아니라 "조건 → 의지 가중치" 규칙 데이터가 정한다. 매 대화의 의지 순위표가 주민 패널에 남아 "왜 이 말을 했나"에 항상 답할 수 있다.'},
-  {title:'Versu · 진행형 행사',body:'열린 모임은 참여자에게 행동 수(낭독·등불·기록·속 깊은 말·지켜보기)를 제공하고, 선택은 성격과 역할이 정하며 각자 다른 기억으로 남는다. 모임의 관습이 생기면 "다음 자리 약속"이라는 수가 새로 열린다 — 관습이 선택지를 바꾼다.'},
-  {title:'Schelling · 거주지 동학',body:'따뜻한 이웃이 1/3에 못 미치거나 서먹한 이웃이 둘이면 친한 이의 집 곁으로 거처를 옮긴다. 임계값 하나로 지도에 구역이 저절로 생기고, 이사는 소문과 기억의 재료가 된다.'},
-  {title:'Boids · 조향 이동',body:'주민의 걸음은 목표 직선이 아니라 arrive(감속 도착)·separation(밀집 회피)·wander(잔흔들림) 조향력의 합이다. 광장에 모일 때 자연스레 벌어지고, 서성임이 생긴다 — 관찰 재미의 절반은 움직임의 질감이다.'},
-  {title:'Sugarscape · 자원 격자',body:'지형이 장식이 아니라 자라고 소모되는 들녘이다 — 온실과 물길 가까이가 기름지고, 쉼은 들녘을 걷어가며, 걷힌 자리는 다시 자랄 시간이 필요하다. 비가 오면 빨리 자라고, 들이 마르면 쉼이 얕아지고 마을의 활기가 내려간다. 풍년과 흉년이 사건이 아니라 시뮬레이션의 결과가 된다.'},
-  {title:'Talk of the Town · 생애 사건',body:'구성원 자체가 변해야 마을이 오래 볼수록 다른 곳이 된다 — 굳은 기억이 성격을 사흘 넘게 기울이면 소명이 옮겨가고(전직), 활기가 도는 마을에는 나루터를 건너오는 새 얼굴이 있고, 관계가 오래 식은 이는 며칠을 기울다 나루터를 다시 건넌다(퇴장). 사람이 떠나도 이름은 연대기와 소문의 길에 남는다 — 유입과 떠남이 함께 있어야 세대가 흐른다.'},
-  {title:'단일 파일의 선',body:'실제 LLM 호출, 벡터 DB, 서버 작업 큐, 컴퓨터 화면 조작은 없다. 대신 구조의 움직임을 브라우저 규칙으로 압축했다.'}
-]}
 // ── TotT drama.py식 이야기 발굴: 시뮬레이션은 원재료를 만들고, 이야기는 큐레이션이 찾아낸다 —
 //    사건 로그·관계·약속·소문에서 서사 패턴을 사후 검색한다 (docs/research/talk-of-the-town.md) ──
 function mineStories(){
