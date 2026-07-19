@@ -1,11 +1,10 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
 <rect width="512" height="512" rx="120" fill="#ffffff"/>
 <g stroke="#111111" stroke-linecap="round" stroke-linejoin="round">
-<rect x="156" y="148" width="44" height="92" rx="8" fill="#ffffff" stroke-width="15"/>
-<path fill="none" stroke-width="15" d="M 170 272 L 170 390 Q 170 408 188 408 L 324 408 Q 342 408 342 390 L 342 272"/>
-<path fill="none" stroke-width="46" d="M 92 330 L 256 158 L 420 330"/>
-<path fill="none" stroke="#ffffff" stroke-width="20" d="M 92 330 L 256 158 L 420 330"/>
-<rect x="198" y="336" width="46" height="46" rx="8" fill="none" stroke-width="15"/>
-<path fill="none" stroke-width="15" d="M 268 408 L 268 350 Q 268 336 282 336 L 308 336 Q 322 336 322 350 L 322 408"/>
+<path fill="none" stroke-width="15" d="M 158 268 L 158 392 Q 158 410 176 410 L 336 410 Q 354 410 354 392 L 354 268"/>
+<path fill="#ffffff" stroke-width="15" d="M 166 234 L 166 162 Q 166 152 176 152 L 198 152 Q 208 152 208 162 L 208 193"/>
+<path fill="#ffffff" stroke-width="15" d="M 100 296 L 256 140 L 412 296 L 391 317 L 256 182 L 121 317 Z"/>
+<rect x="190" y="334" width="48" height="48" rx="8" fill="none" stroke-width="15"/>
+<path fill="none" stroke-width="15" d="M 262 410 L 262 342 Q 262 326 278 326 L 302 326 Q 318 326 318 342 L 318 410"/>
 </g>
 </svg>
