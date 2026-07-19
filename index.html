@@ -233,10 +233,20 @@ const defs=[
   ['a6','라온','축제지기','🎐','#fcd34d','studio',['문화','행사','광장']],
   ['a7','유진','연결자','🧭','#9ff4ef','square',['관계','소식','연결']]
 ];
+// ── Dwarf Fortress식 성격: 기억이 영구화(묶음)될 때만 성격이 이동한다 (docs/research/dwarf-fortress.md) ──
+const PERS_AXES=['낙관','신중','사교','끈기'];
+const ROLE_PERS={기록자:{신중:10,끈기:4},조율가:{사교:12,낙관:4},공방장:{끈기:12,신중:4},정원사:{낙관:10,사교:4},관측가:{신중:12,끈기:4},전령:{사교:10,낙관:4},축제지기:{낙관:12,사교:6},연결자:{사교:12,신중:2}};
+function basePers(role){const p={};PERS_AXES.forEach(k=>p[k]=Math.round(clamp(44+rnd()*12+((ROLE_PERS[role]||{})[k]||0),0,100)));return p}
+function shiftPers(a,axis,d,why){
+  const before=Math.round(a.pers[axis]); a.pers[axis]=clamp(a.pers[axis]+d,5,95); const after=Math.round(a.pers[axis]);
+  if(after===before)return;
+  a.persLog.unshift({time:timeText(),text:`${why} — ${axis} ${after>before?'+':''}${after-before}`}); a.persLog=a.persLog.slice(0,6);
+}
 const agents=defs.map((d,i)=>({
   id:d[0],name:d[1],role:d[2],face:d[3],color:d[4],home:d[5],baseTags:d[6],
   x:540+rnd()*80,y:316+rnd()*60,tx:560+rnd()*50,ty:300+rnd()*45,place:'square',
   mood:58+rnd()*24,energy:58+rnd()*22,focus:46+rnd()*30,confidence:50+rnd()*26,
+  pers:basePers(d[2]),persLog:[],
   task:'오늘의 동선을 고르는 중',thought:'아침의 소리를 듣고 있다.',op:null,cool:0,bubble:'',bubbleT:0,plan:[],lastSlot:-1,rel:{},memories:[],recalled:[],known:{},attention:0,pathTrail:[],lastScores:[]
 }));
 agents.forEach(a=>agents.forEach(b=>{if(a!==b)a.rel[b.id]=Math.round(38+rnd()*30)}));
@@ -278,6 +288,12 @@ function makeBundle(a){
   };
   const text=lines[topic]||`${a.name}은 최근의 여러 일을 묶어 ${topic} 쪽이 다음 움직임의 열쇠라고 보았다.`;
   memory(a,text,[topic,'묶음','기억'],8,'묶음',{},false); a.thought=text;
+  // 기억이 영구층으로 내려가는 순간 성격이 반드시 이동한다 — 기억→성격→행동의 되먹임 고리
+  const drift={'소식':['신중',2],'확인':['신중',3],'관계':['사교',2],'대화':['사교',2],'기술':['끈기',3],'도구':['끈기',2],'발전':['끈기',2],'문화':['낙관',3],'회복':['낙관',2],'혼선':['신중',2],'계획':['끈기',2],'기록':['신중',2]}[topic]||['끈기',1];
+  shiftPers(a,drift[0],drift[1],`${topic}의 기억이 굳었다`);
+  if(a.mood<38)shiftPers(a,'낙관',-2,'힘든 시기의 기억이 굳었다');
+  else if(a.mood>72)shiftPers(a,'낙관',1,'좋은 시기의 기억이 굳었다');
+  addLife(`${a.name}의 기억이 묶여 성격에 내려앉았다 — ${topic} 쪽으로 마음이 기울었다.`,'성격');
 }
 function buildPlan(a){
   const roleMap={기록자:'library',조율가:'square',공방장:'workshop',정원사:'garden',관측가:'tower',전령:'gate',축제지기:'studio',연결자:'square'};
@@ -371,13 +387,13 @@ function nearbyBuilding(a){return buildings.find(b=>Math.abs(a.x-b.x)<b.w*.55&&M
 //    주민은 자기 욕구·역할과 곱해 점수만 계산한다 (docs/research/the-sims.md) ──
 function buildingAds(b,a){
   const ads=[];
-  if(b.id==='garden')ads.push({type:'recover',label:'숨 고르기',score:(100-a.energy)*.9+(100-a.mood)*.25});
+  if(b.id==='garden')ads.push({type:'recover',label:'숨 고르기',score:(100-a.energy)*.9+(100-a.mood)*.25+(50-a.pers.낙관)*.15});
   if(b.id==='tower'){const n=state.news.find(n=>a.known[n.id]&&!n.verified&&a.known[n.id].confidence<78);
-    if(n)ads.push({type:'verify',label:'소식 근거 확인',newsId:n.id,score:34+(78-a.known[n.id].confidence)*.8+norm(a.focus,20,90)*18})}
+    if(n)ads.push({type:'verify',label:'소식 근거 확인',newsId:n.id,score:34+(78-a.known[n.id].confidence)*.8+norm(a.focus,20,90)*18+(a.pers.신중-50)*.4})}
   const pr=projectAt(b.id);
-  if(pr)ads.push({type:'project',label:pr.name,projectId:pr.id,score:26+(100-pr.p)*.22+norm(a.focus,30,95)*20+(a.baseTags.includes(pr.need)?14:0)});
-  if(b.id==='workshop'||b.id==='gate'||b.id==='studio')ads.push({type:'tool',label:`${b.kind} 도구 시험`,score:16+norm(a.focus,30,90)*16+(a.baseTags.includes(b.kind)?8:0)+(hasSkill('반복 작업 묶기')?6:0)});
-  if(b.id==='library')ads.push({type:'archive',label:'기억 정리',score:12+Math.min(a.memories.length,20)*.9+(a.role==='기록자'?10:0)});
+  if(pr)ads.push({type:'project',label:pr.name,projectId:pr.id,score:26+(100-pr.p)*.22+norm(a.focus,30,95)*20+(a.baseTags.includes(pr.need)?14:0)+(a.pers.끈기-50)*.3});
+  if(b.id==='workshop'||b.id==='gate'||b.id==='studio')ads.push({type:'tool',label:`${b.kind} 도구 시험`,score:16+norm(a.focus,30,90)*16+(a.baseTags.includes(b.kind)?8:0)+(hasSkill('반복 작업 묶기')?6:0)+(a.pers.끈기-50)*.2});
+  if(b.id==='library')ads.push({type:'archive',label:'기억 정리',score:12+Math.min(a.memories.length,20)*.9+(a.role==='기록자'?10:0)+(a.pers.신중-50)*.15});
   return ads;
 }
 function workDecision(a){
@@ -385,7 +401,7 @@ function workDecision(a){
   const ads=buildingAds(place,a).sort((x,y)=>y.score-x.score);
   a.lastScores=ads.slice(0,3).map(ad=>({label:ad.label,score:Math.round(ad.score)}));
   const top=ads[0]; if(!top)return;
-  if(rnd()<clamp(top.score/100,0,.9)*.28)startOperation(a,top.type,place.id,top.projectId||null,top.newsId||null);
+  if(rnd()<clamp(top.score/100,0,.9)*.28*(.7+norm(a.pers.끈기,0,100)*.6))startOperation(a,top.type,place.id,top.projectId||null,top.newsId||null);
 }
 function observe(a){
   if(rnd()>.025)return; const near=agents.filter(o=>o!==a&&dist(a,o)<90); const place=nearbyBuilding(a);
@@ -393,7 +409,7 @@ function observe(a){
   else if(place)memory(a,`${place.name}의 분위기가 ${state.scene}에 맞춰 조금 달라졌다.`,[place.id,place.kind],2,'관찰');
 }
 function converse(a,b){
-  if(a.cool>0||b.cool>0||a.op||b.op||dist(a,b)>76||rnd()>.036)return;
+  if(a.cool>0||b.cool>0||a.op||b.op||dist(a,b)>76||rnd()>.036*(.6+(a.pers.사교+b.pers.사교)/2/100*.8))return;
   let speaker=a, listener=b; if(rnd()<.5){speaker=b;listener=a}
   const transferable=state.news.find(n=>speaker.known[n.id]&&!listener.known[n.id]&&(speaker.known[n.id].confidence>34||rnd()<.25));
   const knownBoth=state.news.find(n=>speaker.known[n.id]&&listener.known[n.id]&&!n.verified&&Math.abs(speaker.known[n.id].confidence-listener.known[n.id].confidence)>18);
@@ -406,9 +422,9 @@ function converse(a,b){
     line=`그 말은 둘 다 들었지만, 근거를 한 번 더 보자.`; kind='확인'; summary=`${speaker.name}와 ${listener.name}이 같은 소식을 두고 확인이 필요하다고 맞췄다.`; delta=2; setTarget(speaker,'tower','함께 소식을 확인하러 가는 중'); if(rnd()<.45)setTarget(listener,'tower','함께 소식을 확인하러 가는 중');
   } else {
     const topic=pick(G['주제']);
-    const good=(speaker.mood+listener.mood+speaker.rel[listener.id]+listener.rel[speaker.id])/4 + rnd()*16>56;
+    const good=(speaker.mood+listener.mood+speaker.rel[listener.id]+listener.rel[speaker.id])/4 + rnd()*16 + (speaker.pers.낙관-50)*.25>56;
     line=good?gen('긍정',{'주제':topic}):gen('신중',{'주제':topic});
-    summary=`${speaker.name}와 ${listener.name}이 ${topic}에 대해 짧게 맞췄다.`; delta=good?3:0; kind=good?'대화':'조율';
+    summary=`${speaker.name}와 ${listener.name}이 ${topic}에 대해 짧게 맞췄다.`; delta=(good?3:0)+(speaker.pers.사교>62?1:0); kind=good?'대화':'조율';
   }
   speaker.bubble=line; listener.bubble=gen('맞장구'); speaker.bubbleT=listener.bubbleT=3.4; speaker.cool=listener.cool=5.4;
   speaker.rel[listener.id]=clamp(speaker.rel[listener.id]+delta,0,100); listener.rel[speaker.id]=clamp(listener.rel[speaker.id]+delta,0,100); state.resources.신뢰=clamp(state.resources.신뢰+delta*.12,0,100);
@@ -537,7 +553,7 @@ function renderSide(){
     const a=obj, place=building(a.place)||nearbyBuilding(a), slot=currentSlot(a), known=state.news.filter(n=>a.known[n.id]).slice(0,4);
     $('#sideTitle').textContent=a.name; $('#sideSub').textContent=`${a.role} · ${a.task}`; $('#sideBadge').textContent=place?place.name:'이동 중';
     const rels=agents.filter(o=>o!==a).map(o=>`<div class="rel"><span>${o.name}</span><div class="relLine"><i style="width:${a.rel[o.id]}%"></i></div><span>${a.rel[o.id]}</span></div>`).join('');
-    body.innerHTML=`<div class="profile"><div class="avatar" style="background:${a.color}22">${a.face}</div><div><h3>${a.name}</h3><p>${a.role}<br>${esc(a.thought)}</p></div></div><div class="card"><p class="cap">지금</p><div class="note">${slot?slot.label:'자유 행동'} · ${place?place.name:'길 위'}${a.op?`<br><span class="subtle">${a.op.label} · ${Math.round((1-a.op.left/a.op.total)*100)}%</span>`:''}</div></div><div class="card"><p class="cap">상태</p><div class="meterGrid">${meter('기분',a.mood)}${meter('에너지',a.energy)}${meter('집중',a.focus)}${meter('확신',a.confidence)}</div></div><div class="card"><p class="cap">행동 점수표</p><div class="miniList">${a.lastScores&&a.lastScores.length?a.lastScores.map(s=>`<div class="mini"><b>${esc(s.label)}</b> · 점수 ${s.score}</div>`).join(''):'<div class="note subtle">근처 건물의 광고를 아직 듣지 못했어.</div>'}</div></div><div class="card"><p class="cap">오늘 일정</p><div class="schedule">${a.plan.map(s=>`<div class="slot ${s===slot?'now':''}"><span>${hourLabel(s.s)}</span><b>${esc(s.label)}</b></div>`).join('')}</div></div><div class="card"><p class="cap">방금 꺼낸 기억</p><div class="miniList">${(a.recalled.length?a.recalled:a.memories.slice(0,3)).map(m=>`<div class="mini"><b>${esc(m.type)}</b> · ${esc(m.text)}<br><span class="subtle">무게 ${m.importance} · ${m.tags.map(esc).join(' / ')}</span></div>`).join('')}</div></div><div class="card"><p class="cap">알고 있는 소식</p><div class="tags">${known.map(n=>`<button class="tag" data-pick="${n.id}">${n.verified?'✓':'?'} ${esc(n.text.slice(0,18))}</button>`).join('')||'<span class="tag">아직 조용함</span>'}</div></div><div class="card"><p class="cap">관계 온도</p><div class="rels">${rels}</div></div>`; bindPick(); return;
+    body.innerHTML=`<div class="profile"><div class="avatar" style="background:${a.color}22">${a.face}</div><div><h3>${a.name}</h3><p>${a.role}<br>${esc(a.thought)}</p></div></div><div class="card"><p class="cap">지금</p><div class="note">${slot?slot.label:'자유 행동'} · ${place?place.name:'길 위'}${a.op?`<br><span class="subtle">${a.op.label} · ${Math.round((1-a.op.left/a.op.total)*100)}%</span>`:''}</div></div><div class="card"><p class="cap">상태</p><div class="meterGrid">${meter('기분',a.mood)}${meter('에너지',a.energy)}${meter('집중',a.focus)}${meter('확신',a.confidence)}</div></div><div class="card"><p class="cap">성격 — 굳은 기억이 만든 결</p><div class="meterGrid">${PERS_AXES.map(k=>meter(k,a.pers[k])).join('')}</div>${a.persLog.length?`<div class="miniList" style="margin-top:8px">${a.persLog.slice(0,3).map(l=>`<div class="mini"><span class="subtle">${l.time}</span> · ${esc(l.text)}</div>`).join('')}</div>`:'<div class="note subtle" style="margin-top:8px">아직 성격을 움직일 만큼 굳은 기억이 없어.</div>'}</div><div class="card"><p class="cap">행동 점수표</p><div class="miniList">${a.lastScores&&a.lastScores.length?a.lastScores.map(s=>`<div class="mini"><b>${esc(s.label)}</b> · 점수 ${s.score}</div>`).join(''):'<div class="note subtle">근처 건물의 광고를 아직 듣지 못했어.</div>'}</div></div><div class="card"><p class="cap">오늘 일정</p><div class="schedule">${a.plan.map(s=>`<div class="slot ${s===slot?'now':''}"><span>${hourLabel(s.s)}</span><b>${esc(s.label)}</b></div>`).join('')}</div></div><div class="card"><p class="cap">방금 꺼낸 기억</p><div class="miniList">${(a.recalled.length?a.recalled:a.memories.slice(0,3)).map(m=>`<div class="mini"><b>${esc(m.type)}</b> · ${esc(m.text)}<br><span class="subtle">무게 ${m.importance} · ${m.tags.map(esc).join(' / ')}</span></div>`).join('')}</div></div><div class="card"><p class="cap">알고 있는 소식</p><div class="tags">${known.map(n=>`<button class="tag" data-pick="${n.id}">${n.verified?'✓':'?'} ${esc(n.text.slice(0,18))}</button>`).join('')||'<span class="tag">아직 조용함</span>'}</div></div><div class="card"><p class="cap">관계 온도</p><div class="rels">${rels}</div></div>`; bindPick(); return;
   }
   if(obj.tools){
     const b=obj, pr=projectAt(b.id), near=agents.filter(a=>Math.abs(a.x-b.x)<150&&Math.abs(a.y-b.y)<125);
@@ -574,6 +590,7 @@ function researchCards(){return [
   {title:'The Sims · 광고하는 건물',body:'건물이 "여기서 할 수 있는 일과 효용"을 광고하고, 주민은 자기 욕구·역할과 곱해 점수만 계산한다. 주민 패널의 행동 점수표가 그 계산을 그대로 보여준다.'},
   {title:'Tracery · 문법 대화',body:'대화와 사건 문장은 고정 문장이 아니라 치환 문법에서 매번 조합되고, 받침에 따라 조사(이/가, 은/는)가 맞춰진다.'},
   {title:'Veloren rtsim · 따라잡기',body:'탭이 닫혀 있던 시간은 이동·대화 같은 고해상도 연출을 건너뛰고 진척·소식·관계만 저해상도 규칙으로 흘러, 다시 열면 마을이 그만큼 살아 있다.'},
+  {title:'Dwarf Fortress · 기억→성격',body:'기억이 묶여 영구층으로 내려가는 순간 성격 축(낙관·신중·사교·끈기)이 반드시 이동하고, 바뀐 성격은 광고 점수·대화·작업 확률에 되먹임된다.'},
   {title:'단일 파일의 선',body:'실제 LLM 호출, 벡터 DB, 서버 작업 큐, 컴퓨터 화면 조작은 없다. 대신 구조의 움직임을 브라우저 규칙으로 압축했다.'}
 ]}
 function bindPick(){$$('[data-pick]').forEach(el=>el.onclick=()=>{selected=el.dataset.pick;updateUI()})}
@@ -623,7 +640,7 @@ function catchUp(elapsedMs){
   toast(`닫힌 시간 ${Math.round(hours)}시간을 따라잡았어`);
 }
 function save(silent){localStorage.setItem('ai-village-polished-research',JSON.stringify({state,agents,buildings,projects,skills,seed,memSeq,newsSeq,artifactSeq,inputSeq,savedAt:Date.now()}));if(silent!==true)toast('저장했어')}
-function load(){try{const raw=localStorage.getItem('ai-village-polished-research');if(!raw)return false;const d=JSON.parse(raw);Object.assign(state,d.state);d.agents.forEach((a,i)=>Object.assign(agents[i],a));d.buildings.forEach((b,i)=>Object.assign(buildings[i],b));d.projects.forEach((p,i)=>Object.assign(projects[i],p));skills.splice(0,skills.length,...d.skills);seed=d.seed||seed;memSeq=d.memSeq||memSeq;newsSeq=d.newsSeq||newsSeq;artifactSeq=d.artifactSeq||artifactSeq;inputSeq=d.inputSeq||inputSeq;return {savedAt:d.savedAt||0}}catch(e){console.warn(e);return false}}
+function load(){try{const raw=localStorage.getItem('ai-village-polished-research');if(!raw)return false;const d=JSON.parse(raw);Object.assign(state,d.state);d.agents.forEach((a,i)=>Object.assign(agents[i],a));d.buildings.forEach((b,i)=>Object.assign(buildings[i],b));d.projects.forEach((p,i)=>Object.assign(projects[i],p));skills.splice(0,skills.length,...d.skills);seed=d.seed||seed;memSeq=d.memSeq||memSeq;newsSeq=d.newsSeq||newsSeq;artifactSeq=d.artifactSeq||artifactSeq;inputSeq=d.inputSeq||inputSeq;agents.forEach(a=>{if(!a.pers)a.pers=basePers(a.role);if(!a.persLog)a.persLog=[]});return {savedAt:d.savedAt||0}}catch(e){console.warn(e);return false}}
 function reset(){localStorage.removeItem('ai-village-polished-research');location.reload()}
 function sampleIncident(){return gen('사건')}
 function loop(t){const dt=Math.min(.08,(t-last)/1000||0);last=t;if(!paused){acc+=dt;while(acc>.05){sim(.05);acc-=.05}}render();uiTimer+=dt;if(uiTimer>.55){updateUI();uiTimer=0}requestAnimationFrame(loop)}
