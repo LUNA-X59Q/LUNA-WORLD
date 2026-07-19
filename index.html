@@ -336,7 +336,7 @@ function projectAt(place){return projects.filter(p=>p.place===place&&!p.done).so
 function hasSkill(name){return skills.some(s=>s.name===name)}
 // ── DF 전설 모드식 연대기: 일대기는 90줄에서 잘리지만, 굵직한 사건은 영구층(연대기)에 남아
 //    인물·장소·종류 축으로 교차 열람된다 (docs/research/dwarf-fortress.md) ──
-const CHRON_KINDS=['시작','아침','소식','확인','완성','성격','사건','감독','따라잡기','낡음','약속','화해','행사','관습','글','거처','취향','갈등'];
+const CHRON_KINDS=['시작','아침','소식','확인','완성','성격','사건','감독','따라잡기','낡음','약속','화해','행사','관습','글','거처','취향','갈등','생애'];
 function chron(text,kind){
   if(!CHRON_KINDS.includes(kind))return;
   state.chronicle.unshift({time:timeText(),day:state.day,text,kind,
@@ -1000,9 +1000,65 @@ function residentialTick(){
     break;
   }
 }
+// ── TotT식 생애 사건: 사건이 곧 역사 — 구성원 자체가 변해야 마을이 "오래 볼수록 다른 곳"이
+//    된다. 축소 번역 두 가지: 역할 전직(기억→성격→소명), 새 주민 유입(게이트를 건너온 얼굴)
+//    (docs/research/talk-of-the-town.md) ──
+const ROLE_DEFS={
+  기록자:{tags:['기록','기억','요약'],home:'library'},조율가:{tags:['관계','초대','조율'],home:'square'},
+  공방장:{tags:['도구','제작','기술'],home:'workshop'},정원사:{tags:['회복','활기','돌봄'],home:'garden'},
+  관측가:{tags:['확인','방향','근거'],home:'tower'},전령:{tags:['외부','전달','소식'],home:'gate'},
+  축제지기:{tags:['문화','행사','광장'],home:'studio'},연결자:{tags:['관계','소식','연결'],home:'square'}
+};
+const AXIS_ROLES={신중:['기록자','관측가'],사교:['조율가','전령','연결자'],끈기:['공방장'],낙관:['정원사','축제지기']};
+const ROLE_AXIS={기록자:'신중',관측가:'신중',조율가:'사교',전령:'사교',연결자:'사교',공방장:'끈기',정원사:'낙관',축제지기:'낙관'};
+const roleCount=r=>agents.filter(a=>a.role===r).length;
+function lifeTick(){
+  // 전직 — 굳은 기억이 성격을 옮기고, 기운 성격이 소명을 옮긴다. 사흘을 기울어 있어야 한다
+  if(state.day>=5)agents.forEach(a=>{
+    const top=PERS_AXES.reduce((m,k)=>a.pers[k]>a.pers[m]?k:m,PERS_AXES[0]);
+    const fits=AXIS_ROLES[top]||[];
+    if(fits.includes(a.role)||a.pers[top]-a.pers[ROLE_AXIS[a.role]]<12){a.roleDrift=0;return}
+    a.roleDrift=(a.roleDrift||0)+1;
+    if(a.roleDrift<3||rnd()<.5)return;
+    const old=a.role, next=[...fits].filter(r=>r!==a.role).sort((x,y)=>roleCount(x)-roleCount(y))[0]; if(!next)return;
+    a.role=next; a.baseTags=ROLE_DEFS[next].tags.slice(); a.home=ROLE_DEFS[next].home; a.roleDrift=0;
+    const text=`${N(a.name,'i')} ${old}의 일을 내려놓고 ${N(next,'i')} 되었다 — 굳은 기억들이 그쪽으로 등을 밀었다.`;
+    addLife(text,'생애'); memory(a,text,['생애','정체성'],9,'생애');
+    a.persLog.unshift({time:timeText(),text:`${old} → ${next} — 소명이 옮겨갔다`}); a.persLog=a.persLog.slice(0,6);
+    createNews(`${N(a.name,'i')} 요즘 ${building(ROLE_DEFS[next].home).name} 쪽 일을 시작했다더라`,'광장의 말',null,{subject:a.id});
+    buildPlan(a);
+  });
+  // 새 주민 — 활기가 도는 마을에는 게이트를 건너오는 얼굴이 있다
+  if(state.day>=4&&agents.length<12&&state.resources.활기>55&&rnd()<.12)arriveResident();
+}
+const NEWCOMER_NAMES=['소은','재하','다온','시안','무영','한결','로아','예서','태오','별하'];
+const NEWCOMER_FACES=['🦉','🐚','🌙','🍀','🪶','🦋','🕯️','🧵'];
+const NEWCOMER_COLORS=['#ffd7a8','#c7f0ff','#ffc7d9','#d2ffc7','#e0d1ff','#fff3a8'];
+function arriveResident(){
+  const name=NEWCOMER_NAMES.find(n=>!agents.some(a=>a.name===n)); if(!name)return;
+  const role=Object.keys(ROLE_DEFS).sort((x,y)=>roleCount(x)-roleCount(y))[0], rd=ROLE_DEFS[role];
+  const id='a'+(agents.reduce((m,a)=>Math.max(m,parseInt(a.id.slice(1))||0),0)+1);
+  let spot=null; for(let i=0;i<24&&!spot;i++){const ang=rnd()*Math.PI*2,r=130+rnd()*110;
+    const x=clamp(128+Math.cos(ang)*r,80,1040),y=clamp(398+Math.sin(ang)*r,100,640);
+    if(!buildings.some(b=>Math.abs(x-b.x)<(b.w+92)/2+16&&Math.abs(y-b.y)<(b.h+70)/2+16))spot={x,y}}
+  if(!spot)return;
+  buildings.push({id:'h_'+id,name:`${name}의 거처`,icon:'🏠',owner:id,x:spot.x,y:spot.y,w:92,h:70,kind:'거처',lv:1,desc:`${N(name,'i')} 하루를 여닫는 곳`,tools:['쉼','손질'],log:[],deco:[]});
+  const a={id,name,role,face:pick(NEWCOMER_FACES),color:pick(NEWCOMER_COLORS),home:rd.home,baseTags:rd.tags.slice(),
+    x:128,y:398,tx:spot.x,ty:spot.y,place:'gate',mood:60+rnd()*15,energy:70+rnd()*20,focus:50+rnd()*25,confidence:45+rnd()*20,
+    pers:basePers(role),persLog:[],task:'마을을 처음 둘러보는 중',thought:'낯선 불빛들이 아직 이름을 갖기 전이다.',
+    op:null,cool:0,bubble:'',bubbleT:0,plan:[],lastSlot:-1,rel:{},memories:[],recalled:[],known:{},attention:0,
+    pathTrail:[],lastScores:[],lastTalkScores:[],vx:0,vy:0,phase:rnd()*6.3,movedDay:state.day,desires:[],breaches:0,kept:0,taste:makeTaste()};
+  agents.forEach(o=>{a.rel[o.id]=34+Math.round(rnd()*14); o.rel[id]=34+Math.round(rnd()*14);
+    memory(o,`나루터 게이트로 낯선 얼굴이 들어왔다 — ${name}이라 했다.`,['생애','외부'],6,'관찰',{agent:id})});
+  agents.push(a); buildPlan(a);
+  memory(a,'나루터를 건너 이 마을에 닿았다. 불빛이 낯설고 따뜻했다.',['생애','정체성'],9,'기본',{},false);
+  addLife(`${N(name,'i')} 나루터를 건너 마을에 들어왔다 — ${N(role,'i')} 되겠다고 했다.`,'생애');
+  createNews(`게이트 너머에서 온 ${N(name,'i')} 마을에 자리를 잡는다더라`,'이웃의 눈',null,{subject:id});
+  toast(`${name}${jongCode(name)>0?'이':'가'} 마을에 왔어`);
+}
 function daily(){
   state.day++; state.hour=6.75; state.generation++; state.weather=pick(['맑음','구름 많음','옅은 비','별빛 선명']);
-  residentialTick();
+  residentialTick(); lifeTick();
   agents.forEach(a=>{a.energy=clamp(a.energy+26+rnd()*16,0,100);a.focus=clamp(a.focus+12+rnd()*12,0,100);a.mood=clamp(a.mood+3-rnd()*2,0,100);buildPlan(a);const r=retrieve(a,['계획','소식','관계']); if(r[0])a.thought=`어제의 “${r[0].text.slice(0,30)}…”을 오늘의 출발점으로 삼았다.`;
     decayDesires(a,9); // 바람은 풀리지 않으면 서서히 옅어진다
     if(a.mood<46&&a.pers.사교>58)addDesire(a,'어울림','사람들 틈에 섞여 기분을 바꾸고 싶다',null,26);
@@ -1240,6 +1296,7 @@ function researchCards(){return [
   {title:'Schelling · 거주지 동학',body:'따뜻한 이웃이 1/3에 못 미치거나 서먹한 이웃이 둘이면 친한 이의 집 곁으로 거처를 옮긴다. 임계값 하나로 지도에 구역이 저절로 생기고, 이사는 소문과 기억의 재료가 된다.'},
   {title:'Boids · 조향 이동',body:'주민의 걸음은 목표 직선이 아니라 arrive(감속 도착)·separation(밀집 회피)·wander(잔흔들림) 조향력의 합이다. 광장에 모일 때 자연스레 벌어지고, 서성임이 생긴다 — 관찰 재미의 절반은 움직임의 질감이다.'},
   {title:'NetLogo · 실험 손잡이',body:'대화 의욕·소문 왜곡·감독 속도 상수를 관찰 화면에서 실시간으로 민다. 슬라이더와 플롯이 붙은 화면에서 상전이를 직접 목격하는 것이 이 장르 최고의 "아하 순간"이다.'},
+  {title:'Talk of the Town · 생애 사건',body:'구성원 자체가 변해야 마을이 오래 볼수록 다른 곳이 된다 — 굳은 기억이 성격을 사흘 넘게 기울이면 소명이 옮겨가고(전직), 활기가 도는 마을에는 나루터를 건너오는 새 얼굴이 있다. 새 주민은 아무도 모르고 아무 소식도 모른 채 시작한다 — 정보 비대칭의 새 피.'},
   {title:'단일 파일의 선',body:'실제 LLM 호출, 벡터 DB, 서버 작업 큐, 컴퓨터 화면 조작은 없다. 대신 구조의 움직임을 브라우저 규칙으로 압축했다.'}
 ]}
 // ── TotT drama.py식 이야기 발굴: 시뮬레이션은 원재료를 만들고, 이야기는 큐레이션이 찾아낸다 —
@@ -1268,6 +1325,7 @@ function mineStories(){
   projects.filter(p=>(p.cycles||0)>=2).forEach(p=>S.push({title:`${p.name}, ${p.cycles}번째 손질`,text:'만드는 일과 지키는 일이 번갈아 온다. 완성은 상태가 아니라 리듬이다.'}));
   const quiet=ch.find(e=>e.kind==='행사'&&e.text.includes('조용히 끝났다')); if(quiet)S.push({title:'아무도 오지 않은 저녁',text:quiet.text});
   const taste=ch.find(e=>e.kind==='취향'); if(taste)S.push({title:'같은 것을 좋아하는 두 사람',text:taste.text});
+  const lifeEv=ch.find(e=>e.kind==='생애'); if(lifeEv)S.push({title:'마을의 얼굴이 바뀐다',text:lifeEv.text});
   return S.slice(0,6);
 }
 let chronFilter={type:'all',id:null};
@@ -1278,7 +1336,7 @@ function renderChronicle(){
   const chips=[['all','전체 '+state.chronicle.length,null]]
     .concat(agents.map(a=>['who',`${a.face} ${a.name}`,a.id]))
     .concat(buildings.map(b=>['where',`${b.icon} ${b.name}`,b.id]))
-    .concat(['사건','완성','성격','소식','확인','약속','화해','갈등','행사','관습','따라잡기','아침'].map(k=>['kind',k,k]));
+    .concat(['사건','완성','성격','생애','거처','소식','확인','약속','화해','갈등','행사','관습','따라잡기','아침'].map(k=>['kind',k,k]));
   $('#chronBar').innerHTML=chips.map(([type,label,id])=>`<button class="tag ${f.type===type&&f.id===(id||null)?'on':''}" data-chron="${type}:${id||''}">${label}</button>`).join('');
   $$('#chronBar [data-chron]').forEach(el=>el.onclick=()=>{const [type,id]=el.dataset.chron.split(':');chronFilter=(f.type===type&&f.id===(id||null))?{type:'all',id:null}:{type,id:id||null};renderChronicle()});
   const list=state.chronicle.filter(e=>f.type==='all'||(f.type==='who'&&e.who.includes(f.id))||(f.type==='where'&&e.where.includes(f.id))||(f.type==='kind'&&e.kind===f.id)).slice(0,160);
@@ -1357,7 +1415,7 @@ function catchUp(elapsedMs){
   toast(`닫힌 시간 ${Math.round(hours)}시간을 따라잡았어`);
 }
 function save(silent){localStorage.setItem('ai-village-polished-research',JSON.stringify({state,agents,buildings,projects,skills,seed,memSeq,newsSeq,artifactSeq,inputSeq,promSeq,postSeq,gathSeq,savedAt:Date.now()}));if(silent!==true)toast('저장했어')}
-function load(){try{const raw=localStorage.getItem('ai-village-polished-research');if(!raw)return false;const d=JSON.parse(raw);Object.assign(state,d.state);d.agents.forEach((a,i)=>Object.assign(agents[i],a));d.buildings.forEach((b,i)=>Object.assign(buildings[i],b));d.projects.forEach((p,i)=>Object.assign(projects[i],p));skills.splice(0,skills.length,...d.skills);seed=d.seed||seed;memSeq=d.memSeq||memSeq;newsSeq=d.newsSeq||newsSeq;artifactSeq=d.artifactSeq||artifactSeq;inputSeq=d.inputSeq||inputSeq;promSeq=d.promSeq||promSeq;postSeq=d.postSeq||postSeq;gathSeq=d.gathSeq||gathSeq;agents.forEach(a=>{if(!a.pers)a.pers=basePers(a.role);if(!a.persLog)a.persLog=[];if(!a.desires)a.desires=[];if(!a.breaches)a.breaches=0;if(!a.kept)a.kept=0;if(!a.taste)a.taste=makeTaste()});buildings.forEach(b=>{if(!b.log)b.log=[];if(b.kind==='거처'&&!b.deco)b.deco=[]});if(!state.director)state.director={id:'cassandra',last:0,lastKind:'회복'};if(!state.chronicle)state.chronicle=[];if(!state.promises)state.promises=[];if(!state.posts)state.posts=[];if(!state.customs)state.customs=[];state.customs.forEach(c=>{if(!c.key)c.key='약속'});if(state.gathering===undefined)state.gathering=null;if(state.gathering&&!state.gathering.acts)state.gathering.acts=[];if(!state.breachTotal)state.breachTotal=0;if(!state.series)state.series=[];if(!state.lastSample)state.lastSample=0;if(!state.knobs)state.knobs={대화:1,왜곡:1,감독:1};agents.forEach(a=>{if(!a.lastTalkScores)a.lastTalkScores=[];if(a.vx===undefined){a.vx=0;a.vy=0}if(a.phase===undefined)a.phase=rnd()*6.3;if(!a.movedDay)a.movedDay=0});return {savedAt:d.savedAt||0}}catch(e){console.warn(e);return false}}
+function load(){try{const raw=localStorage.getItem('ai-village-polished-research');if(!raw)return false;const d=JSON.parse(raw);Object.assign(state,d.state);while(agents.length<d.agents.length)agents.push({});while(buildings.length<d.buildings.length)buildings.push({});d.agents.forEach((a,i)=>Object.assign(agents[i],a));d.buildings.forEach((b,i)=>Object.assign(buildings[i],b));d.projects.forEach((p,i)=>Object.assign(projects[i],p));skills.splice(0,skills.length,...d.skills);seed=d.seed||seed;memSeq=d.memSeq||memSeq;newsSeq=d.newsSeq||newsSeq;artifactSeq=d.artifactSeq||artifactSeq;inputSeq=d.inputSeq||inputSeq;promSeq=d.promSeq||promSeq;postSeq=d.postSeq||postSeq;gathSeq=d.gathSeq||gathSeq;agents.forEach(a=>{if(!a.pers)a.pers=basePers(a.role);if(!a.persLog)a.persLog=[];if(!a.desires)a.desires=[];if(!a.breaches)a.breaches=0;if(!a.kept)a.kept=0;if(!a.taste)a.taste=makeTaste()});buildings.forEach(b=>{if(!b.log)b.log=[];if(b.kind==='거처'&&!b.deco)b.deco=[]});if(!state.director)state.director={id:'cassandra',last:0,lastKind:'회복'};if(!state.chronicle)state.chronicle=[];if(!state.promises)state.promises=[];if(!state.posts)state.posts=[];if(!state.customs)state.customs=[];state.customs.forEach(c=>{if(!c.key)c.key='약속'});if(state.gathering===undefined)state.gathering=null;if(state.gathering&&!state.gathering.acts)state.gathering.acts=[];if(!state.breachTotal)state.breachTotal=0;if(!state.series)state.series=[];if(!state.lastSample)state.lastSample=0;if(!state.knobs)state.knobs={대화:1,왜곡:1,감독:1};agents.forEach(a=>{if(!a.lastTalkScores)a.lastTalkScores=[];if(a.vx===undefined){a.vx=0;a.vy=0}if(a.phase===undefined)a.phase=rnd()*6.3;if(!a.movedDay)a.movedDay=0});return {savedAt:d.savedAt||0}}catch(e){console.warn(e);return false}}
 function reset(){localStorage.removeItem('ai-village-polished-research');location.reload()}
 function sampleIncident(){return gen('사건')}
 function loop(t){const dt=Math.min(.08,(t-last)/1000||0);last=t;if(!paused){acc+=dt;while(acc>.05){sim(.05);acc-=.05}}render();uiTimer+=dt;if(uiTimer>.55){updateUI();uiTimer=0}requestAnimationFrame(loop)}
