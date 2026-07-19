@@ -1129,6 +1129,44 @@ function lifeTick(){
   // 새 주민 — 활기가 도는 마을에는 게이트를 건너오는 얼굴이 있다
   // 상한 12→16 (2026-07-19, 로드맵 #10) — 문장 풀 그라인드가 쌓이는 만큼 단계적으로 더 연다
   if(state.day>=4&&agents.length<16&&state.resources.활기>55&&rnd()<.12)arriveResident();
+  // 퇴장 — 유입만 있고 떠남이 없으면 마을은 포화된다. 관계가 오래 식고 마음이 낮은 이는
+  // 며칠을 기울다(leaveDrift) '떠남'의 바람을 품고, 끝내 나루터를 다시 건넌다 (하루 최대 한 명)
+  if(state.day>=8&&agents.length>6){
+    let leaver=null;
+    agents.forEach(a=>{
+      const rels=agents.filter(o=>o!==a).map(o=>a.rel[o.id]??40);
+      const avg=rels.reduce((s,v)=>s+v,0)/Math.max(1,rels.length);
+      if(avg<47&&a.mood<50){
+        a.leaveDrift=(a.leaveDrift||0)+1;
+        if(a.leaveDrift===3)addDesire(a,'떠남','게이트 너머가 자꾸 눈에 밟힌다 — 여기 내 자리가 있는지 모르겠다',null,42);
+        if(!leaver&&a.leaveDrift>=5&&rnd()<.4)leaver=a;
+      } else if(a.leaveDrift){a.leaveDrift--; if(!a.leaveDrift)a.desires=a.desires.filter(d=>d.kind!=='떠남')} // 좋은 날은 기운 마음을 한 칸씩만 되돌린다 — 다 풀려야 바람도 걷힌다
+    });
+    if(leaver)departResident(leaver);
+  }
+}
+// 퇴장의 실무 — 사람이 떠나도 역사(연대기·기억·소문의 걸어온 길)는 남고,
+// 살아 있는 참조(관계·약속·바람·거처·확산 지도)만 걷어낸다 (TotT 생애 사건의 나머지 절반)
+function departResident(a){
+  const id=a.id;
+  const close=[...agents].filter(o=>o!==a).sort((x,y)=>(y.rel[id]||0)-(x.rel[id]||0))[0];
+  (state.departed=state.departed||{})[id]=a.name;
+  if(state.gathering&&state.gathering.host===id){addLife(`「${state.gathering.title}」 모임은 주최자가 떠나며 조용히 접혔다.`,'행사');state.gathering=null}
+  openPromises(a).forEach(p=>{const o=agents.find(x=>x.id===(p.a===id?p.b:p.a));
+    if(o){o.mood=clamp(o.mood-3,0,100); memory(o,`${N(a.name,'gwa')} 한 약속은 끝내 지켜지지 못한 채 남았다.`,['약속','관계'],6,'약속',{agent:id})}});
+  state.promises=state.promises.filter(p=>p.a!==id&&p.b!==id);
+  state.news.forEach(n=>{n.knownBy=n.knownBy.filter(x=>x!==id)});
+  state.spreads=state.spreads.filter(s=>s.from!==id&&s.to!==id);
+  agents.forEach(o=>{delete o.rel[id]; o.desires=o.desires.filter(d=>d.target!==id)});
+  const hi=buildings.findIndex(b=>b.id===homeOf(a)); if(hi>=0)buildings.splice(hi,1);
+  agents.splice(agents.indexOf(a),1);
+  if(selected===id)selected=null; if(hover===id)hover=null;
+  const text=`${N(a.name,'i')} 나루터를 건너 마을을 떠났다 — 식은 관계와 낮은 마음이 오래 이어진 끝이었다.${close?` ${N(close.name,'i')} 게이트까지 배웅했다.`:''}`;
+  addLife(text,'생애'); placeEcho('gate','생애',`${N(a.name,'i')} 여기서 마지막 인사를 남겼다`);
+  agents.forEach(o=>memory(o,`${N(a.name,'i')} 마을을 떠났다. 빈 거처 자리가 한동안 눈에 밟히겠다.`,['생애','관계'],6,'관찰'));
+  if(close)memory(close,`${N(a.name,'eul')} 게이트까지 배웅했다. 등이 다리 너머로 사라질 때까지 서 있었다.`,['생애','관계'],8,'생애');
+  createNews(`${N(a.name,'i')} 마을을 떠났다더라 — 게이트 너머 어디로 갔는지는 아무도 모른다`,'이웃의 눈');
+  toast(`${a.name}${jongCode(a.name)>0?'이':'가'} 마을을 떠났어`);
 }
 const NEWCOMER_NAMES=['소은','재하','다온','시안','무영','한결','로아','예서','태오','별하','누리','가온','미르','솔아'];
 const NEWCOMER_FACES=['🦉','🐚','🌙','🍀','🪶','🦋','🕯️','🧵'];
@@ -1365,7 +1403,7 @@ function setHTML(el,html){
   if(st>4)sc.scrollTop=st+(sc.scrollHeight-sh);
 }
 function timeTextFrom(t){const d=Math.floor(t/24), h=Math.floor(t%24);return `${d}일 ${pad(h)}시`}
-function agentName(id){return agents.find(a=>a.id===id)?.name||id}
+function agentName(id){return agents.find(a=>a.id===id)?.name||(state.departed||{})[id]||id} // 떠난 이의 이름도 역사에는 남는다
 function meter(label,value,kind=''){return `<div class="meter"><span><em>${label}</em><b>${Math.round(value)}</b></span><div class="bar ${kind}"><i style="width:${clamp(value,0,100)}%"></i></div></div>`}
 function updateUI(){
   $('#clock').textContent=timeText(); $('#scene').textContent=state.scene; $('#inputState').textContent=state.inputs.filter(i=>i.status!=='done').length;
@@ -1412,7 +1450,7 @@ function researchCards(){return [
   {title:'Schelling · 거주지 동학',body:'따뜻한 이웃이 1/3에 못 미치거나 서먹한 이웃이 둘이면 친한 이의 집 곁으로 거처를 옮긴다. 임계값 하나로 지도에 구역이 저절로 생기고, 이사는 소문과 기억의 재료가 된다.'},
   {title:'Boids · 조향 이동',body:'주민의 걸음은 목표 직선이 아니라 arrive(감속 도착)·separation(밀집 회피)·wander(잔흔들림) 조향력의 합이다. 광장에 모일 때 자연스레 벌어지고, 서성임이 생긴다 — 관찰 재미의 절반은 움직임의 질감이다.'},
   {title:'Sugarscape · 자원 격자',body:'지형이 장식이 아니라 자라고 소모되는 들녘이다 — 온실과 물길 가까이가 기름지고, 쉼은 들녘을 걷어가며, 걷힌 자리는 다시 자랄 시간이 필요하다. 비가 오면 빨리 자라고, 들이 마르면 쉼이 얕아지고 마을의 활기가 내려간다. 풍년과 흉년이 사건이 아니라 시뮬레이션의 결과가 된다.'},
-  {title:'Talk of the Town · 생애 사건',body:'구성원 자체가 변해야 마을이 오래 볼수록 다른 곳이 된다 — 굳은 기억이 성격을 사흘 넘게 기울이면 소명이 옮겨가고(전직), 활기가 도는 마을에는 나루터를 건너오는 새 얼굴이 있다. 새 주민은 아무도 모르고 아무 소식도 모른 채 시작한다 — 정보 비대칭의 새 피.'},
+  {title:'Talk of the Town · 생애 사건',body:'구성원 자체가 변해야 마을이 오래 볼수록 다른 곳이 된다 — 굳은 기억이 성격을 사흘 넘게 기울이면 소명이 옮겨가고(전직), 활기가 도는 마을에는 나루터를 건너오는 새 얼굴이 있고, 관계가 오래 식은 이는 며칠을 기울다 나루터를 다시 건넌다(퇴장). 사람이 떠나도 이름은 연대기와 소문의 길에 남는다 — 유입과 떠남이 함께 있어야 세대가 흐른다.'},
   {title:'Kismet · 마을 기질 표기',body:'거의 자연어로 된 한 줄 규칙("갈등 의지 -6", "문장 주제: 겨울 등불 축제", "관습: …")을 기질 편집기에 적으면 코드를 고치지 않고 대화 성향·문장 풀·관습이 바뀐다. 실행은 기존 가중치 합산이 맡는다 — 저작과 실행의 분리.'},
   {title:'단일 파일의 선',body:'실제 LLM 호출, 벡터 DB, 서버 작업 큐, 컴퓨터 화면 조작은 없다. 대신 구조의 움직임을 브라우저 규칙으로 압축했다.'}
 ]}
