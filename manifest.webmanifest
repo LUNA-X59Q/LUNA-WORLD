@@ -1,0 +1,16 @@
+{
+  "name": "AI 마을 — LUNA WORLD",
+  "short_name": "AI 마을",
+  "description": "LLM·API 호출 0 — 규칙만으로 주민들이 살아가는 브라우저 마을 시뮬레이션",
+  "lang": "ko",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#060814",
+  "theme_color": "#0a1020",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icon-512-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
