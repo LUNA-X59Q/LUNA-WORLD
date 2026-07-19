@@ -1,10 +1,10 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
 <rect width="512" height="512" rx="120" fill="#ffffff"/>
 <g stroke="#111111" stroke-linecap="round" stroke-linejoin="round">
-<path fill="none" stroke-width="15" d="M 158 268 L 158 392 Q 158 410 176 410 L 336 410 Q 354 410 354 392 L 354 268"/>
-<path fill="#ffffff" stroke-width="15" d="M 166 234 L 166 162 Q 166 152 176 152 L 198 152 Q 208 152 208 162 L 208 193"/>
-<path fill="#ffffff" stroke-width="15" d="M 100 296 L 256 140 L 412 296 L 391 317 L 256 182 L 121 317 Z"/>
-<rect x="190" y="334" width="48" height="48" rx="8" fill="none" stroke-width="15"/>
-<path fill="none" stroke-width="15" d="M 262 410 L 262 342 Q 262 326 278 326 L 302 326 Q 318 326 318 342 L 318 410"/>
+<path fill="none" stroke-width="13" d="M 158 268 L 158 392 Q 158 410 176 410 L 336 410 Q 354 410 354 392 L 354 268"/>
+<path fill="#ffffff" stroke-width="13" d="M 166 234 L 166 162 Q 166 152 176 152 L 198 152 Q 208 152 208 162 L 208 193"/>
+<path fill="#ffffff" stroke-width="13" d="M 100 296 L 256 140 L 412 296 L 391 317 L 256 182 L 121 317 Z"/>
+<rect x="190" y="320" width="48" height="48" rx="8" fill="none" stroke-width="13"/>
+<path fill="none" stroke-width="13" d="M 262 410 L 262 336 Q 262 320 278 320 L 302 320 Q 318 320 318 336 L 318 410"/>
 </g>
 </svg>
