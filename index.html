@@ -131,7 +131,7 @@ button:focus-visible,input:focus-visible{outline:2px solid rgba(137,216,255,.72)
   <header class="top">
     <div class="brand"><div class="mark">✦</div><div><h1>AI 마을</h1><p>주민이 걷고, 소식이 퍼지고, 작은 기술이 쌓이는 연구형 마을 시뮬레이션</p></div></div>
     <div class="stats" id="stats"></div>
-    <div class="controls"><button class="btn primary" id="pauseBtn">멈춤</button><button class="btn" id="stepBtn">한 걸음</button><button class="btn" id="speedBtn">속도 1x</button><button class="btn warn" id="saveBtn">저장</button><button class="btn" id="resetBtn">새 마을</button></div>
+    <div class="controls"><button class="btn primary" id="pauseBtn">멈춤</button><button class="btn" id="stepBtn">한 걸음</button><button class="btn" id="speedBtn">속도 1x</button><button class="btn" id="directorBtn" title="사건 감독 교체">감독 🎭 카산드라</button><button class="btn warn" id="saveBtn">저장</button><button class="btn" id="resetBtn">새 마을</button></div>
   </header>
 
   <section class="worldCard">
@@ -199,7 +199,8 @@ function gen(sym,bind,depth){
 const state={
   day:1,hour:7.15,scene:'아침 정리',weather:'맑음',generation:1,tick:0,
   resources:{활기:64,신뢰:57,기술:31,문화:38,혼선:12},
-  life:[],talk:[],artifacts:[],inputs:[],news:[],spreads:[],recentOps:[]
+  life:[],talk:[],artifacts:[],inputs:[],news:[],spreads:[],recentOps:[],
+  director:{id:'cassandra',last:0,lastKind:'회복'}
 };
 const buildings=[
   {id:'library',name:'기억 도서관',icon:'📚',x:232,y:190,w:128,h:94,kind:'기록',lv:1,desc:'대화 요약과 오래된 사건을 다시 꺼내는 곳',tools:['기록 색인','대화 요약']},
@@ -340,6 +341,7 @@ function handleInputs(){
   const n=createNews(next.text,next.type==='incident'?'마을 사건':'루나',starters); n.input=next.id;
   starters.forEach(a=>{setTarget(a,'square','새 소식을 광장에서 맞춰보는 중'); a.bubble='광장에서 먼저 맞춰볼게.'; a.bubbleT=3.8;});
   next.status='done'; next.done=now(); addRecentOp(`입력 ${next.id} 처리 · ${starters.map(a=>a.name).join(', ')}에게 먼저 전달`);
+  if(next.type==='incident'){state.director.last=now();state.director.lastKind='긴장'} // 수동 사건도 감독의 박자에 포함
 }
 function startOperation(a,type,place,projectId=null,newsId=null){
   const labels={project:'프로젝트를 진척하는 중',verify:'소식의 근거를 확인하는 중',tool:'도구를 시험하는 중',archive:'대화 기록을 정리하는 중',recover:'숨을 고르는 중'};
@@ -431,6 +433,51 @@ function converse(a,b){
   addLife(summary,kind); addTalk(speaker.name,`${listener.name}에게: ${line}`,kind);
   memory(speaker,summary,['관계','대화',speaker.place],5,'대화',{with:listener.id,recall:recall.map(m=>m.id)}); memory(listener,summary,['관계','대화',listener.place],5,'대화',{with:speaker.id});
 }
+// ── RimWorld식 사건 감독: 시뮬레이션 규칙과 분리된 레이어가 마을 상태(활기·혼선·발전·경과)를
+//    읽고 사건 풀에서 뽑아 투하만 한다 — 전개는 전적으로 시뮬레이션에 맡긴다 (docs/research/rimworld.md) ──
+const DIRECTORS=[
+  {id:'cassandra',name:'카산드라',icon:'🎭',minGap:6,maxGap:18,recovery:8,rate:.5,desc:'긴장을 서서히 올리고 위기 후엔 회복을 보장한다'},
+  {id:'phoebe',name:'피비',icon:'🌾',minGap:16,maxGap:40,recovery:14,rate:.4,desc:'사건 사이를 길게 비워 목가적으로'},
+  {id:'randy',name:'랜디',icon:'🎲',minGap:1,maxGap:10,recovery:0,rate:.12,desc:'리듬 없음 — 언제든 무엇이든'}
+];
+const INCIDENTS=[
+  {kind:'회복',title:'온실의 풍년',make(){state.resources.활기=clamp(state.resources.활기+7,0,100);agents.forEach(a=>a.mood=clamp(a.mood+4,0,100));return '온실 정원에서 예상보다 많은 수확이 나와 마을에 나눠졌다'}},
+  {kind:'회복',title:'축제 기운',make(){state.resources.문화=clamp(state.resources.문화+6,0,100);state.resources.활기=clamp(state.resources.활기+3,0,100);return '작은 무대 주변에 축제 기운이 돌아 주민들의 발걸음이 가벼워졌다'}},
+  {kind:'긴장',title:'수상한 소문',news:true,make(){return gen('사건')}},
+  {kind:'긴장',title:'낯선 방문객',news:true,make(){state.resources.문화=clamp(state.resources.문화+2,0,100);return '나루터 게이트에 낯선 방문객이 도착해 바깥 소식을 풀어놓았다는 말이 돈다'}},
+  {kind:'위기',title:'도구 고장',make(){state.resources.기술=clamp(state.resources.기술-4,0,100);state.resources.혼선=clamp(state.resources.혼선+6,0,100);const pr=projects.find(p=>!p.done&&p.place==='workshop');if(pr)pr.p=clamp(pr.p-8,0,100);return '공방의 도구 하나가 밤사이 망가져 작업 리듬이 헝클어졌다'}},
+  {kind:'위기',title:'궂은 날씨',make(){state.weather='옅은 비';state.resources.활기=clamp(state.resources.활기-6,0,100);agents.forEach(a=>a.energy=clamp(a.energy-6,0,100));return '갑작스런 궂은 날씨가 마을을 덮어 하루의 리듬이 느려졌다'}}
+];
+function directorProfile(){return DIRECTORS.find(d=>d.id===state.director.id)||DIRECTORS[0]}
+function villageWealth(){return skills.length+projects.filter(p=>p.done).length*2+buildings.reduce((s,b)=>s+b.lv-1,0)}
+function directorTick(hours){
+  const prof=directorProfile(), gap=now()-state.director.last;
+  if(gap<prof.minGap)return;
+  if(prof.recovery&&state.director.lastKind==='위기'&&gap<prof.minGap+prof.recovery)return;
+  const p=prof.id==='randy'?1:norm(gap,prof.minGap,prof.maxGap);
+  if(rnd()>=p*hours*prof.rate)return;
+  dropIncident(prof);
+}
+function dropIncident(prof){
+  const tired=state.resources.활기<42||avgMood()<44, noisy=state.resources.혼선>52, wealth=villageWealth();
+  const w=prof.id==='randy'?{회복:1,긴장:1,위기:1}
+    :{회복:tired?5:1,긴장:noisy?.5:2+wealth*.08,위기:(tired||noisy)?.3:.8+wealth*.12};
+  const total=INCIDENTS.reduce((s,i)=>s+w[i.kind],0); let r=rnd()*total, chosen=INCIDENTS[0];
+  for(const i of INCIDENTS){r-=w[i.kind];if(r<=0){chosen=i;break}}
+  const text=chosen.make();
+  if(chosen.news)createNews(text,`감독 ${prof.name}`);
+  else{addLife(text,'사건'); [...agents].sort(()=>rnd()-.5).slice(0,3).forEach(a=>memory(a,text,['사건',chosen.kind],chosen.kind==='위기'?7:5,'사건'))}
+  addRecentOp(`감독 ${prof.name} · ${chosen.title} 투하 (${chosen.kind})`);
+  state.director.last=now(); state.director.lastKind=chosen.kind;
+  toast(`${prof.icon} ${chosen.title}`);
+}
+function cycleDirector(){
+  const i=DIRECTORS.findIndex(d=>d.id===state.director.id);
+  const prof=DIRECTORS[(i+1)%DIRECTORS.length];
+  state.director.id=prof.id;
+  $('#directorBtn').textContent=`감독 ${prof.icon} ${prof.name}`;
+  addLife(`사건 감독이 ${prof.name}으로 바뀌었다 — ${prof.desc}.`,'감독'); toast(`${prof.icon} ${prof.name}: ${prof.desc}`);
+}
 function daily(){
   state.day++; state.hour=6.75; state.generation++; state.weather=pick(['맑음','구름 많음','옅은 비','별빛 선명']);
   agents.forEach(a=>{a.energy=clamp(a.energy+26+rnd()*16,0,100);a.focus=clamp(a.focus+12+rnd()*12,0,100);a.mood=clamp(a.mood+3-rnd()*2,0,100);buildPlan(a);const r=retrieve(a,['계획','소식','관계']); if(r[0])a.thought=`어제의 “${r[0].text.slice(0,30)}…”을 오늘의 출발점으로 삼았다.`;});
@@ -439,7 +486,7 @@ function daily(){
 }
 function sceneText(){const h=state.hour;return h<6?'깊은 밤':h<8.5?'아침 정리':h<12?'오전 작업':h<14?'점심 대화':h<18?'마을 발전':h<21?'저녁 조율':'밤의 기록'}
 function sim(dt){
-  state.hour+=dt*.18*speed; if(state.hour>=24)daily(); state.scene=sceneText(); handleInputs();
+  state.hour+=dt*.18*speed; if(state.hour>=24)daily(); state.scene=sceneText(); handleInputs(); directorTick(dt*.18*speed);
   agents.forEach(a=>{
     if(!a.plan.length)buildPlan(a); const slot=currentSlot(a); const slotKey=a.plan.indexOf(slot); if(slot&&slotKey!==a.lastSlot&&!a.op){a.lastSlot=slotKey;setTarget(a,chooseDestination(a),slot.label);retrieve(a,[slot.place,slot.label,'계획']);}
     if(a.op){a.op.left-=dt*speed; if(a.op.left<=0)finishOperation(a)}
@@ -541,7 +588,7 @@ function spreadRate(n){return Math.round((n.knownBy.length/agents.length)*100)}
 function avgMood(){return Math.round(agents.reduce((s,a)=>s+a.mood,0)/agents.length)}
 function metricCards(){
   const unresolved=state.news.filter(n=>!n.verified).length; const latest=state.news[0];
-  return `<div class="card"><p class="cap">마을 맥박</p><div class="meterGrid">${meter('평균 기분',avgMood())}${meter('관계 밀도',networkDensity())}${meter('확인 대기',Math.min(100,unresolved*16),'rose')}${meter('기술 서랍',Math.min(100,skills.length*13))}</div></div><div class="card"><p class="cap">가장 최근 소식</p><div class="note">${latest?`“${esc(latest.text)}”<br><span class="subtle">${spreadRate(latest)}%가 들었고, ${latest.verified?'확인됐어.':'아직 확인 중이야.'}</span>`:'아직 들어온 소식이 없어.'}</div></div>`;
+  return `<div class="card"><p class="cap">마을 맥박</p><div class="meterGrid">${meter('평균 기분',avgMood())}${meter('관계 밀도',networkDensity())}${meter('확인 대기',Math.min(100,unresolved*16),'rose')}${meter('기술 서랍',Math.min(100,skills.length*13))}</div></div><div class="card"><p class="cap">가장 최근 소식</p><div class="note">${latest?`“${esc(latest.text)}”<br><span class="subtle">${spreadRate(latest)}%가 들었고, ${latest.verified?'확인됐어.':'아직 확인 중이야.'}</span>`:'아직 들어온 소식이 없어.'}</div></div><div class="card"><p class="cap">사건 감독</p><div class="note">${(d=>`${d.icon} <b>${d.name}</b> — ${d.desc}.<br><span class="subtle">마지막 사건 후 ${Math.max(0,Math.round(now()-state.director.last))}시간 경과${state.director.lastKind==='위기'&&d.recovery?' · 회복 보장 중':''}</span>`)(directorProfile())}</div>${state.recentOps.length?`<div class="miniList" style="margin-top:8px">${state.recentOps.slice(0,3).map(o=>`<div class="mini"><span class="subtle">${o.time}</span> · ${esc(o.text.slice(0,60))}</div>`).join('')}</div>`:''}</div>`;
 }
 function renderSide(){
   const body=$('#sideBody'), obj=agents.find(a=>a.id===selected)||buildings.find(b=>b.id===selected)||state.news.find(n=>n.id===selected);
@@ -591,6 +638,7 @@ function researchCards(){return [
   {title:'Tracery · 문법 대화',body:'대화와 사건 문장은 고정 문장이 아니라 치환 문법에서 매번 조합되고, 받침에 따라 조사(이/가, 은/는)가 맞춰진다.'},
   {title:'Veloren rtsim · 따라잡기',body:'탭이 닫혀 있던 시간은 이동·대화 같은 고해상도 연출을 건너뛰고 진척·소식·관계만 저해상도 규칙으로 흘러, 다시 열면 마을이 그만큼 살아 있다.'},
   {title:'Dwarf Fortress · 기억→성격',body:'기억이 묶여 영구층으로 내려가는 순간 성격 축(낙관·신중·사교·끈기)이 반드시 이동하고, 바뀐 성격은 광고 점수·대화·작업 확률에 되먹임된다.'},
+  {title:'RimWorld · 사건 감독',body:'시뮬레이션과 분리된 감독(카산드라·피비·랜디)이 활기·혼선·발전 수준·경과 시간을 읽고 사건을 투하한다. 위기 직후엔 회복이 보장되고, 전개는 시뮬레이션에 맡긴다.'},
   {title:'단일 파일의 선',body:'실제 LLM 호출, 벡터 DB, 서버 작업 큐, 컴퓨터 화면 조작은 없다. 대신 구조의 움직임을 브라우저 규칙으로 압축했다.'}
 ]}
 function bindPick(){$$('[data-pick]').forEach(el=>el.onclick=()=>{selected=el.dataset.pick;updateUI()})}
@@ -624,6 +672,7 @@ function coarseStep(h,report){
     if(rnd()<.4){const a=pick(agents),b=pick(agents);if(a!==b){const d=rnd()<.7?1:-1;a.rel[b.id]=clamp(a.rel[b.id]+d,0,100);b.rel[a.id]=clamp(b.rel[a.id]+d,0,100);report.social++}}
   }
   state.resources.활기=clamp(state.resources.활기-.05*h,0,100); state.resources.혼선=clamp(state.resources.혼선-.06*h,0,100);
+  directorTick(h); // 감독은 닫힌 시간에도 같은 리듬으로 사건을 투하한다
 }
 function catchUp(elapsedMs){
   const hours=Math.min(CATCHUP_CAP_HOURS,elapsedMs/1000*SIM_HOURS_PER_REAL_SEC);
@@ -640,7 +689,7 @@ function catchUp(elapsedMs){
   toast(`닫힌 시간 ${Math.round(hours)}시간을 따라잡았어`);
 }
 function save(silent){localStorage.setItem('ai-village-polished-research',JSON.stringify({state,agents,buildings,projects,skills,seed,memSeq,newsSeq,artifactSeq,inputSeq,savedAt:Date.now()}));if(silent!==true)toast('저장했어')}
-function load(){try{const raw=localStorage.getItem('ai-village-polished-research');if(!raw)return false;const d=JSON.parse(raw);Object.assign(state,d.state);d.agents.forEach((a,i)=>Object.assign(agents[i],a));d.buildings.forEach((b,i)=>Object.assign(buildings[i],b));d.projects.forEach((p,i)=>Object.assign(projects[i],p));skills.splice(0,skills.length,...d.skills);seed=d.seed||seed;memSeq=d.memSeq||memSeq;newsSeq=d.newsSeq||newsSeq;artifactSeq=d.artifactSeq||artifactSeq;inputSeq=d.inputSeq||inputSeq;agents.forEach(a=>{if(!a.pers)a.pers=basePers(a.role);if(!a.persLog)a.persLog=[]});return {savedAt:d.savedAt||0}}catch(e){console.warn(e);return false}}
+function load(){try{const raw=localStorage.getItem('ai-village-polished-research');if(!raw)return false;const d=JSON.parse(raw);Object.assign(state,d.state);d.agents.forEach((a,i)=>Object.assign(agents[i],a));d.buildings.forEach((b,i)=>Object.assign(buildings[i],b));d.projects.forEach((p,i)=>Object.assign(projects[i],p));skills.splice(0,skills.length,...d.skills);seed=d.seed||seed;memSeq=d.memSeq||memSeq;newsSeq=d.newsSeq||newsSeq;artifactSeq=d.artifactSeq||artifactSeq;inputSeq=d.inputSeq||inputSeq;agents.forEach(a=>{if(!a.pers)a.pers=basePers(a.role);if(!a.persLog)a.persLog=[]});if(!state.director)state.director={id:'cassandra',last:0,lastKind:'회복'};return {savedAt:d.savedAt||0}}catch(e){console.warn(e);return false}}
 function reset(){localStorage.removeItem('ai-village-polished-research');location.reload()}
 function sampleIncident(){return gen('사건')}
 function loop(t){const dt=Math.min(.08,(t-last)/1000||0);last=t;if(!paused){acc+=dt;while(acc>.05){sim(.05);acc-=.05}}render();uiTimer+=dt;if(uiTimer>.55){updateUI();uiTimer=0}requestAnimationFrame(loop)}
@@ -655,7 +704,7 @@ function init(){
   }
   cvs.addEventListener('click',canvasPick); cvs.addEventListener('mousemove',canvasHover); cvs.addEventListener('mouseleave',()=>{hover=null;cvs.style.cursor='default'});
   $('#seedForm').addEventListener('submit',e=>{e.preventDefault();const v=$('#seedText').value.trim();if(v)submitInput(v,'seed')}); $('#eventBtn').onclick=()=>submitInput(sampleIncident(),'incident');
-  $('#pauseBtn').onclick=()=>{paused=!paused;$('#pauseBtn').textContent=paused?'다시 흐르게':'멈춤'}; $('#stepBtn').onclick=()=>{sim(.9);updateUI()}; $('#speedBtn').onclick=()=>{speed=speed===1?2:speed===2?4:1;$('#speedBtn').textContent=`속도 ${speed}x`}; $('#saveBtn').onclick=()=>save(); $('#resetBtn').onclick=reset;
+  $('#pauseBtn').onclick=()=>{paused=!paused;$('#pauseBtn').textContent=paused?'다시 흐르게':'멈춤'}; $('#stepBtn').onclick=()=>{sim(.9);updateUI()}; $('#speedBtn').onclick=()=>{speed=speed===1?2:speed===2?4:1;$('#speedBtn').textContent=`속도 ${speed}x`}; $('#saveBtn').onclick=()=>save(); $('#resetBtn').onclick=reset; $('#directorBtn').onclick=cycleDirector; {const p=directorProfile();$('#directorBtn').textContent=`감독 ${p.icon} ${p.name}`}
   document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')save(true)}); window.addEventListener('beforeunload',()=>save(true)); setInterval(()=>save(true),30000);
   $$('.tab').forEach(tab=>tab.onclick=()=>{$$('.tab').forEach(t=>t.classList.remove('active'));$$('.panel').forEach(p=>p.classList.remove('active'));tab.classList.add('active');$('#panel-'+tab.dataset.tab).classList.add('active')});
   updateUI(); requestAnimationFrame(loop);
