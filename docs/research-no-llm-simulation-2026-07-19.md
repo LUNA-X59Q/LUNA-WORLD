@@ -1,0 +1,57 @@
+# LLM 없는 에이전트 시뮬레이션 자료조사 (2026-07-19)
+
+> LUNA-WORLD의 첫 문서. 전제: **API·LLM 호출 0, 운영 비용 0, 자유로운 관찰, 지도형 UI.**
+> 루나의 도서관 AI마을(말의 창발)과 반대 극 — 순수 규칙 코드에서 나오는 **구조의 창발**을 관찰하는 실험.
+> 아래 저장소들은 전부 직접 열어 실물·라이선스·활동 상태를 확인했다.
+
+## 한눈 비교표
+
+| | 무엇 | 스택 | 라이선스 | 상태 | 우리가 배울 것 |
+|---|---|---|---|---|---|
+| **Talk of the Town** ([james-owen-ryan/talktown](https://github.com/james-owen-ryan/talktown)) | 미국 소도시 140년을 통짜 시뮬레이션. 주민이 태어나고 취직·결혼하고, 기억이 흐려지고 왜곡되며, 소문이 사람을 타고 퍼짐. Generative Agents(Smallville) 논문의 선행 연구 | Python | MIT | 2016년경 완결(103★). 최신 Python 호환은 확인 필요 | **사건 로그→관계 파생, 불완전한 기억, 소문 전파** — 우리 마을 철학과 가장 가까운 비-LLM 실물. `life_event.py`·`mind.py`·`drama.py` 모듈 구획이 참고서 |
+| **Ensemble** ([ensemble-engine/ensemble](https://github.com/ensemble-engine/ensemble)) | Prom Week의 CiF 엔진 후계. 수천 개 사회 규칙로 감정·관계·평판이 상호작용하는 "social physics" | JavaScript (브라우저 단독 구동) | 공개 | UCSC 연구 산출물, 완결형 | **규칙 기반 사회 물리를 브라우저에서** 굴리는 검증된 선례. 규칙 스키마(조건→사회적 효과) 설계 |
+| **Mesa** ([projectmesa/mesa](https://github.com/projectmesa/mesa)) | Python ABM 표준 프레임워크 (NetLogo의 Python 대체). 격자·스케줄러·브라우저 시각화(Solara) 내장 | Python | Apache-2.0 | **활발** — 3.7k★, v3.5.1(2026-03), Mesa 4 개발 중 | 턴 스케줄러·격자 공간 등 **엔진 골격의 표준형**. 직접 쓰지 않더라도 구조를 베낄 가치 |
+| **Mesa 고전 예제** ([projectmesa/mesa-examples](https://github.com/projectmesa/mesa-examples)) | Sugarscape(1996, 무역·빈부격차·문화 창발), Schelling 분리(1971), Boids(1987, 규칙 3개→군집 비행) 구현체 | Python | Apache-2.0 | 유지보수됨 | **"단순 규칙→사회 현상 창발"의 교과서 3종**을 돌아가는 코드로. 지도형 관찰 UI의 원형 |
+| **Tracery** ([galaxykate/tracery](https://github.com/galaxykate/tracery), [aparrish/pytracery](https://github.com/aparrish/pytracery)) | Kate Compton의 문법 기반 텍스트 생성. 봇 제작의 표준 | JS / Python 포트 | 공개 | 완결형, 포트 다수 | LLM 없이 **사건→읽을 만한 서사 문장** 렌더링 (Dwarf Fortress 연대기 방식) |
+
+### 코드는 못 보지만 개념을 빌릴 것들 (비공개/상용)
+
+- **Dwarf Fortress** — 수백 명이 기분·원한·예술 취향·신화를 갖고 사는 순수 코드 시뮬레이션.
+  "전설 모드"(시뮬레이션 역사→텍스트 연대기)가 우리 서사 렌더링의 롤모델. 소스 비공개.
+- **The Sims** — 욕구 수치가 시간에 따라 감소하고, 사물이 "나를 쓰면 이 욕구가 채워져"라고
+  광고하는 **유틸리티 AI**. 행동 결정 엔진의 사실상 표준 패턴.
+- **RimWorld** — 유틸리티 AI 위에 사건을 조율하는 "스토리텔러" 레이어. 관찰 재미의 원천.
+
+### 조사에서 확인된 공백
+
+2025~26년 GitHub를 훑어도 "Generative Agents를 규칙만으로 재현"한 눈에 띄는 시도는 없다
+— 최근 생태계가 전부 LLM 쪽으로 쏠려 있다. 즉 LUNA-WORLD가 하려는 것
+(**Smallville류 마을 관찰 경험을 LLM 0으로**)은 고전 기법의 재조합이지만 조합 자체는 빈자리다.
+
+## 시사점 — LUNA-WORLD 설계에 주는 것
+
+빌릴 부품 4개가 정해진다:
+
+1. **행동 결정**: 유틸리티 AI (욕구 감소 + 행동별 점수) — The Sims/RimWorld 패턴
+2. **관계·소문**: 사건 로그에서 관계 파생, 소문은 관계 그래프를 타고 왜곡되며 전파 — Talk of the Town 패턴
+3. **서사**: 사건을 Tracery식 문법으로 문장화 — Dwarf Fortress 전설 모드 패턴
+4. **지도**: 격자 + 길찾기(A*), 점들이 움직이며 패턴이 보이는 관찰 화면 — Sugarscape/AI Town 패턴
+
+### 갈림길 하나 (보류 중 — 결정 필요)
+
+| | (A) 서버 시뮬레이션 | (B) 브라우저 시뮬레이션 |
+|---|---|---|
+| 구조 | Python/Flask가 턴을 돌리고 상태를 DB에 저장 (루나의 도서관과 동일 스택) | 시뮬레이션 전체가 JS로 브라우저에서 구동, 서버는 정적 파일만 서빙 |
+| 비용 | Cloud Run 호출 시간만큼 과금 (미미하지만 0은 아님) | **사실상 완전 0** — 정적 서빙뿐 |
+| 관찰 | 마을이 "내가 안 볼 때도 산다" (도서관 마을과 동일 감각) | 열 때마다 시드로 재현·배속·되감기 자유 (실험실 감각) |
+| 속도 | 스케줄러 주기에 묶임 | 초당 수천 틱 가능 |
+
+"완전 무료 + 자유 관찰"이라는 전제에는 **(B)가 더 정합적**이다. 다만 (B)는 "탭을 닫으면
+마을도 멈춘다"는 존재론적 차이가 있으니, 도서관 마을 같은 '살아있음'을 원하면 (A)다.
+(시드 저장으로 (B)에서도 "같은 마을 이어 보기"는 가능.)
+
+## 다음 결정 목록
+
+1. 갈림길 (A)/(B) 선택 — 위 표
+2. 마을 컨셉: 주민 수·장소·욕구 목록·사건 종류 (도서관 마을 12장소를 잇는가, 새로 짓는가)
+3. 첫 배포 뼈대를 언제 `main`에 올릴지 (올리는 순간 Cloud Build 트리거 에러 해소)
