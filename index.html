@@ -227,6 +227,7 @@ const G={
   '지킴방문말':['약속 지키러 왔어.','말한 날에 딱 맞춰 왔지.','창가 불빛 보고 바로 알았어.','늦을까 봐 반걸음 서둘렀어.'],
   '지킴작업말':['둘이 하니 금방이네.','약속한 일부터 해치우자.','네 손이 있으니 절반은 끝났다.','말이 씨가 되고, 오늘 싹이 나네.'],
   '지킴답말':['와줘서 고마워.','올 줄 알고 있었어.','기다린 보람이 있네.','들어와, 자리 만들어뒀어.'],
+  '조율말':['그 말은 둘 다 들었지만, 근거를 한 번 더 보자.','우리 둘 다 들은 얘기 맞지? 확신이 좀 다르네.','같은 말을 다르게 들었나 봐. 관측대 가서 재보자.','그 소식, 네 판본이랑 내 판본이 달라.','누구 말이 맞는지보다 근거부터 보자.'],
   '전달확인':['확인된 말인데','근거까지 붙은 얘긴데','이건 확인이 끝난 소식인데','관측대 도장까지 찍힌 말인데'],
   '전달미확인':['아직 확인 중이지만','확실친 않은데','물음표 하나는 남겨두고 들어줘 —','바람결에 온 말인데']
 };
@@ -261,7 +262,7 @@ const state={
   day:1,hour:7.15,scene:'아침 정리',weather:'맑음',generation:1,tick:0,
   resources:{활기:64,신뢰:57,기술:31,문화:38,혼선:12},
   life:[],talk:[],artifacts:[],inputs:[],news:[],spreads:[],recentOps:[],chronicle:[],
-  promises:[],posts:[],customs:[],gathering:null,breachTotal:0,
+  promises:[],posts:[],customs:[],gathering:null,breachTotal:0,series:[],lastSample:0,
   director:{id:'cassandra',last:0,lastKind:'회복'}
 };
 const buildings=[
@@ -321,7 +322,7 @@ const agents=defs.map((d,i)=>({
   x:540+rnd()*80,y:316+rnd()*60,tx:560+rnd()*50,ty:300+rnd()*45,place:'square',
   mood:58+rnd()*24,energy:58+rnd()*22,focus:46+rnd()*30,confidence:50+rnd()*26,
   pers:basePers(d[2]),persLog:[],
-  task:'오늘의 동선을 고르는 중',thought:'아침의 소리를 듣고 있다.',op:null,cool:0,bubble:'',bubbleT:0,plan:[],lastSlot:-1,rel:{},memories:[],recalled:[],known:{},attention:0,pathTrail:[],lastScores:[],
+  task:'오늘의 동선을 고르는 중',thought:'아침의 소리를 듣고 있다.',op:null,cool:0,bubble:'',bubbleT:0,plan:[],lastSlot:-1,rel:{},memories:[],recalled:[],known:{},attention:0,pathTrail:[],lastScores:[],lastTalkScores:[],
   desires:[],breaches:0,kept:0,taste:makeTaste()
 }));
 agents.forEach(a=>agents.forEach(b=>{if(a!==b)a.rel[b.id]=Math.round(38+rnd()*30)}));
@@ -364,23 +365,36 @@ function makeBundle(a){
   a.attention=0; const recent=a.memories.slice(0,8); if(recent.length<3)return;
   const counts={}; recent.forEach(m=>m.tags.forEach(t=>counts[t]=(counts[t]||0)+1));
   const topic=Object.entries(counts).sort((x,y)=>y[1]-x[1])[0]?.[0]||'마을';
-  const lines={
-    '소식':`${N(a.name,'eun')} 퍼지는 말에는 경로와 근거가 함께 필요하다고 정리했다.`,
-    '관계':`${N(a.name,'eun')} 가까운 관계가 일을 빠르게 움직이지만, 확인 없는 동의는 마을을 헷갈리게 만든다고 느꼈다.`,
-    '기술':`${N(a.name,'eun')} 반복되는 일을 작은 도구로 묶으면 마을이 오래 버틴다고 보았다.`,
-    '문화':`${N(a.name,'eun')} 행사가 단순한 놀이가 아니라 주민들이 같은 시간을 약속하는 방식이라고 여겼다.`,
-    '확인':`${N(a.name,'eun')} 소식이 퍼지기 전에 한 번 멈춰 근거를 보는 습관이 중요하다고 묶어두었다.`,
-    '갈등':`${N(a.name,'eun')} 어긋난 말들이 쌓일 땐 밀어붙이기보다 거리와 시간이 필요하다고 정리했다.`,
-    '낡음':`${N(a.name,'eun')} 만든 것을 지키는 일이 만드는 일만큼 크다는 것을 깨달았다.`
+  // ── Smallville 성찰 강화: 통찰은 변주 풀에서, 근거는 실제 이력(상대·장소·기억 수)에서 —
+  //    같은 주제라도 겪은 일이 다르면 다른 문장으로 굳는다 (docs/research/llm-lineage.md) ──
+  const INSIGHTS={
+    '소식':['퍼지는 말에는 경로와 근거가 함께 필요하다고 정리했다.','말은 옮겨질 때마다 조금씩 다른 것이 된다는 걸 몸으로 익혔다.','들은 것과 아는 것 사이의 거리를 재게 됐다.'],
+    '관계':['가까운 관계가 일을 빠르게 움직이지만, 확인 없는 동의는 마을을 헷갈리게 만든다고 느꼈다.','사람 사이의 온도는 말보다 지켜진 약속에서 온다고 정리했다.','멀어진 사이일수록 먼저 건네는 한마디가 크다는 걸 알았다.'],
+    '기술':['반복되는 일을 작은 도구로 묶으면 마을이 오래 버틴다고 보았다.','도구는 손에 익을 때까지가 절반이고, 나누는 것이 나머지 절반이라고 여겼다.','만드는 속도보다 고치기 쉬운 모양이 중요하다고 새겼다.'],
+    '문화':['행사가 단순한 놀이가 아니라 주민들이 같은 시간을 약속하는 방식이라고 여겼다.','모인 저녁의 기억이 다음 며칠의 힘이 된다는 걸 알았다.','불빛을 켜는 사람이 있어야 모임이 시작된다는 걸 배웠다.'],
+    '확인':['소식이 퍼지기 전에 한 번 멈춰 근거를 보는 습관이 중요하다고 묶어두었다.','확인 한 번이 열 마디 해명보다 싸다는 걸 배웠다.','출처를 되짚는 일이 마을의 혼선을 줄인다고 정리했다.'],
+    '갈등':['어긋난 말들이 쌓일 땐 밀어붙이기보다 거리와 시간이 필요하다고 정리했다.','언성이 높아진 날의 말은 하루 재워야 한다는 걸 배웠다.','부딪힌 다음 날 먼저 거는 말이 관계를 정한다고 새겼다.'],
+    '낡음':['만든 것을 지키는 일이 만드는 일만큼 크다는 것을 깨달았다.','낡는 것은 실패가 아니라 다시 만질 이유라고 정리했다.']
   };
-  const text=lines[topic]||`${N(a.name,'eun')} 최근의 여러 일을 묶어 ${topic} 쪽이 다음 움직임의 열쇠라고 보았다.`;
+  // 근거 꼬리 — 최근 기억에서 가장 잦은 상대와 장소를 캐 문장에 박는다
+  const pc={}; recent.forEach(m=>{const id=m.meta&&(m.meta.with||m.meta.agent); if(id)pc[id]=(pc[id]||0)+1});
+  const partner=agents.find(x=>x.id===(Object.entries(pc).sort((u,v)=>v[1]-u[1])[0]||[])[0]);
+  const bc={}; recent.forEach(m=>m.tags.forEach(t=>{if(building(t))bc[t]=(bc[t]||0)+1}));
+  const spot=building((Object.entries(bc).sort((u,v)=>v[1]-u[1])[0]||[])[0]);
+  const grounds=[];
+  if(partner)grounds.push(`${N(partner.name,'gwa')} 겪은 요즘 일들이 그 생각을 만들었다.`);
+  if(spot)grounds.push(`${spot.name}에서의 며칠이 그 생각을 굳혔다.`);
+  grounds.push(`기억 ${recent.length}조각이 한 방향을 가리키고 있었다.`);
+  const topicLabel=building(topic)?building(topic).name:topic; // 태그가 장소 id면 이름으로
+  const insight=pickFresh(INSIGHTS[topic]||[`최근의 여러 일을 묶어 ${topicLabel} 쪽이 다음 움직임의 열쇠라고 보았다.`],'성찰:'+topic);
+  const text=`${N(a.name,'eun')} ${insight} ${pickFresh(grounds,'성찰근거:'+a.id)}`;
   memory(a,text,[topic,'묶음','기억'],8,'묶음',{},false); a.thought=text;
   // 기억이 영구층으로 내려가는 순간 성격이 반드시 이동한다 — 기억→성격→행동의 되먹임 고리
   const drift={'소식':['신중',2],'확인':['신중',3],'관계':['사교',2],'대화':['사교',2],'갈등':['신중',2],'낡음':['끈기',2],'기술':['끈기',3],'도구':['끈기',2],'발전':['끈기',2],'문화':['낙관',3],'회복':['낙관',2],'혼선':['신중',2],'계획':['끈기',2],'기록':['신중',2]}[topic]||['끈기',1];
   shiftPers(a,drift[0],drift[1],`${topic}의 기억이 굳었다`);
   if(a.mood<45)shiftPers(a,'낙관',-2,'힘든 시기의 기억이 굳었다');
   else if(a.mood>78)shiftPers(a,'낙관',1,'좋은 시기의 기억이 굳었다');
-  addLife(`${a.name}의 기억이 묶여 성격에 내려앉았다 — ${topic} 쪽으로 마음이 기울었다.`,'성격');
+  addLife(`${a.name}의 기억이 묶여 성격에 내려앉았다 — ${topicLabel} 쪽으로 마음이 기울었다.`,'성격');
 }
 function buildPlan(a){
   const roleMap={기록자:'library',조율가:'square',공방장:'workshop',정원사:'garden',관측가:'tower',전령:'gate',축제지기:'studio',연결자:'square'};
@@ -603,7 +617,7 @@ function readPosts(a){
 function planGathering(host){
   const title=rnd()<.3?`${pick(host.taste.likes)}의 밤`:gen('행사이름'), place=rnd()<.5?'studio':'square', at=(state.day+1)*24+19+rnd()*1.5;
   const n=createNews(`${N(host.name,'i')} 내일 저녁 ${building(place).name}에서 「${title}」 자리를 연다더라`,host.name,[host,pick(agents.filter(x=>x!==host))]);
-  state.gathering={id:'g'+gathSeq++,host:host.id,title,place,at,endAt:at+2.2,newsId:n.id,attended:[],pulse:0};
+  state.gathering={id:'g'+gathSeq++,host:host.id,title,place,at,endAt:at+2.2,newsId:n.id,attended:[],acts:[],pulse:0};
   addLife(`${N(host.name,'i')} 「${title}」 모임을 열겠다고 알렸다 — 초대가 입에서 입으로 번진다.`,'행사');
   memory(host,`「${title}」 모임을 열기로 마음먹고 이웃들에게 알렸다.`,['행사','문화'],7,'행사');
   host.desires=host.desires.filter(d=>d.kind!=='행사');
@@ -616,9 +630,51 @@ function gatherPull(a){
   const want=a.rel[g.host]*.6+a.pers.사교*.4+a.mood*.25-(a.energy<35?26:0);
   return want>(hasCustom('모임')?56:62)&&rnd()<.75?g.place:null;
 }
+// ── Versu식 진행형 행사: 열린 자리는 참여자에게 행동 수를 제공하고, 선택은 성격·역할이
+//    정하며 각자 다른 기억·관계로 남는다. 관습은 선택지 목록 자체를 바꾼다 (docs/research/versu.md) ──
+const GATHER_ACTS=[
+  {id:'낭독',when:a=>a.role==='기록자'||a.memories.some(m=>m.type==='묶음'),w:a=>12+(a.pers.신중-50)*.15,
+    bubble:['짧은 글 하나 읽어볼게.','이 문장은 소리 내어 읽고 싶었어.'],
+    do(a,g,here){const b=a.memories.find(m=>m.type==='묶음');state.resources.문화=clamp(state.resources.문화+1.5,0,100);a.confidence=clamp(a.confidence+3,0,100);
+      here.filter(o=>o!==a).forEach(o=>memory(o,`「${g.title}」에서 ${a.name}의 낭독을 들었다${b?` — “${b.text.slice(0,22)}…”`:''}.`,['행사','문화'],5,'행사',{agent:a.id}));
+      return `${N(a.name,'i')} 자리 한가운데서 짧은 글을 낭독했다`}},
+  {id:'등불',w:a=>9+(a.pers.낙관-50)*.18,
+    bubble:['등불 하나 더 켜자.','불빛이 모자라면 이야기도 짧아져.'],
+    do(a,g,here){state.resources.활기=clamp(state.resources.활기+1,0,100);here.forEach(o=>o.mood=clamp(o.mood+1.5,0,100));
+      return `${N(a.name,'i')} 등불을 하나 더 밝혀 자리가 환해졌다`}},
+  {id:'기록',when:a=>a.role==='기록자'||hasSkill('기억 색인'),w:a=>10+(a.pers.끈기-50)*.1,
+    bubble:['오늘 자리는 남겨둘게.','이런 저녁은 기록감이지.'],
+    do(a,g){state.artifacts.unshift({id:'art'+artifactSeq++,title:`「${g.title}」의 밤 기록`,by:a.name,where:building(g.place).name,time:timeText(),text:`모인 얼굴들과 오간 말을 짧게 적어두었다.`});
+      return `${N(a.name,'i')} 자리의 온도를 기록으로 남겼다`}},
+  {id:'속깊은말',w:a=>8+(a.pers.사교-50)*.2,
+    bubble:['잠깐, 우리 얘기 좀 하자.','오늘은 왠지 말이 나온다.'],
+    do(a,g,here){const o=pick(here.filter(x=>x!==a));if(!o)return null;
+      a.rel[o.id]=clamp(a.rel[o.id]+3,0,100);o.rel[a.id]=clamp(o.rel[a.id]+3,0,100);
+      memory(a,`「${g.title}」 구석에서 ${N(o.name,'gwa')} 속 깊은 이야기를 나눴다.`,['행사','관계'],6,'행사',{with:o.id});
+      memory(o,`「${g.title}」 구석에서 ${N(a.name,'gwa')} 속 깊은 이야기를 나눴다.`,['행사','관계'],6,'행사',{with:a.id});
+      return `${N(a.name,'gwa')} ${N(o.name,'i')} 구석 자리에서 오래 이야기했다`}},
+  {id:'지켜보기',w:a=>6+(50-a.pers.사교)*.2,
+    bubble:['난 여기서 보는 게 좋아.','불빛 구경도 참석이지.'],
+    do(a,g){a.energy=clamp(a.energy+2,0,100);memory(a,`「${g.title}」의 가장자리에서 사람들을 오래 지켜보았다.`,['행사','관찰'],4,'행사');
+      return null}},
+  // 모임의 관습이 생긴 마을에서만 열리는 수 — 자리가 다음 자리를 부른다
+  {id:'다음자리약속',when:a=>hasCustom('모임'),w:a=>9+(a.pers.사교-50)*.1,
+    bubble:['다음엔 내가 자리를 열게.','이대로 끝내긴 아깝잖아.'],
+    do(a,g,here){const o=pick(here.filter(x=>x!==a&&!pairPromise(a,x)));if(!o||openPromises(a).length>=2)return null;
+      const pm=makePromise(a,o,'방문',homeOf(o),(state.day+1)*24+20.5+rnd()*2,`${N(a.name,'i')} 「${g.title}」의 온기를 이어 내일 저녁 ${o.name}의 거처에 들르기로 했다.`);
+      return pm.text.replace(/\.$/,'')}}
+];
+function gatherAct(a,g,here){
+  const cands=GATHER_ACTS.filter(x=>!x.when||x.when(a)).map(x=>({x,s:x.w(a)+rnd()*8})).sort((u,v)=>v.s-u.s);
+  const act=cands[0].x; if(g.acts.some(e=>e.who===a.id&&e.act===act.id))return; // 같은 수는 한 자리에서 한 번
+  const text=act.do(a,g,here); g.acts.push({who:a.id,act:act.id});
+  a.bubble=pickFresh(act.bubble,'행사수:'+act.id); a.bubbleT=3;
+  if(text){addLife(`${text} — 「${g.title}」.`,'행사');}
+}
 function gatheringTick(){
   const g=state.gathering; if(!g)return; const t=now();
   if(t>=g.at&&t<=g.endAt){
+    if(!g.acts)g.acts=[];
     agents.filter(a=>a.place===g.place&&!g.attended.includes(a.id)).forEach(a=>{
       g.attended.push(a.id);
       memory(a,`「${g.title}」에 자리했다 — ${building(g.place).name}의 불빛이 오래 남을 것 같다.`,['행사','문화',g.place],7,'행사',{gather:g.id});
@@ -631,15 +687,18 @@ function gatheringTick(){
         here[i].rel[here[j].id]=clamp(here[i].rel[here[j].id]+1,0,100);
         here[j].rel[here[i].id]=clamp(here[j].rel[here[i].id]+1,0,100);
       }
+      // 자리가 무르익으면 참여자들이 각자의 수를 둔다
+      if(here.length>=2)here.forEach(a=>{if(rnd()<.4)gatherAct(a,g,here)});
     }
   } else if(t>g.endAt){
     const host=agents.find(x=>x.id===g.host), n=g.attended.length;
     if(n>=3){
       state.gatherWins=(state.gatherWins||0)+1;
       state.resources.문화=clamp(state.resources.문화+8,0,100); state.resources.활기=clamp(state.resources.활기+4,0,100);
-      addLife(`「${g.title}」에 ${g.attended.map(agentName).join(', ')}이 모여 저녁을 보냈다 — 각본 없이 초대가 만든 자리였다.`,'행사');
+      const actNote=(g.acts&&g.acts.length)?` 자리에서는 ${[...new Set(g.acts.map(e=>`${agentName(e.who)}의 ${e.act}`))].slice(0,3).join(', ')}이 있었다.`:'';
+      addLife(`「${g.title}」에 ${g.attended.map(agentName).join(', ')}이 모여 저녁을 보냈다 — 각본 없이 초대가 만든 자리였다.${actNote}`,'행사');
       placeEcho(g.place,'행사',`「${g.title}」의 불빛이 밤늦게까지 남았다`);
-      state.artifacts.unshift({id:'art'+artifactSeq++,title:`「${g.title}」의 기록`,by:host.name,where:building(g.place).name,time:timeText(),text:`${n}명이 모였다. 초대는 소문의 길을 타고 퍼졌다.`});
+      state.artifacts.unshift({id:'art'+artifactSeq++,title:`「${g.title}」의 기록`,by:host.name,where:building(g.place).name,time:timeText(),text:`${n}명이 모였다. 초대는 소문의 길을 타고 퍼졌다.${actNote}`});
       g.attended.forEach(id=>{if(id!==g.host){const a=agents.find(x=>x.id===id);a.rel[g.host]=clamp(a.rel[g.host]+3,0,100)}});
     } else {
       host.mood=clamp(host.mood-8,0,100);
@@ -759,25 +818,55 @@ function observe(a){
   else if(place&&place.id===a.taste.spot){a.mood=clamp(a.mood+1,0,100);memory(a,`${N(place.name,'eun')} 역시 마음이 놓이는 자리다. ${N(pick(a.taste.likes),'i')} 떠올랐다.`,[place.id,'취향'],3,'관찰');}
   else if(place)memory(a,`${place.name}의 분위기가 ${state.scene}에 맞춰 조금 달라졌다.`,[place.id,place.kind],2,'관찰');
 }
+// ── Ensemble/CiF식 사회 물리: 대화의 수(手)를 코드 분기 순서가 아니라 "조건 → 의지 가중치"
+//    규칙 데이터가 정한다. 매 대화마다 모든 수의 의지를 계산해 순위표를 남기므로
+//    "왜 이 말을 했나"에 항상 답할 수 있다 (docs/research/ensemble-cif.md) ──
+const SOCIAL_RULES=[
+  {move:'화해',why:'풀지 못한 어긋남이 있다',when:(s,l,c)=>!!c.recon,w:(s,l,c)=>58+(hasCustom('화해')?10:0)+(s.pers.사교-50)*.1},
+  {move:'전달',why:'상대가 아직 모르는 소식',when:(s,l,c)=>!!c.transferable,w:(s,l,c)=>34+(s.known[c.transferable.id].confidence-50)*.2+(s.role==='전령'?8:0)+(s.pers.사교-50)*.1},
+  {move:'조율',why:'같은 소식, 다른 확신',when:(s,l,c)=>!!c.knownBoth,w:(s,l)=>26+(s.pers.신중-50)*.25},
+  {move:'취향',why:'같은 걸 좋아하는 걸 서로 모른다',when:(s,l,c)=>!!c.fresh,w:(s,l)=>26+(s.pers.사교-50)*.15},
+  {move:'회상',why:'방금 떠오른 기억이 있다',when:(s,l,c)=>!!c.cite&&c.moodAvg>=46,w:(s,l)=>13+(s.pers.신중-50)*.1},
+  {move:'갈등',why:'가라앉은 기분과 낮은 온도',when:()=>true,w:(s,l,c)=>2+(c.moodAvg<46?26:0)+(s.rel[l.id]<42?7:0)+Math.max(0,46-c.moodAvg)*.4},
+  {move:'약속',why:'좋은 관계가 다음 일을 부른다',when:(s,l,c)=>c.canPromise&&c.moodAvg>=50,w:(s,l)=>10+(s.rel[l.id]-52)*.3+(s.pers.낙관-50)*.1},
+  {move:'잡담',why:'말이 오가는 것 자체가 마을이다',when:()=>true,w:(s,l,c)=>16+c.moodAvg*.08}
+];
+function rankSocialMoves(speaker,listener,ctx){
+  const ranked=SOCIAL_RULES.filter(r=>!r.when||r.when(speaker,listener,ctx))
+    .map(r=>({move:r.move,why:r.why,score:r.w(speaker,listener,ctx)+rnd()*10}))
+    .sort((x,y)=>y.score-x.score);
+  speaker.lastTalkScores=ranked.slice(0,3).map(r=>({label:`${r.move} · ${r.why}`,score:Math.round(r.score)}));
+  return ranked[0].move;
+}
 function converse(a,b){
   if(a.cool>0||b.cool>0||a.op||b.op||dist(a,b)>76)return;
   // 쌍 중력 — 닫히지 않은 약속·풀리지 않은 어긋남·미확인 소식이 만남의 확률을 끌어올린다
   const gpull=(gravity(a,b)+gravity(b,a))/2;
   if(rnd()>.036*(.6+(a.pers.사교+b.pers.사교)/2/100*.8)*(1+gpull/70))return;
   let speaker=a, listener=b; if(rnd()<.5){speaker=b;listener=a}
+  // 컨텍스트 수집 — 규칙이 읽을 수 있는 상황 재료
   let recon=null; for(const [x,y] of [[speaker,listener],[listener,speaker]]){const d=x.desires.find(v=>v.kind==='화해'&&v.target===y.id);if(d){recon=x;break}}
   const transferable=state.news.find(n=>speaker.known[n.id]&&!listener.known[n.id]&&(speaker.known[n.id].confidence>34||rnd()<.25));
   const knownBoth=state.news.find(n=>speaker.known[n.id]&&listener.known[n.id]&&!n.verified&&Math.abs(speaker.known[n.id].confidence-listener.known[n.id].confidence)>18);
-  let line='',kind='대화',summary='',delta=2;
   const recall=retrieve(speaker,transferable?['소식','관계']:['관계',speaker.place],listener.name);
-  if(recon&&rnd()<.8){
+  const shared=speaker.taste.likes.find(l=>listener.taste.likes.includes(l));
+  const fresh=shared&&!speaker.memories.some(m=>m.tags.includes('취향')&&m.meta&&m.meta.with===listener.id);
+  // 인용할 기억: 소식(따옴표 중첩)과 묶음(추상)은 피하고, 상대와 함께한 기억을 우선한다
+  const citable=m=>m&&!['묶음','소식','기본'].includes(m.type);
+  const cite=recall.find(m=>citable(m)&&m.meta&&m.meta.with===listener.id)||recall.find(citable);
+  const canPromise=speaker.rel[listener.id]>52&&!pairPromise(speaker,listener)&&openPromises(speaker).length<2&&openPromises(listener).length<2;
+  const ctx={recon,transferable,knownBoth,fresh,cite,canPromise,moodAvg:(speaker.mood+listener.mood)/2};
+  const move=rankSocialMoves(speaker,listener,ctx);
+  let line='',kind='대화',summary='',delta=2;
+  const topic=rnd()<.3?pick(speaker.taste.likes):pick(G['주제']); // 취향이 대화 주제의 재료가 된다
+  if(move==='화해'){
     // 바람을 품은 쪽이 먼저 손을 내민다 — 화해가 이뤄지면 중력의 이유 하나가 사라진다
     if(recon!==speaker){const t=speaker;speaker=listener;listener=t}
     line=gen('화해말'); kind='화해'; delta=6;
     summary=`${N(speaker.name,'i')} 먼저 손을 내밀어 ${N(listener.name,'gwa')} 어긋났던 매듭을 풀었다.`;
     [speaker,listener].forEach(x=>{x.desires=x.desires.filter(d=>!(d.kind==='화해'&&(d.target===speaker.id||d.target===listener.id)));x.mood=clamp(x.mood+4,0,100)});
     state.heals=(state.heals||0)+1;
-  } else if(transferable){
+  } else if(move==='전달'){
     const conf=clamp(speaker.known[transferable.id].confidence-6+rnd()*12,12,94);
     // 말하는 이는 자기가 들은 판본을 옮기고, 옮기는 사이 말이 미끄러질 수 있다
     let told=speaker.known[transferable.id].text||transferable.text;
@@ -785,57 +874,46 @@ function converse(a,b){
     giveNews(listener,transferable,speaker,conf,told); transferable.path.push({from:speaker.id,to:listener.id,time:timeText(),confidence:Math.round(conf)}); state.spreads.unshift({news:transferable.id,from:speaker.id,to:listener.id,t:now()}); state.spreads=state.spreads.slice(0,36);
     const src=speaker.known[transferable.id].from; // 출처를 입에 올리는 순간, 흐려진 기억이 그대로 밖으로 나온다
     line=transferable.verified?`${gen('전달확인')}, ${told}`:(src&&agents.some(x=>x.name===src)&&src!==listener.name&&rnd()<.4?`${src}한테 들었는데, ${told}`:`${gen('전달미확인')}, ${told}`); kind=transferable.verified?'공유':'소식'; summary=`${N(speaker.name,'i')} ${listener.name}에게 “${told}”를 전했다.`; delta=transferable.verified?4:1; if(!transferable.verified&&conf<45)state.resources.혼선=clamp(state.resources.혼선+1.1,0,100);
-  } else if(knownBoth){
-    line=`그 말은 둘 다 들었지만, 근거를 한 번 더 보자.`; kind='조율'; summary=`${N(speaker.name,'gwa')} ${N(listener.name,'i')} 같은 소식을 두고 확인이 필요하다고 맞췄다.`; delta=2; setTarget(speaker,'tower','함께 소식을 확인하러 가는 중'); if(rnd()<.45)setTarget(listener,'tower','함께 소식을 확인하러 가는 중');
-  } else {
-    const topic=rnd()<.3?pick(speaker.taste.likes):pick(G['주제']); // 취향이 대화 주제의 재료가 된다
-    const shared=speaker.taste.likes.find(l=>listener.taste.likes.includes(l));
-    const fresh=shared&&!speaker.memories.some(m=>m.tags.includes('취향')&&m.meta&&m.meta.with===listener.id);
-    // 인용할 기억: 소식(따옴표 중첩)과 묶음(추상)은 피하고, 상대와 함께한 기억을 우선한다
-    const citable=m=>m&&!['묶음','소식','기본'].includes(m.type);
-    const cite=recall.find(m=>citable(m)&&m.meta&&m.meta.with===listener.id)||recall.find(citable);
-    // 기분이 가라앉은 날엔 말이 어긋나기 쉽다 — 갈등도 마을의 이야기다
-    const frict=rnd()<((speaker.mood+listener.mood)/2<46?.5:.08);
-    if(fresh&&rnd()<.5){
-      // 같은 걸 좋아하는 둘이 그걸 처음 알게 되는 순간
-      line=gen('취향공명',{'취향':shared}); kind='취향'; delta=4;
-      summary=`${N(speaker.name,'gwa')} ${N(listener.name,'i')} 서로 ${shared}에 마음이 가는 걸 알게 됐다.`;
-    } else if(!frict&&cite&&rnd()<.22){
-      // 대화가 방금 꺼낸 기억을 실제로 인용한다 — 같은 템플릿도 역사가 실리면 매번 다른 말이 된다
-      line=gen('회상말',{'기억':cite.text.replace(/[“”"]/g,'').slice(0,24)}); kind='회상'; delta=3; cite.last=now();
-      summary=`${N(speaker.name,'i')} ${listener.name}에게 지난 기억을 꺼내 되짚었다.`;
-    } else if(frict){
-      line=genFor(speaker,'마찰',{'주제':topic}); summary=`${N(speaker.name,'gwa')} ${N(listener.name,'i')} ${N(topic,'eul')} 두고 서로 어긋났다.`; delta=-2; kind='갈등';
-      speaker.mood=clamp(speaker.mood-2,0,100); listener.mood=clamp(listener.mood-3,0,100);
-      // 어긋남은 화해의 바람을 남기고, 목격자의 입을 타면 평판 소문이 된다
-      const healStr=hasCustom('화해')?36:28; // 화해의 관습은 먼저 말을 걸게 만든다
-      addDesire(speaker,'화해',`${N(listener.name,'gwa')} 어긋난 말을 풀고 싶다`,listener.id,healStr);
-      addDesire(listener,'화해',`${N(speaker.name,'gwa')} 어긋난 말을 풀고 싶다`,speaker.id,healStr);
-      const wit=agents.find(o=>o!==speaker&&o!==listener&&!o.op&&dist(o,speaker)<120);
-      if(wit){
-        memory(wit,`${N(speaker.name,'gwa')} ${N(listener.name,'i')} 언성을 높이는 것을 지켜보았다.`,['관계','갈등'],5,'관찰',{agent:speaker.id});
-        if(rnd()<.25)createNews(`${N(speaker.name,'gwa')} ${listener.name}의 사이가 요즘 삐걱인다는 말이 있다`,`${wit.name}의 귀띔`,[wit],{subject:speaker.id,stance:'의심'});
-      }
-    } else {
-      const good=(speaker.mood+listener.mood+speaker.rel[listener.id]+listener.rel[speaker.id])/4 + rnd()*16 + (speaker.pers.낙관-50)*.25>56;
-      line=good?genFor(speaker,'긍정',{'주제':topic}):genFor(speaker,'신중',{'주제':topic});
-      summary=`${N(speaker.name,'gwa')} ${N(listener.name,'i')} ${topic}에 대해 짧게 맞췄다.`; delta=(good?3:0)+(speaker.pers.사교>62?1:0); kind=good?'대화':'조율';
-      // 좋은 대화는 약속을 낳는다 — 관계가 사건을 다시 부르는 역방향 고리의 시작점
-      if(good&&rnd()<.16&&speaker.rel[listener.id]>52&&!pairPromise(speaker,listener)&&openPromises(speaker).length<2&&openPromises(listener).length<2){
-        const pr=projects.find(p=>!p.done&&(speaker.baseTags.includes(p.need)||listener.baseTags.includes(p.need)));
-        let pm;
-        if(pr&&rnd()<.5){
-          pm=makePromise(speaker,listener,'공동작업',pr.place,(state.day+1)*24+13.5+rnd()*3,`${N(speaker.name,'gwa')} ${N(listener.name,'i')} 내일 ${building(pr.place).name}에서 ${N(pr.name,'eul')} 같이 손보기로 했다.`);
-          line=gen('약속작업',{'일':pr.name});
-        } else {
-          pm=makePromise(speaker,listener,'방문',homeOf(listener),(state.day+1)*24+20.5+rnd()*2.5,`${N(speaker.name,'i')} 내일 저녁 ${listener.name}의 거처에 들르기로 했다.`);
-          line=gen('약속방문');
-        }
-        kind='약속'; delta=4; summary=pm.text;
-      }
-      // 어울리고 싶던 바람은 좋은 대화로 풀린다
-      [speaker,listener].forEach(x=>{const d=x.desires.find(v=>v.kind==='어울림');if(d&&good){x.desires=x.desires.filter(v=>v!==d);x.mood=clamp(x.mood+3,0,100)}});
+  } else if(move==='조율'){
+    line=gen('조율말'); kind='조율'; summary=`${N(speaker.name,'gwa')} ${N(listener.name,'i')} 같은 소식을 두고 확인이 필요하다고 맞췄다.`; delta=2; setTarget(speaker,'tower','함께 소식을 확인하러 가는 중'); if(rnd()<.45)setTarget(listener,'tower','함께 소식을 확인하러 가는 중');
+  } else if(move==='취향'){
+    // 같은 걸 좋아하는 둘이 그걸 처음 알게 되는 순간
+    line=gen('취향공명',{'취향':shared}); kind='취향'; delta=4;
+    summary=`${N(speaker.name,'gwa')} ${N(listener.name,'i')} 서로 ${shared}에 마음이 가는 걸 알게 됐다.`;
+  } else if(move==='회상'){
+    // 대화가 방금 꺼낸 기억을 실제로 인용한다 — 같은 템플릿도 역사가 실리면 매번 다른 말이 된다
+    line=gen('회상말',{'기억':cite.text.replace(/[“”"]/g,'').slice(0,24)}); kind='회상'; delta=3; cite.last=now();
+    summary=`${N(speaker.name,'i')} ${listener.name}에게 지난 기억을 꺼내 되짚었다.`;
+  } else if(move==='갈등'){
+    line=genFor(speaker,'마찰',{'주제':topic}); summary=`${N(speaker.name,'gwa')} ${N(listener.name,'i')} ${N(topic,'eul')} 두고 서로 어긋났다.`; delta=-2; kind='갈등';
+    speaker.mood=clamp(speaker.mood-2,0,100); listener.mood=clamp(listener.mood-3,0,100);
+    // 어긋남은 화해의 바람을 남기고, 목격자의 입을 타면 평판 소문이 된다
+    const healStr=hasCustom('화해')?36:28; // 화해의 관습은 먼저 말을 걸게 만든다
+    addDesire(speaker,'화해',`${N(listener.name,'gwa')} 어긋난 말을 풀고 싶다`,listener.id,healStr);
+    addDesire(listener,'화해',`${N(speaker.name,'gwa')} 어긋난 말을 풀고 싶다`,speaker.id,healStr);
+    const wit=agents.find(o=>o!==speaker&&o!==listener&&!o.op&&dist(o,speaker)<120);
+    if(wit){
+      memory(wit,`${N(speaker.name,'gwa')} ${N(listener.name,'i')} 언성을 높이는 것을 지켜보았다.`,['관계','갈등'],5,'관찰',{agent:speaker.id});
+      if(rnd()<.25)createNews(`${N(speaker.name,'gwa')} ${listener.name}의 사이가 요즘 삐걱인다는 말이 있다`,`${wit.name}의 귀띔`,[wit],{subject:speaker.id,stance:'의심'});
     }
+  } else if(move==='약속'){
+    // 좋은 대화는 약속을 낳는다 — 관계가 사건을 다시 부르는 역방향 고리의 시작점
+    const pr=projects.find(p=>!p.done&&(speaker.baseTags.includes(p.need)||listener.baseTags.includes(p.need)));
+    let pm;
+    if(pr&&rnd()<.5){
+      pm=makePromise(speaker,listener,'공동작업',pr.place,(state.day+1)*24+13.5+rnd()*3,`${N(speaker.name,'gwa')} ${N(listener.name,'i')} 내일 ${building(pr.place).name}에서 ${N(pr.name,'eul')} 같이 손보기로 했다.`);
+      line=gen('약속작업',{'일':pr.name});
+    } else {
+      pm=makePromise(speaker,listener,'방문',homeOf(listener),(state.day+1)*24+20.5+rnd()*2.5,`${N(speaker.name,'i')} 내일 저녁 ${listener.name}의 거처에 들르기로 했다.`);
+      line=gen('약속방문');
+    }
+    kind='약속'; delta=4; summary=pm.text;
+  } else {
+    const good=(speaker.mood+listener.mood+speaker.rel[listener.id]+listener.rel[speaker.id])/4 + rnd()*16 + (speaker.pers.낙관-50)*.25>56;
+    line=good?genFor(speaker,'긍정',{'주제':topic}):genFor(speaker,'신중',{'주제':topic});
+    summary=`${N(speaker.name,'gwa')} ${N(listener.name,'i')} ${topic}에 대해 짧게 맞췄다.`; delta=(good?3:0)+(speaker.pers.사교>62?1:0); kind=good?'대화':'조율';
+    // 어울리고 싶던 바람은 좋은 대화로 풀린다
+    [speaker,listener].forEach(x=>{const d=x.desires.find(v=>v.kind==='어울림');if(d&&good){x.desires=x.desires.filter(v=>v!==d);x.mood=clamp(x.mood+3,0,100)}});
   }
   speaker.bubble=line; listener.bubble=kind==='갈등'?genFor(listener,'마찰수긍'):kind==='화해'?gen('화해답'):genFor(listener,'맞장구'); speaker.bubbleT=listener.bubbleT=3.4; speaker.cool=listener.cool=5.4;
   speaker.rel[listener.id]=clamp(speaker.rel[listener.id]+delta,0,100); listener.rel[speaker.id]=clamp(listener.rel[speaker.id]+delta,0,100); state.resources.신뢰=clamp(state.resources.신뢰+delta*.12,0,100);
@@ -908,6 +986,12 @@ function daily(){
   addLife(`${state.day}일차가 시작됐다. 날씨는 ${state.weather}, 아직 확인 중인 소식은 ${unresolved}개다.`, '아침');
 }
 function sceneText(){const h=state.hour;return h<6?'깊은 밤':h<8.5?'아침 정리':h<12?'오전 작업':h<14?'점심 대화':h<18?'마을 발전':h<21?'저녁 조율':'밤의 기록'}
+// ── Mesa DataCollector식 지표 시계열: 마을 맥박을 매시간 적재해 흐름으로 관찰한다 (docs/research/mesa.md) ──
+function sampleSeries(){
+  if(now()-state.lastSample<1)return; state.lastSample=now();
+  state.series.push({t:now(),활기:Math.round(state.resources.활기),신뢰:Math.round(state.resources.신뢰),혼선:Math.round(state.resources.혼선),기분:avgMood(),관계:networkDensity()});
+  if(state.series.length>336)state.series=state.series.slice(-336); // 14일치
+}
 function sim(dt){
   state.hour+=dt*.18*speed; if(state.hour>=24)daily(); state.scene=sceneText(); handleInputs(); directorTick(dt*.18*speed);
   agents.forEach(a=>{
@@ -917,7 +1001,7 @@ function sim(dt){
     observe(a); maybePost(a); readPosts(a); a.energy=clamp(a.energy-dt*.42*speed+(nearbyBuilding(a)?.id==='garden'?.08:0),0,100); a.mood=clamp(a.mood+((state.resources.활기-50)/500)*dt*speed,0,100); a.cool=Math.max(0,a.cool-dt*speed); a.bubbleT=Math.max(0,a.bubbleT-dt*speed);
   });
   for(let i=0;i<agents.length;i++)for(let j=i+1;j<agents.length;j++)converse(agents[i],agents[j]);
-  promiseTick(); gatheringTick(); customTick();
+  promiseTick(); gatheringTick(); customTick(); sampleSeries();
   state.resources.활기=clamp(state.resources.활기-.005*dt*speed,0,100); state.resources.신뢰=clamp(state.resources.신뢰-(state.resources.혼선>45?.02:.004)*dt*speed,0,100); state.resources.혼선=clamp(state.resources.혼선-.006*dt*speed,0,100); state.tick++;
 }
 function sx(x){return x/world.w*W} function sy(y){return y/world.h*H}
@@ -1010,9 +1094,18 @@ function render(){
 function networkDensity(){let e=0,n=agents.length;for(let i=0;i<n;i++)for(let j=i+1;j<n;j++)if(((agents[i].rel[agents[j].id]||0)+(agents[j].rel[agents[i].id]||0))/2>58)e++;return Math.round(e/(n*(n-1)/2)*100)}
 function spreadRate(n){return Math.round((n.knownBy.length/agents.length)*100)}
 function avgMood(){return Math.round(agents.reduce((s,a)=>s+a.mood,0)/agents.length)}
+// ── Mesa식 시계열 관찰: 순간값이 아니라 흐름을 본다 — 위기와 회복의 곡선이 눈에 보인다 ──
+function sparklineCard(){
+  const s=state.series.slice(-72); if(s.length<4)return '';
+  const KEYS=[['기분','#89d8ff'],['활기','#a8f3bd'],['신뢰','#ffe28a'],['혼선','#ff9aaa']];
+  const w=100,h=30;
+  const lines=KEYS.map(([k,c])=>`<polyline points="${s.map((e,i)=>`${(i/(s.length-1)*w).toFixed(1)},${(h-2-clamp(e[k],0,100)/100*(h-4)).toFixed(1)}`).join(' ')}" fill="none" stroke="${c}" stroke-width="1.2" stroke-linejoin="round" opacity=".9"/>`).join('');
+  const legend=KEYS.map(([k,c])=>`<span style="color:${c}">— ${k}</span>`).join('');
+  return `<div class="card"><p class="cap">마을 맥박의 흐름 — 최근 ${s.length}시간</p><svg viewBox="0 0 ${w} ${h}" style="width:100%;height:62px;display:block" preserveAspectRatio="none">${lines}</svg><div class="subtle" style="font-size:10px;margin-top:6px;display:flex;gap:10px;flex-wrap:wrap">${legend}</div></div>`;
+}
 function metricCards(){
   const unresolved=state.news.filter(n=>!n.verified).length; const latest=state.news[0];
-  return `<div class="card"><p class="cap">마을 맥박</p><div class="meterGrid">${meter('평균 기분',avgMood())}${meter('관계 밀도',networkDensity())}${meter('확인 대기',Math.min(100,unresolved*16),'rose')}${meter('기술 서랍',Math.min(100,skills.length*13))}</div></div><div class="card"><p class="cap">가장 최근 소식</p><div class="note">${latest?`“${esc(latest.text)}”<br><span class="subtle">${spreadRate(latest)}%가 들었고, ${latest.verified?'확인됐어.':'아직 확인 중이야.'}</span>`:'아직 들어온 소식이 없어.'}</div></div><div class="card"><p class="cap">사건 감독</p><div class="note">${(d=>`${d.icon} <b>${d.name}</b> — ${d.desc}.<br><span class="subtle">마지막 사건 후 ${Math.max(0,Math.round(now()-state.director.last))}시간 경과${state.director.lastKind==='위기'&&d.recovery?' · 회복 보장 중':''}</span>`)(directorProfile())}</div>${state.recentOps.length?`<div class="miniList" style="margin-top:8px">${state.recentOps.slice(0,3).map(o=>`<div class="mini"><span class="subtle">${o.time}</span> · ${esc(o.text.slice(0,60))}</div>`).join('')}</div>`:''}</div>`
+  return `<div class="card"><p class="cap">마을 맥박</p><div class="meterGrid">${meter('평균 기분',avgMood())}${meter('관계 밀도',networkDensity())}${meter('확인 대기',Math.min(100,unresolved*16),'rose')}${meter('기술 서랍',Math.min(100,skills.length*13))}</div></div>${sparklineCard()}<div class="card"><p class="cap">가장 최근 소식</p><div class="note">${latest?`“${esc(latest.text)}”<br><span class="subtle">${spreadRate(latest)}%가 들었고, ${latest.verified?'확인됐어.':'아직 확인 중이야.'}</span>`:'아직 들어온 소식이 없어.'}</div></div><div class="card"><p class="cap">사건 감독</p><div class="note">${(d=>`${d.icon} <b>${d.name}</b> — ${d.desc}.<br><span class="subtle">마지막 사건 후 ${Math.max(0,Math.round(now()-state.director.last))}시간 경과${state.director.lastKind==='위기'&&d.recovery?' · 회복 보장 중':''}</span>`)(directorProfile())}</div>${state.recentOps.length?`<div class="miniList" style="margin-top:8px">${state.recentOps.slice(0,3).map(o=>`<div class="mini"><span class="subtle">${o.time}</span> · ${esc(o.text.slice(0,60))}</div>`).join('')}</div>`:''}</div>`
   +(state.gathering?`<div class="card"><p class="cap">다가오는 모임</p><div class="note">「${esc(state.gathering.title)}」 — ${agentName(state.gathering.host)} 주최 · ${timeTextFrom(state.gathering.at)} · ${building(state.gathering.place).name}<br><span class="subtle">초대는 소문처럼 퍼지고, 참석은 관계와 기분이 정해.</span></div></div>`:'')
   +(state.customs.length?`<div class="card"><p class="cap">마을의 관습</p><div class="miniList">${state.customs.map(c=>`<div class="mini">${esc(c.text)} <span class="subtle">· ${c.time}</span></div>`).join('')}</div></div>`:'');
 }
@@ -1032,7 +1125,7 @@ function renderSide(){
     const promCard=`<div class="card"><p class="cap">열려 있는 약속</p>${myProms.length?`<div class="miniList">${myProms.map(p=>{const o=agentName(p.a===a.id?p.b:p.a);const left=Math.round(p.due-now());return `<div class="mini"><b>${esc(p.kind)}</b> · ${esc(p.text)}<br><span class="subtle">${esc(o)}와 · ${left>0?left+'시간 남음':'기한이 지나고 있다'}</span></div>`}).join('')}</div>`:'<div class="note subtle">아직 열린 약속이 없어. 좋은 대화가 약속을 낳아.</div>'}</div>`;
     const grav=gravityList(a).slice(0,3);
     const gravCard=`<div class="card"><p class="cap">다시 엮일 이유 — 쌍 중력</p>${grav.length?`<div class="miniList">${grav.map(g=>`<div class="mini"><b>${esc(g.o.name)}</b> · ${g.why.map(esc).join(', ')} <span class="subtle">중력 ${Math.round(g.g)}</span></div>`).join('')}</div>`:'<div class="note subtle">지금은 누구와도 매듭이 없어. 중력은 호감 점수가 아니라 닫히지 않은 일의 합이야.</div>'}</div>`;
-    body.innerHTML=`<div class="profile"><div class="avatar" style="background:${a.color}22">${a.face}</div><div><h3>${a.name}</h3><p>${a.role}<br>${esc(a.thought)}</p></div></div><div class="card"><p class="cap">지금</p><div class="note">${slot?slot.label:'자유 행동'} · ${place?place.name:'길 위'}${a.op?`<br><span class="subtle">${a.op.label} · ${Math.round((1-a.op.left/a.op.total)*100)}%</span>`:''}</div></div><div class="card"><p class="cap">상태</p><div class="meterGrid">${meter('기분',a.mood)}${meter('에너지',a.energy)}${meter('집중',a.focus)}${meter('확신',a.confidence)}</div></div><div class="card"><p class="cap">성격 — 굳은 기억이 만든 결</p><div class="meterGrid">${PERS_AXES.map(k=>meter(k,a.pers[k])).join('')}</div>${a.persLog.length?`<div class="miniList" style="margin-top:8px">${a.persLog.slice(0,3).map(l=>`<div class="mini"><span class="subtle">${l.time}</span> · ${esc(l.text)}</div>`).join('')}</div>`:'<div class="note subtle" style="margin-top:8px">아직 성격을 움직일 만큼 굳은 기억이 없어.</div>'}</div>${tasteCard}${desireCard}${promCard}${gravCard}<div class="card"><p class="cap">행동 점수표</p><div class="miniList">${a.lastScores&&a.lastScores.length?a.lastScores.map(s=>`<div class="mini"><b>${esc(s.label)}</b> · 점수 ${s.score}</div>`).join(''):'<div class="note subtle">근처 건물의 광고를 아직 듣지 못했어.</div>'}</div></div><div class="card"><p class="cap">오늘 일정</p><div class="schedule">${a.plan.map(s=>`<div class="slot ${s===slot?'now':''}"><span>${hourLabel(s.s)}</span><b>${esc(s.label)}</b></div>`).join('')}</div></div><div class="card"><p class="cap">방금 꺼낸 기억</p><div class="miniList">${(a.recalled.length?a.recalled:a.memories.slice(0,3)).map(m=>`<div class="mini"><b>${esc(m.type)}</b> · ${esc(m.text)}<br><span class="subtle">무게 ${m.importance} · ${m.tags.map(esc).join(' / ')}</span></div>`).join('')}</div></div><div class="card"><p class="cap">알고 있는 소식</p><div class="tags">${known.map(n=>`<button class="tag" data-pick="${n.id}">${n.verified?'✓':'?'} ${esc(n.text.slice(0,18))}</button>`).join('')||'<span class="tag">아직 조용함</span>'}</div></div><div class="card"><p class="cap">관계 온도</p><div class="rels">${rels}</div></div>`; bindPick(); return;
+    body.innerHTML=`<div class="profile"><div class="avatar" style="background:${a.color}22">${a.face}</div><div><h3>${a.name}</h3><p>${a.role}<br>${esc(a.thought)}</p></div></div><div class="card"><p class="cap">지금</p><div class="note">${slot?slot.label:'자유 행동'} · ${place?place.name:'길 위'}${a.op?`<br><span class="subtle">${a.op.label} · ${Math.round((1-a.op.left/a.op.total)*100)}%</span>`:''}</div></div><div class="card"><p class="cap">상태</p><div class="meterGrid">${meter('기분',a.mood)}${meter('에너지',a.energy)}${meter('집중',a.focus)}${meter('확신',a.confidence)}</div></div><div class="card"><p class="cap">성격 — 굳은 기억이 만든 결</p><div class="meterGrid">${PERS_AXES.map(k=>meter(k,a.pers[k])).join('')}</div>${a.persLog.length?`<div class="miniList" style="margin-top:8px">${a.persLog.slice(0,3).map(l=>`<div class="mini"><span class="subtle">${l.time}</span> · ${esc(l.text)}</div>`).join('')}</div>`:'<div class="note subtle" style="margin-top:8px">아직 성격을 움직일 만큼 굳은 기억이 없어.</div>'}</div>${tasteCard}${desireCard}${promCard}${gravCard}<div class="card"><p class="cap">행동 점수표</p><div class="miniList">${a.lastScores&&a.lastScores.length?a.lastScores.map(s=>`<div class="mini"><b>${esc(s.label)}</b> · 점수 ${s.score}</div>`).join(''):'<div class="note subtle">근처 건물의 광고를 아직 듣지 못했어.</div>'}</div></div><div class="card"><p class="cap">대화 의지 순위 — 왜 이 말을 했나</p><div class="miniList">${a.lastTalkScores&&a.lastTalkScores.length?a.lastTalkScores.map(s=>`<div class="mini"><b>${esc(s.label)}</b> · 의지 ${s.score}</div>`).join(''):'<div class="note subtle">마지막 대화가 아직 없어. 대화의 수는 규칙 표가 정해.</div>'}</div></div><div class="card"><p class="cap">오늘 일정</p><div class="schedule">${a.plan.map(s=>`<div class="slot ${s===slot?'now':''}"><span>${hourLabel(s.s)}</span><b>${esc(s.label)}</b></div>`).join('')}</div></div><div class="card"><p class="cap">방금 꺼낸 기억</p><div class="miniList">${(a.recalled.length?a.recalled:a.memories.slice(0,3)).map(m=>`<div class="mini"><b>${esc(m.type)}</b> · ${esc(m.text)}<br><span class="subtle">무게 ${m.importance} · ${m.tags.map(esc).join(' / ')}</span></div>`).join('')}</div></div><div class="card"><p class="cap">알고 있는 소식</p><div class="tags">${known.map(n=>`<button class="tag" data-pick="${n.id}">${n.verified?'✓':'?'} ${esc(n.text.slice(0,18))}</button>`).join('')||'<span class="tag">아직 조용함</span>'}</div></div><div class="card"><p class="cap">관계 온도</p><div class="rels">${rels}</div></div>`; bindPick(); return;
   }
   if(obj.tools){
     const b=obj, pr=projectAt(b.id), near=agents.filter(a=>Math.abs(a.x-b.x)<150&&Math.abs(a.y-b.y)<125);
@@ -1090,6 +1183,9 @@ function researchCards(){return [
   {title:'Talk of the Town · 소문 왜곡',body:'말은 사람을 타며 미끄러진다 — 장소가 바뀌고, 표현이 부풀고, 꼬리가 붙는다. 주민마다 자기가 들은 판본을 갖고, 글(게시판)은 왜곡되지 않으며, 관측대의 확인이 판본을 원본으로 교정한다.'},
   {title:'Talk of the Town · 이야기 발굴',body:'시뮬레이션은 원재료를 만들고, 이야기는 큐레이션이 찾아낸다 — 사건 로그·관계·약속·소문에서 부딪히는 두 사람, 다시 이어진 매듭, 말이 걸어간 길 같은 서사 패턴을 사후 검색한다 (drama.py).'},
   {title:'Project Sid · 관습의 여러 씨앗',body:'관습은 한 축에서만 나오지 않는다 — 어그러진 약속(확인하는 관습), 바로잡힌 말(되묻는 관습), 성공한 모임(자리를 여는 관습), 이뤄진 화해(먼저 말 거는 관습)가 각자 쌓여 마을의 규범이 되고, 생긴 관습은 행동 확률에 되먹인다.'},
+  {title:'Ensemble · 사회 물리 규칙표',body:'대화의 수(화해·전달·조율·취향·회상·갈등·약속·잡담)는 코드 분기가 아니라 "조건 → 의지 가중치" 규칙 데이터가 정한다. 매 대화의 의지 순위표가 주민 패널에 남아 "왜 이 말을 했나"에 항상 답할 수 있다.'},
+  {title:'Mesa · 지표 시계열',body:'기분·활기·신뢰·혼선을 매시간 수집해 흐름 곡선으로 본다. 감독이 투하한 위기가 회복되는 곡선, 소문 하나가 혼선을 밀어올리는 순간이 순간값이 아니라 역사로 보인다.'},
+  {title:'Versu · 진행형 행사',body:'열린 모임은 참여자에게 행동 수(낭독·등불·기록·속 깊은 말·지켜보기)를 제공하고, 선택은 성격과 역할이 정하며 각자 다른 기억으로 남는다. 모임의 관습이 생기면 "다음 자리 약속"이라는 수가 새로 열린다 — 관습이 선택지를 바꾼다.'},
   {title:'단일 파일의 선',body:'실제 LLM 호출, 벡터 DB, 서버 작업 큐, 컴퓨터 화면 조작은 없다. 대신 구조의 움직임을 브라우저 규칙으로 압축했다.'}
 ]}
 // ── TotT drama.py식 이야기 발굴: 시뮬레이션은 원재료를 만들고, 이야기는 큐레이션이 찾아낸다 —
@@ -1188,7 +1284,7 @@ function coarseStep(h,report){
   agents.forEach(a=>decayDesires(a,h));
   customTick();
   state.resources.활기=clamp(state.resources.활기-.05*h,0,100); state.resources.혼선=clamp(state.resources.혼선-.06*h,0,100);
-  directorTick(h); // 감독은 닫힌 시간에도 같은 리듬으로 사건을 투하한다
+  directorTick(h); sampleSeries(); // 감독과 지표 수집은 닫힌 시간에도 같은 리듬을 지킨다
 }
 function catchUp(elapsedMs){
   const hours=Math.min(CATCHUP_CAP_HOURS,elapsedMs/1000*SIM_HOURS_PER_REAL_SEC);
@@ -1207,7 +1303,7 @@ function catchUp(elapsedMs){
   toast(`닫힌 시간 ${Math.round(hours)}시간을 따라잡았어`);
 }
 function save(silent){localStorage.setItem('ai-village-polished-research',JSON.stringify({state,agents,buildings,projects,skills,seed,memSeq,newsSeq,artifactSeq,inputSeq,promSeq,postSeq,gathSeq,savedAt:Date.now()}));if(silent!==true)toast('저장했어')}
-function load(){try{const raw=localStorage.getItem('ai-village-polished-research');if(!raw)return false;const d=JSON.parse(raw);Object.assign(state,d.state);d.agents.forEach((a,i)=>Object.assign(agents[i],a));d.buildings.forEach((b,i)=>Object.assign(buildings[i],b));d.projects.forEach((p,i)=>Object.assign(projects[i],p));skills.splice(0,skills.length,...d.skills);seed=d.seed||seed;memSeq=d.memSeq||memSeq;newsSeq=d.newsSeq||newsSeq;artifactSeq=d.artifactSeq||artifactSeq;inputSeq=d.inputSeq||inputSeq;promSeq=d.promSeq||promSeq;postSeq=d.postSeq||postSeq;gathSeq=d.gathSeq||gathSeq;agents.forEach(a=>{if(!a.pers)a.pers=basePers(a.role);if(!a.persLog)a.persLog=[];if(!a.desires)a.desires=[];if(!a.breaches)a.breaches=0;if(!a.kept)a.kept=0;if(!a.taste)a.taste=makeTaste()});buildings.forEach(b=>{if(!b.log)b.log=[];if(b.kind==='거처'&&!b.deco)b.deco=[]});if(!state.director)state.director={id:'cassandra',last:0,lastKind:'회복'};if(!state.chronicle)state.chronicle=[];if(!state.promises)state.promises=[];if(!state.posts)state.posts=[];if(!state.customs)state.customs=[];state.customs.forEach(c=>{if(!c.key)c.key='약속'});if(state.gathering===undefined)state.gathering=null;if(!state.breachTotal)state.breachTotal=0;return {savedAt:d.savedAt||0}}catch(e){console.warn(e);return false}}
+function load(){try{const raw=localStorage.getItem('ai-village-polished-research');if(!raw)return false;const d=JSON.parse(raw);Object.assign(state,d.state);d.agents.forEach((a,i)=>Object.assign(agents[i],a));d.buildings.forEach((b,i)=>Object.assign(buildings[i],b));d.projects.forEach((p,i)=>Object.assign(projects[i],p));skills.splice(0,skills.length,...d.skills);seed=d.seed||seed;memSeq=d.memSeq||memSeq;newsSeq=d.newsSeq||newsSeq;artifactSeq=d.artifactSeq||artifactSeq;inputSeq=d.inputSeq||inputSeq;promSeq=d.promSeq||promSeq;postSeq=d.postSeq||postSeq;gathSeq=d.gathSeq||gathSeq;agents.forEach(a=>{if(!a.pers)a.pers=basePers(a.role);if(!a.persLog)a.persLog=[];if(!a.desires)a.desires=[];if(!a.breaches)a.breaches=0;if(!a.kept)a.kept=0;if(!a.taste)a.taste=makeTaste()});buildings.forEach(b=>{if(!b.log)b.log=[];if(b.kind==='거처'&&!b.deco)b.deco=[]});if(!state.director)state.director={id:'cassandra',last:0,lastKind:'회복'};if(!state.chronicle)state.chronicle=[];if(!state.promises)state.promises=[];if(!state.posts)state.posts=[];if(!state.customs)state.customs=[];state.customs.forEach(c=>{if(!c.key)c.key='약속'});if(state.gathering===undefined)state.gathering=null;if(state.gathering&&!state.gathering.acts)state.gathering.acts=[];if(!state.breachTotal)state.breachTotal=0;if(!state.series)state.series=[];if(!state.lastSample)state.lastSample=0;agents.forEach(a=>{if(!a.lastTalkScores)a.lastTalkScores=[]});return {savedAt:d.savedAt||0}}catch(e){console.warn(e);return false}}
 function reset(){localStorage.removeItem('ai-village-polished-research');location.reload()}
 function sampleIncident(){return gen('사건')}
 function loop(t){const dt=Math.min(.08,(t-last)/1000||0);last=t;if(!paused){acc+=dt;while(acc>.05){sim(.05);acc-=.05}}render();uiTimer+=dt;if(uiTimer>.55){updateUI();uiTimer=0}requestAnimationFrame(loop)}
