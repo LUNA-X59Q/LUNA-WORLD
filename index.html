@@ -1,0 +1,567 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>AI 마을 — 살아 움직이는 연구형 시뮬레이션</title>
+<style>
+:root{
+  color-scheme:dark;
+  --bg:#060814;
+  --bg2:#0a1020;
+  --surface:rgba(9,14,26,.72);
+  --surface2:rgba(255,255,255,.055);
+  --surface3:rgba(255,255,255,.085);
+  --ink:#f4f8ff;
+  --soft:#d9e4f5;
+  --muted:#91a0b8;
+  --line:rgba(255,255,255,.115);
+  --line2:rgba(255,255,255,.18);
+  --blue:#89d8ff;
+  --violet:#d9b7ff;
+  --gold:#ffe28a;
+  --green:#a8f3bd;
+  --rose:#ff9aaa;
+  --cyan:#9ff4ef;
+  --shadow:0 28px 90px rgba(0,0,0,.48);
+  --shadow2:0 14px 44px rgba(0,0,0,.34);
+  --r:28px;
+}
+*{box-sizing:border-box}
+html,body{width:100%;height:100%;margin:0}
+body{
+  overflow:hidden;
+  color:var(--ink);
+  font-family:ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;
+  background:
+    radial-gradient(circle at 12% -8%,rgba(137,216,255,.34),transparent 34%),
+    radial-gradient(circle at 80% 0%,rgba(217,183,255,.23),transparent 31%),
+    radial-gradient(circle at 60% 110%,rgba(168,243,189,.14),transparent 34%),
+    linear-gradient(180deg,#10182b 0%,#060814 64%,#04050b 100%);
+}
+body::before{
+  content:"";
+  position:fixed;inset:0;pointer-events:none;z-index:0;
+  background:
+    linear-gradient(rgba(255,255,255,.025) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(255,255,255,.018) 1px,transparent 1px);
+  background-size:42px 42px;
+  mask-image:radial-gradient(circle at 50% 30%,black,transparent 78%);
+}
+body::after{
+  content:"";
+  position:fixed;inset:0;pointer-events:none;z-index:0;opacity:.45;
+  background:radial-gradient(circle at 50% 48%,transparent 0 46%,rgba(0,0,0,.42) 100%);
+}
+button,input{font:inherit} button{border:0;background:none;color:inherit;cursor:pointer} input{color:inherit}
+button:focus-visible,input:focus-visible{outline:2px solid rgba(137,216,255,.72);outline-offset:2px}
+#app{
+  position:relative;z-index:1;width:100%;height:100%;padding:16px;
+  display:grid;grid-template-columns:minmax(680px,1fr) 384px;grid-template-rows:82px minmax(0,1fr) 276px;gap:16px;
+}
+.top{
+  grid-column:1/3;display:grid;grid-template-columns:minmax(320px,1fr) auto auto;gap:14px;align-items:center;
+  padding:13px 15px;border:1px solid var(--line);border-radius:26px;
+  background:linear-gradient(180deg,rgba(255,255,255,.086),rgba(255,255,255,.038));
+  backdrop-filter:blur(22px);box-shadow:var(--shadow2);position:relative;overflow:hidden;
+}
+.top::before{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;background:linear-gradient(90deg,rgba(137,216,255,.16),transparent 34%,rgba(255,226,138,.08) 70%,transparent)}
+.brand{display:flex;align-items:center;gap:14px;min-width:0;position:relative}.mark{width:48px;height:48px;border-radius:18px;display:grid;place-items:center;color:#06101a;font-weight:950;font-size:20px;background:conic-gradient(from 220deg,var(--blue),var(--violet),var(--gold),var(--green),var(--blue));box-shadow:0 0 46px rgba(137,216,255,.22),inset 0 0 0 1px rgba(255,255,255,.5)}
+.brand h1{margin:0;font-size:20px;letter-spacing:-.045em;line-height:1}.brand p{margin:6px 0 0;font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:680px}
+.stats{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;position:relative}.stat{--v:50;position:relative;min-width:78px;padding:8px 10px 10px;border:1px solid var(--line);border-radius:17px;background:linear-gradient(180deg,rgba(255,255,255,.075),rgba(255,255,255,.035));box-shadow:inset 0 1px 0 rgba(255,255,255,.08);font-size:11px;color:var(--muted);overflow:hidden}.stat::after{content:"";position:absolute;left:9px;right:9px;bottom:5px;height:2px;border-radius:999px;background:linear-gradient(90deg,var(--blue),var(--green));transform-origin:left;transform:scaleX(calc(var(--v)/100));opacity:.85}.stat span{display:block;white-space:nowrap}.stat b{display:block;margin-top:2px;color:#fff;font-size:15px;letter-spacing:-.03em}.stat.noise::after{background:linear-gradient(90deg,var(--gold),var(--rose))}.stat.noise b{color:var(--rose)}
+.controls{display:flex;gap:8px;justify-content:flex-end;position:relative}.btn{padding:10px 12px;border:1px solid var(--line);border-radius:15px;background:rgba(255,255,255,.06);font-size:12px;white-space:nowrap;box-shadow:inset 0 1px 0 rgba(255,255,255,.06);transition:transform .16s ease,background .16s ease,border-color .16s ease}.btn:hover{transform:translateY(-1px);background:rgba(255,255,255,.105);border-color:var(--line2)}.btn:active{transform:translateY(0)}.btn.primary{background:linear-gradient(135deg,rgba(137,216,255,.22),rgba(217,183,255,.15));border-color:rgba(137,216,255,.34)}.btn.warn{border-color:rgba(255,226,138,.28);background:rgba(255,226,138,.075)}
+.worldCard{grid-column:1/2;grid-row:2/3;position:relative;overflow:hidden;isolation:isolate;min-height:520px;border:1px solid rgba(255,255,255,.12);border-radius:var(--r);background:#0b111b;box-shadow:var(--shadow)}
+.worldCard::before{content:"";position:absolute;inset:0;z-index:2;pointer-events:none;border-radius:inherit;box-shadow:inset 0 1px 0 rgba(255,255,255,.13),inset 0 -80px 110px rgba(2,4,9,.24)}
+#world{position:absolute;inset:0;width:100%;height:100%;display:block}.hud{position:absolute;left:16px;top:16px;z-index:5;display:flex;gap:8px;flex-wrap:wrap}.chip{padding:8px 11px;border:1px solid rgba(255,255,255,.14);border-radius:999px;background:rgba(5,9,16,.54);backdrop-filter:blur(18px);font-size:12px;color:var(--soft);box-shadow:0 12px 38px rgba(0,0,0,.22)}.chip b{color:#fff;margin-left:4px}.legend{position:absolute;right:16px;top:16px;z-index:5;max-width:280px;text-align:right;font-size:12px;line-height:1.56;color:rgba(244,248,255,.70);text-shadow:0 1px 9px rgba(0,0,0,.48)}
+.seedBox{position:absolute;left:18px;right:18px;bottom:18px;z-index:6;display:grid;grid-template-columns:1fr auto auto;gap:8px;padding:8px;border-radius:22px;border:1px solid rgba(255,255,255,.14);background:rgba(5,9,16,.68);backdrop-filter:blur(22px);box-shadow:0 20px 70px rgba(0,0,0,.32),inset 0 1px 0 rgba(255,255,255,.08)}.seedBox input{min-width:0;border:0;outline:0;background:transparent;padding:10px 9px;font-size:13px}.seedBox input::placeholder{color:rgba(217,228,245,.52)}.seedBox button{padding:10px 13px;border-radius:15px;border:1px solid rgba(137,216,255,.28);background:linear-gradient(135deg,rgba(137,216,255,.16),rgba(217,183,255,.09));font-size:12px;font-weight:700;transition:.16s}.seedBox button:hover{transform:translateY(-1px);background:rgba(137,216,255,.18)}.seedBox button.secondary{border-color:rgba(255,255,255,.14);background:rgba(255,255,255,.065);font-weight:600}
+.toast{position:absolute;left:50%;top:76px;z-index:30;transform:translateX(-50%) translateY(-8px);opacity:0;transition:.24s ease;padding:10px 14px;border:1px solid rgba(137,216,255,.32);border-radius:999px;background:rgba(5,9,16,.78);backdrop-filter:blur(18px);box-shadow:var(--shadow2);font-size:12px;color:var(--soft)}.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.inspect{grid-column:2/3;grid-row:2/4;min-height:0;display:flex;flex-direction:column;border:1px solid var(--line);border-radius:var(--r);background:linear-gradient(180deg,rgba(12,18,32,.82),rgba(6,9,18,.76));backdrop-filter:blur(22px);box-shadow:var(--shadow);overflow:hidden}.inspectHead{padding:18px 18px 15px;border-bottom:1px solid var(--line);display:flex;align-items:flex-start;justify-content:space-between;gap:12px;position:relative}.inspectHead::after{content:"";position:absolute;left:18px;right:18px;bottom:-1px;height:1px;background:linear-gradient(90deg,transparent,var(--blue),transparent);opacity:.34}.inspectHead h2{margin:0;font-size:19px;letter-spacing:-.035em}.inspectHead p{margin:6px 0 0;font-size:12px;line-height:1.55;color:var(--muted)}.badge{white-space:nowrap;padding:7px 9px;border-radius:999px;border:1px solid rgba(137,216,255,.26);background:rgba(137,216,255,.11);font-size:11px;color:var(--blue);box-shadow:0 0 28px rgba(137,216,255,.08)}
+.inspectBody{min-height:0;overflow:auto;padding:15px;scrollbar-gutter:stable}.profile{display:flex;gap:13px;align-items:center;margin-bottom:14px}.avatar{width:60px;height:60px;border-radius:22px;border:1px solid rgba(255,255,255,.15);display:grid;place-items:center;font-size:28px;background:linear-gradient(180deg,rgba(255,255,255,.10),rgba(255,255,255,.035));box-shadow:0 16px 46px rgba(0,0,0,.25),inset 0 1px 0 rgba(255,255,255,.10)}.profile h3{margin:0;font-size:21px;letter-spacing:-.04em}.profile p{margin:5px 0 0;font-size:12px;color:var(--muted);line-height:1.55}
+.card{border:1px solid var(--line);background:linear-gradient(180deg,rgba(255,255,255,.063),rgba(255,255,255,.033));border-radius:21px;padding:13px;margin-bottom:10px;box-shadow:inset 0 1px 0 rgba(255,255,255,.055)}.card:hover{border-color:rgba(255,255,255,.16)}.cap{margin:0 0 10px;font-size:10px;letter-spacing:.11em;text-transform:uppercase;color:rgba(244,248,255,.55);font-weight:850}.note{font-size:13px;line-height:1.62;color:var(--soft)}.subtle{color:var(--muted)}.meterGrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.meter span{display:flex;justify-content:space-between;margin-bottom:7px;font-size:11px;color:var(--muted)}.meter em{font-style:normal}.meter b{color:var(--soft)}.bar{height:7px;border-radius:999px;background:rgba(255,255,255,.075);overflow:hidden;box-shadow:inset 0 1px 2px rgba(0,0,0,.22)}.bar i{display:block;height:100%;width:50%;border-radius:999px;background:linear-gradient(90deg,var(--blue),var(--green));box-shadow:0 0 20px rgba(137,216,255,.22)}.bar.rose i{background:linear-gradient(90deg,var(--gold),var(--rose));box-shadow:0 0 20px rgba(255,154,170,.18)}.tags{display:flex;gap:7px;flex-wrap:wrap}.tag{padding:6px 9px;border:1px solid var(--line);border-radius:999px;background:rgba(255,255,255,.052);font-size:11px;color:var(--soft);transition:.16s}button.tag:hover,.tag:hover{background:rgba(137,216,255,.12);border-color:rgba(137,216,255,.28);transform:translateY(-1px)}.miniList{display:grid;gap:8px}.mini{padding:10px;border:1px solid rgba(255,255,255,.082);border-radius:16px;background:rgba(255,255,255,.034);font-size:12px;line-height:1.5;color:var(--soft)}.mini b{color:#fff}.schedule{display:grid;gap:7px}.slot{display:grid;grid-template-columns:56px 1fr;gap:8px;padding:9px;border-radius:15px;background:rgba(255,255,255,.028);border:1px solid transparent;font-size:12px;color:var(--muted)}.slot.now{background:linear-gradient(135deg,rgba(137,216,255,.12),rgba(217,183,255,.07));border-color:rgba(137,216,255,.28);color:#fff;box-shadow:0 0 26px rgba(137,216,255,.08)}.rels{display:grid;gap:8px}.rel{display:grid;grid-template-columns:74px 1fr 32px;gap:8px;align-items:center;font-size:12px;color:var(--soft)}.relLine{height:7px;border-radius:999px;background:rgba(255,255,255,.075);overflow:hidden}.relLine i{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,var(--rose),var(--gold),var(--green))}.empty{border:1px dashed rgba(255,255,255,.16);border-radius:21px;background:rgba(255,255,255,.026);padding:17px;font-size:13px;line-height:1.68;color:var(--muted)}
+.dock{grid-column:1/2;grid-row:3/4;min-height:0;display:flex;flex-direction:column;border:1px solid var(--line);border-radius:var(--r);background:linear-gradient(180deg,rgba(12,18,32,.84),rgba(6,9,18,.73));backdrop-filter:blur(22px);box-shadow:var(--shadow);overflow:hidden}.tabs{display:flex;gap:6px;padding:12px 12px 0;overflow:auto;scrollbar-width:none}.tabs::-webkit-scrollbar{display:none}.tab{position:relative;padding:10px 12px;border-radius:16px;background:transparent;border:1px solid transparent;color:var(--muted);font-size:12px;white-space:nowrap;transition:.16s}.tab:hover{color:var(--soft);background:rgba(255,255,255,.045)}.tab.active{background:rgba(137,216,255,.12);border-color:rgba(137,216,255,.25);color:#fff}.tab.active::after{content:"";position:absolute;left:14px;right:14px;bottom:4px;height:2px;border-radius:999px;background:linear-gradient(90deg,var(--blue),var(--violet))}.panel{display:none;min-height:0;overflow:auto;padding:12px 13px 14px;scrollbar-gutter:stable}.panel.active{display:block}.timeline{display:grid;gap:8px}.event{position:relative;display:grid;grid-template-columns:64px 1fr auto;gap:10px;align-items:start;padding:11px 12px;border:1px solid var(--line);border-radius:17px;background:linear-gradient(180deg,rgba(255,255,255,.052),rgba(255,255,255,.028));box-shadow:inset 0 1px 0 rgba(255,255,255,.05)}.event::before{content:"";position:absolute;left:0;top:12px;bottom:12px;width:3px;border-radius:999px;background:linear-gradient(var(--blue),var(--violet));opacity:.65}.event .time{font-size:11px;color:var(--muted)}.event .text{font-size:13px;line-height:1.48;color:var(--soft)}.event .kind{font-size:10px;padding:4px 7px;border-radius:999px;background:rgba(255,255,255,.07);color:var(--muted);white-space:nowrap}.chat{display:grid;grid-template-columns:76px 1fr auto;gap:10px;padding:10px 0;border-bottom:1px solid rgba(255,255,255,.07)}.chat b{font-size:12px;color:#fff}.chat p{margin:0;font-size:13px;color:var(--soft);line-height:1.5}.chat span{font-size:11px;color:var(--muted)}.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.tile{position:relative;padding:13px;border:1px solid var(--line);border-radius:19px;background:linear-gradient(180deg,rgba(255,255,255,.058),rgba(255,255,255,.03));text-align:left;color:inherit;box-shadow:inset 0 1px 0 rgba(255,255,255,.055);transition:transform .16s ease,border-color .16s ease,background .16s ease}.tile:hover{transform:translateY(-2px);border-color:rgba(137,216,255,.25);background:linear-gradient(180deg,rgba(137,216,255,.075),rgba(255,255,255,.036))}.tile h4{margin:0 0 6px;font-size:13px;letter-spacing:-.015em}.tile p{margin:0 0 10px;font-size:12px;color:var(--muted);line-height:1.55}.tile small{color:var(--muted)}.newsHead{display:flex;justify-content:space-between;gap:8px;align-items:flex-start}.pill{padding:4px 7px;border-radius:999px;background:rgba(255,255,255,.07);border:1px solid var(--line);font-size:10px;color:var(--muted)}.ok{color:var(--green);border-color:rgba(168,243,189,.24);background:rgba(168,243,189,.08)}.bad{color:var(--rose);border-color:rgba(255,154,170,.24);background:rgba(255,154,170,.08)}.artifact b,.engine b{display:block;font-size:13px;margin-bottom:6px}.artifact p,.engine p{margin:0;color:var(--muted);font-size:12px;line-height:1.55}.progressLabel{display:flex;justify-content:space-between;gap:10px;font-size:11px;color:var(--muted);margin-top:8px}
+.inspectBody::-webkit-scrollbar,.panel::-webkit-scrollbar{width:10px}.inspectBody::-webkit-scrollbar-track,.panel::-webkit-scrollbar-track{background:transparent}.inspectBody::-webkit-scrollbar-thumb,.panel::-webkit-scrollbar-thumb{background:rgba(255,255,255,.11);border:3px solid transparent;background-clip:content-box;border-radius:999px}.inspectBody::-webkit-scrollbar-thumb:hover,.panel::-webkit-scrollbar-thumb:hover{background:rgba(137,216,255,.24);border:3px solid transparent;background-clip:content-box}
+@media(max-width:1180px){
+  body{overflow:auto}
+  #app{height:auto;min-height:100vh;grid-template-columns:1fr;grid-template-rows:auto minmax(520px,68vh) minmax(260px,34vh) auto}
+  .top{grid-column:1;grid-template-columns:1fr;gap:10px;padding:14px}
+  .worldCard{grid-column:1;grid-row:2}
+  .dock{grid-column:1;grid-row:3}
+  .inspect{grid-column:1;grid-row:4}
+  .legend{display:none}
+  .grid3{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .stats,.controls{justify-content:flex-start;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
+  .stats::-webkit-scrollbar,.controls::-webkit-scrollbar{display:none}
+}
+@media(max-width:720px){
+  #app{padding:10px;gap:10px;grid-template-rows:auto minmax(430px,60vh) minmax(250px,30vh) auto}
+  .top{border-radius:22px;padding:12px}
+  .brand{gap:10px}
+  .brand h1{font-size:18px}
+  .brand p{white-space:normal;font-size:11px;line-height:1.45}
+  .mark{width:42px;height:42px;border-radius:15px;font-size:18px}
+  .stats{gap:7px}
+  .controls{gap:8px}
+  .btn{padding:8px 12px;border-radius:14px;font-size:12px;min-width:max-content}
+  .worldCard{min-height:430px}
+  .hud{left:12px;top:12px;right:12px;gap:6px}
+  .chip{padding:7px 10px;font-size:11px}
+  .seedBox{grid-template-columns:minmax(0,1fr) auto auto;left:12px;right:12px;bottom:12px;padding:6px 6px 6px 10px;border-radius:18px;gap:6px}
+  .seedBox input{padding:8px 4px;font-size:12px}
+  .seedBox button{width:auto;padding:9px 10px;font-size:11px;white-space:nowrap}
+  .meterGrid,.grid2,.grid3{grid-template-columns:1fr}
+  .dock,.inspect{min-height:300px;border-radius:22px}
+  .tabs{padding:10px 10px 0;gap:5px}
+  .tab{padding:9px 11px;font-size:12px;border-radius:14px}
+  .panel{padding:10px 11px 12px}
+  .event{grid-template-columns:50px 1fr;padding:10px 11px}
+  .event .kind{display:none}
+  .chat{grid-template-columns:62px 1fr}
+  .chat span{display:none}
+  .card{border-radius:18px;padding:12px}
+  .profile{align-items:flex-start}
+  .profile h3{font-size:19px}
+  .stat{min-width:72px}
+  .legend{display:none}
+}
+
+</style>
+</head>
+<body>
+<div id="app">
+  <header class="top">
+    <div class="brand"><div class="mark">✦</div><div><h1>AI 마을</h1><p>주민이 걷고, 소식이 퍼지고, 작은 기술이 쌓이는 연구형 마을 시뮬레이션</p></div></div>
+    <div class="stats" id="stats"></div>
+    <div class="controls"><button class="btn primary" id="pauseBtn">멈춤</button><button class="btn" id="stepBtn">한 걸음</button><button class="btn" id="speedBtn">속도 1x</button><button class="btn warn" id="saveBtn">저장</button><button class="btn" id="resetBtn">새 마을</button></div>
+  </header>
+
+  <section class="worldCard">
+    <canvas id="world"></canvas>
+    <div class="hud"><div class="chip">시간 <b id="clock">1일 07:00</b></div><div class="chip">마을 <b id="scene">아침 정리</b></div><div class="chip">입력 <b id="inputState">0</b></div></div>
+    <div class="legend">주민을 누르면 기억과 관계가 보여. 소식은 대화로 퍼지고, 발전은 건물과 산출물에 남아.</div>
+    <div class="toast" id="toast"></div>
+    <form class="seedBox" id="seedForm"><input id="seedText" autocomplete="off" placeholder="마을에 목표나 소식을 넣기 — 예: 주말 별빛 축제를 광장에서 열자"><button type="submit">전하기</button><button type="button" class="secondary" id="eventBtn">사건 던지기</button></form>
+  </section>
+
+  <aside class="inspect">
+    <div class="inspectHead"><div><h2 id="sideTitle">마을 전체</h2><p id="sideSub">오늘의 맥박과 선택한 대상의 이야기가 여기에 정리돼.</p></div><div class="badge" id="sideBadge">관찰 중</div></div>
+    <div class="inspectBody" id="sideBody"></div>
+  </aside>
+
+  <section class="dock">
+    <div class="tabs"><button class="tab active" data-tab="life">일대기</button><button class="tab" data-tab="talk">대화</button><button class="tab" data-tab="news">소식지도</button><button class="tab" data-tab="dev">발전·기술</button><button class="tab" data-tab="work">산출물</button><button class="tab" data-tab="research">연구 대응표</button></div>
+    <div class="panel active" id="panel-life"><div class="timeline" id="lifeLog"></div></div>
+    <div class="panel" id="panel-talk"><div id="talkLog"></div></div>
+    <div class="panel" id="panel-news"><div class="grid2" id="newsList"></div></div>
+    <div class="panel" id="panel-dev"><div class="grid3" id="devList"></div></div>
+    <div class="panel" id="panel-work"><div class="grid2" id="workList"></div></div>
+    <div class="panel" id="panel-research"><div class="grid2" id="researchList"></div></div>
+  </section>
+</div>
+<script>
+(()=>{
+'use strict';
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const cvs=$('#world'), ctx=cvs.getContext('2d');
+let W=0,H=0,DPR=1,last=0,acc=0,uiTimer=0,paused=false,speed=1,selected=null,hover=null;
+const bubbleRects=new Map();
+let seed=260630, memSeq=1, newsSeq=1, artifactSeq=1, inputSeq=1;
+const world={w:1120,h:700};
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const norm=(v,a,b)=>clamp((v-a)/(b-a),0,1);
+const rnd=()=>{seed=(seed*1664525+1013904223)>>>0;return seed/4294967296};
+const pick=a=>a[Math.floor(rnd()*a.length)];
+const esc=s=>String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+const pad=n=>String(Math.floor(n)).padStart(2,'0');
+const now=()=>state.day*24+state.hour;
+const dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
+const overlap=(a,b)=>{let n=0;for(const x of a)if(b.includes(x))n++;return n};
+const state={
+  day:1,hour:7.15,scene:'아침 정리',weather:'맑음',generation:1,tick:0,
+  resources:{활기:64,신뢰:57,기술:31,문화:38,혼선:12},
+  life:[],talk:[],artifacts:[],inputs:[],news:[],spreads:[],recentOps:[]
+};
+const buildings=[
+  {id:'library',name:'기억 도서관',icon:'📚',x:232,y:190,w:128,h:94,kind:'기록',lv:1,desc:'대화 요약과 오래된 사건을 다시 꺼내는 곳',tools:['기록 색인','대화 요약']},
+  {id:'square',name:'별빛 광장',icon:'✨',x:560,y:300,w:146,h:108,kind:'만남',lv:1,desc:'초대와 조율이 가장 많이 일어나는 중심지',tools:['초대','조율']},
+  {id:'workshop',name:'마을발전기 공방',icon:'⚙️',x:884,y:270,w:138,h:102,kind:'제작',lv:1,desc:'반복되는 일을 도구와 작은 기술로 묶는 장소',tools:['제작','자동화']},
+  {id:'garden',name:'온실 정원',icon:'🌿',x:322,y:528,w:132,h:100,kind:'회복',lv:1,desc:'식량과 에너지를 회복하는 부드러운 공간',tools:['돌봄','수확']},
+  {id:'tower',name:'별빛 관측대',icon:'🔭',x:704,y:542,w:134,h:104,kind:'확인',lv:1,desc:'소식의 근거와 다음 방향을 맞춰보는 곳',tools:['근거 확인','우선순위']},
+  {id:'gate',name:'나루터 게이트',icon:'🌉',x:128,y:398,w:122,h:92,kind:'외부',lv:1,desc:'바깥 소식과 낯선 목표가 들어오는 길목',tools:['외부 관찰','전달']},
+  {id:'studio',name:'작은 무대',icon:'🎐',x:860,y:506,w:120,h:90,kind:'문화',lv:1,desc:'행사, 발표, 공동 분위기를 만드는 곳',tools:['공연','포스터']}
+];
+const projects=[
+  {id:'generator',name:'마을발전기 코어',place:'workshop',need:'기술',p:16,desc:'마을의 반복 작업을 줄이고 프로젝트 진행을 부드럽게 만든다.',skill:'반복 작업 묶기',done:false},
+  {id:'archive',name:'공유 기억 색인',place:'library',need:'기술',p:22,desc:'중요한 대화와 사건을 다시 꺼내기 쉽게 정리한다.',skill:'기억 색인',done:false},
+  {id:'conversation',name:'대화 요약 습관',place:'square',need:'신뢰',p:14,desc:'대화가 끝나면 서로 무엇을 이해했는지 짧게 남긴다.',skill:'대화 요약',done:false},
+  {id:'verification',name:'소식 확인 루틴',place:'tower',need:'신뢰',p:9,desc:'퍼진 말이 사실인지 확인하고 근거를 붙인다.',skill:'근거 확인',done:false},
+  {id:'festival',name:'별빛 축제 조율',place:'studio',need:'문화',p:12,desc:'주민들이 실제로 모일 수 있는 공동 행사를 준비한다.',skill:'행사 조율',done:false},
+  {id:'garden',name:'온실 확장',place:'garden',need:'활기',p:18,desc:'긴 하루에도 주민들이 지치지 않게 회복 루틴을 만든다.',skill:'회복 루틴',done:false},
+  {id:'bridge',name:'외부 관찰 통로',place:'gate',need:'기술',p:10,desc:'마을 밖 자료와 도구 사용을 마을 일에 연결한다.',skill:'외부 관찰',done:false}
+];
+const skills=[
+  {id:'baseline',name:'기본 걷기',desc:'장소를 정하고 이동한다.',level:1,source:'처음부터 있음'},
+  {id:'conversationSummary',name:'짧은 대화 요약',desc:'대화 후 서로의 기억에 짧은 요약을 남긴다.',level:1,source:'처음부터 있음'}
+];
+const defs=[
+  ['a0','챗사서','기록자','📖','#8fd7ff','library',['기록','기억','요약']],
+  ['a1','미라','조율가','🕊️','#d8b4fe','square',['관계','초대','조율']],
+  ['a2','노아','공방장','🛠️','#ffe08a','workshop',['도구','제작','기술']],
+  ['a3','이든','정원사','🌿','#a7f3b7','garden',['회복','활기','돌봄']],
+  ['a4','세린','관측가','🔭','#f0abfc','tower',['확인','방향','근거']],
+  ['a5','하루','전령','🌉','#93c5fd','gate',['외부','전달','소식']],
+  ['a6','라온','축제지기','🎐','#fcd34d','studio',['문화','행사','광장']],
+  ['a7','유진','연결자','🧭','#9ff4ef','square',['관계','소식','연결']]
+];
+const agents=defs.map((d,i)=>({
+  id:d[0],name:d[1],role:d[2],face:d[3],color:d[4],home:d[5],baseTags:d[6],
+  x:540+rnd()*80,y:316+rnd()*60,tx:560+rnd()*50,ty:300+rnd()*45,place:'square',
+  mood:58+rnd()*24,energy:58+rnd()*22,focus:46+rnd()*30,confidence:50+rnd()*26,
+  task:'오늘의 동선을 고르는 중',thought:'아침의 소리를 듣고 있다.',op:null,cool:0,bubble:'',bubbleT:0,plan:[],lastSlot:-1,rel:{},memories:[],recalled:[],known:{},attention:0,pathTrail:[]
+}));
+agents.forEach(a=>agents.forEach(b=>{if(a!==b)a.rel[b.id]=Math.round(38+rnd()*30)}));
+const decos=Array.from({length:74},(_,i)=>({x:28+rnd()*1060,y:80+rnd()*570,t:rnd()<.72?'tree':'stone',s:.65+rnd()*.7})).filter(o=>!buildings.some(b=>Math.abs(o.x-b.x)<b.w*.82&&Math.abs(o.y-b.y)<b.h*.82));
+const fireflies=Array.from({length:36},()=>({x:rnd()*world.w,y:rnd()*world.h,p:rnd()*6,s:.6+rnd()*1.2}));
+function timeText(){const h=Math.floor(state.hour), m=Math.floor((state.hour-h)*60/10)*10;return `${state.day}일 ${pad(h)}:${pad(m)}`}
+function hourLabel(h){const hh=Math.floor(h),mm=Math.round((h-hh)*60);return `${pad(hh)}:${pad(mm)}`}
+function building(id){return buildings.find(b=>b.id===id)}
+function project(id){return projects.find(p=>p.id===id)}
+function projectAt(place){return projects.filter(p=>p.place===place&&!p.done).sort((a,b)=>a.p-b.p)[0]||null}
+function hasSkill(name){return skills.some(s=>s.name===name)}
+function addLife(text,kind='사건'){state.life.unshift({time:timeText(),text,kind});state.life=state.life.slice(0,90)}
+function addTalk(who,text,kind='대화'){state.talk.unshift({who,text,time:timeText(),kind});state.talk=state.talk.slice(0,120)}
+function addRecentOp(text){state.recentOps.unshift({time:timeText(),text});state.recentOps=state.recentOps.slice(0,18)}
+function toast(text){const el=$('#toast');el.textContent=text;el.classList.add('show');clearTimeout(toast.t);toast.t=setTimeout(()=>el.classList.remove('show'),1900)}
+function memory(a,text,tags=[],importance=4,type='관찰',meta={},count=true){
+  const m={id:'m'+memSeq++,text,tags:[...new Set(tags)],importance:clamp(importance,1,10),t:now(),last:now(),type,meta};
+  a.memories.unshift(m); a.memories=a.memories.slice(0,34); if(count&&type!=='묶음'){a.attention+=importance;if(a.attention>30)makeBundle(a)} return m;
+}
+function retrieve(a,tags=[],query=''){
+  const q=tags.length?tags:[a.place,a.role];
+  const scored=a.memories.map(m=>{
+    const rec=Math.exp(-(now()-m.last)/12), imp=m.importance/10, rel=overlap(q,m.tags)/(q.length||1);
+    const textRel=query&&m.text.includes(query)?0.5:0;
+    return {m,score:rec*.75+imp*.85+rel*1.25+textRel};
+  }).sort((x,y)=>y.score-x.score).slice(0,3);
+  scored.forEach(x=>x.m.last=now()); a.recalled=scored.map(x=>x.m); return a.recalled;
+}
+function makeBundle(a){
+  a.attention=0; const recent=a.memories.slice(0,8); if(recent.length<3)return;
+  const counts={}; recent.forEach(m=>m.tags.forEach(t=>counts[t]=(counts[t]||0)+1));
+  const topic=Object.entries(counts).sort((x,y)=>y[1]-x[1])[0]?.[0]||'마을';
+  const lines={
+    '소식':`${a.name}은 퍼지는 말에는 경로와 근거가 함께 필요하다고 정리했다.`,
+    '관계':`${a.name}은 가까운 관계가 일을 빠르게 움직이지만, 확인 없는 동의는 마을을 헷갈리게 만든다고 느꼈다.`,
+    '기술':`${a.name}은 반복되는 일을 작은 도구로 묶으면 마을이 오래 버틴다고 보았다.`,
+    '문화':`${a.name}은 행사가 단순한 놀이가 아니라 주민들이 같은 시간을 약속하는 방식이라고 여겼다.`,
+    '확인':`${a.name}은 소식이 퍼지기 전에 한 번 멈춰 근거를 보는 습관이 중요하다고 묶어두었다.`
+  };
+  const text=lines[topic]||`${a.name}은 최근의 여러 일을 묶어 ${topic} 쪽이 다음 움직임의 열쇠라고 보았다.`;
+  memory(a,text,[topic,'묶음','기억'],8,'묶음',{},false); a.thought=text;
+}
+function buildPlan(a){
+  const roleMap={기록자:'library',조율가:'square',공방장:'workshop',정원사:'garden',관측가:'tower',전령:'gate',축제지기:'studio',연결자:'square'};
+  const weak=projects.filter(p=>!p.done).sort((x,y)=>x.p-y.p)[0];
+  const focus=roleMap[a.role]||a.home;
+  a.plan=[
+    {s:7,e:8.5,place:'garden',label:'아침 회복'},
+    {s:8.5,e:11.5,place:focus,label:`${building(focus).kind} 일`},
+    {s:11.5,e:13,place:'square',label:'점심 대화'},
+    {s:13,e:17.5,place:weak?weak.place:focus,label:weak?weak.name:'개별 작업'},
+    {s:17.5,e:20,place:'square',label:'소식 맞추기'},
+    {s:20,e:23.8,place:a.energy<45?'garden':(a.role==='관측가'?'tower':'library'),label:'하루 정리'},
+    {s:0,e:7,place:'garden',label:'밤 쉼'}
+  ];
+  a.lastSlot=-1; memory(a,`${a.name}은 오늘 ${weak?weak.name:'각자의 일'}을 중심에 두고 하루 동선을 잡았다.`,['계획',weak?weak.place:focus,weak?weak.need:'마을'],6,'계획',{},false);
+}
+function currentSlot(a){const h=state.hour;return a.plan.find(s=>s.s<=h&&h<s.e)||a.plan.find(s=>s.s===0)}
+function chooseDestination(a){
+  if(a.energy<26)return 'garden';
+  const unknown=state.news.find(n=>a.known[n.id]&&!n.verified&&a.known[n.id].confidence<64);
+  if(unknown&&rnd()<.32)return 'tower';
+  const slot=currentSlot(a); if(slot)return slot.place;
+  const pr=projects.filter(p=>!p.done).sort((x,y)=>x.p-y.p)[0]; return pr?pr.place:a.home;
+}
+function setTarget(a,place,reason){const b=building(place); a.place=place; a.tx=b.x-b.w*.28+rnd()*b.w*.56; a.ty=b.y-b.h*.25+rnd()*b.h*.5; a.task=reason||`${b.name}으로 이동 중`;}
+function createNews(text,origin='루나',givenAgents=null){
+  const n={id:'n'+newsSeq++,text,origin,created:now(),verified:false,confidence:52+Math.round(rnd()*16),knownBy:[],path:[],checks:0};
+  state.news.unshift(n); state.news=state.news.slice(0,14);
+  const starters=givenAgents||[...agents].sort(()=>rnd()-.5).slice(0,2+rnd()*2|0);
+  starters.forEach(a=>giveNews(a,n,{name:origin,id:'outside'},n.confidence));
+  addLife(`새 소식이 들어왔다. “${text}”`, '소식'); addTalk(origin,text,'입력'); return n;
+}
+function giveNews(a,n,from,confidence){
+  if(!a.known[n.id]){n.knownBy.push(a.id); a.known[n.id]={heard:now(),from:from.name||from.id,confidence:clamp(confidence,10,95)}; memory(a,`${from.name||from.id}에게서 “${n.text}”라는 소식을 들었다.`,['소식','관계'],Math.max(4,confidence/12),'소식',{news:n.id,from:from.id});}
+  else a.known[n.id].confidence=clamp(Math.max(a.known[n.id].confidence,confidence),0,100);
+}
+function submitInput(text,type='seed'){state.inputs.push({id:'i'+inputSeq++,type,text,time:now(),status:'queued'});$('#seedText').value='';toast('입력 대기열에 넣었어')}
+function handleInputs(){
+  const next=state.inputs.find(i=>i.status==='queued'); if(!next)return;
+  next.status='running'; next.started=now(); state.generation++;
+  const starters=[...agents].sort(()=>rnd()-.5).slice(0,next.type==='incident'?4:3);
+  const n=createNews(next.text,next.type==='incident'?'마을 사건':'루나',starters); n.input=next.id;
+  starters.forEach(a=>{setTarget(a,'square','새 소식을 광장에서 맞춰보는 중'); a.bubble='광장에서 먼저 맞춰볼게.'; a.bubbleT=3.8;});
+  next.status='done'; next.done=now(); addRecentOp(`입력 ${next.id} 처리 · ${starters.map(a=>a.name).join(', ')}에게 먼저 전달`);
+}
+function startOperation(a,type,place,projectId=null,newsId=null){
+  const labels={project:'프로젝트를 진척하는 중',verify:'소식의 근거를 확인하는 중',tool:'도구를 시험하는 중',archive:'대화 기록을 정리하는 중',recover:'숨을 고르는 중'};
+  const dur=2.5+rnd()*2.3; a.op={type,place,projectId,newsId,label:labels[type]||'작업 중',left:dur,total:dur}; a.task=a.op.label; a.bubble=type==='verify'?'근거를 먼저 확인해볼게.':type==='project'?'이 일은 조금 더 밀어볼 수 있어.':'작게 시험해볼게.'; a.bubbleT=2.8;
+}
+function finishOperation(a){
+  const op=a.op; if(!op)return; const place=building(op.place); let text='';
+  if(op.type==='project'){
+    const pr=project(op.projectId); if(pr&&!pr.done){
+      const boost=(hasSkill('반복 작업 묶기')?1.18:1)*(hasSkill('기억 색인')&&op.place==='library'?1.14:1);
+      const gain=clamp(8+rnd()*10+norm(a.focus,30,95)*8,7,23)*boost;
+      pr.p=clamp(pr.p+gain,0,100); state.resources[pr.need]=clamp((state.resources[pr.need]||0)+.9,0,100); a.focus=clamp(a.focus-4,0,100); a.mood=clamp(a.mood+1.5,0,100);
+      text=`${a.name}이 ${place.name}에서 ${pr.name}을 ${Math.round(gain)}만큼 진척했다.`; memory(a,`${pr.name}에 손을 보태 진행이 또렷해졌다.`,[pr.need,op.place,'발전'],6,'작업',{project:pr.id});
+      if(pr.p>=100)completeProject(pr,a,place);
+    }
+  } else if(op.type==='verify'){
+    const n=state.news.find(x=>x.id===op.newsId); if(n){n.checks++; const success=rnd()+norm(a.focus,20,90)*.45+(hasSkill('근거 확인')?.22:0)>.38;
+      if(success){n.verified=true;n.confidence=clamp(n.confidence+22,0,96);state.resources.혼선=clamp(state.resources.혼선-7,0,100);state.resources.신뢰=clamp(state.resources.신뢰+3,0,100);text=`${a.name}이 “${n.text.slice(0,34)}${n.text.length>34?'…':''}”의 근거를 확인했다.`;state.artifacts.unshift({id:'art'+artifactSeq++,title:'확인 메모',by:a.name,where:place.name,time:timeText(),text:`${n.text} — 확인 경로가 붙었다.`});agents.forEach(o=>{if(o.known[n.id])o.known[n.id].confidence=clamp(o.known[n.id].confidence+18,0,98)});} 
+      else {state.resources.혼선=clamp(state.resources.혼선+4,0,100);text=`${a.name}이 소식을 확인하려 했지만 근거가 부족해 보류했다.`;}
+      memory(a,text,['확인','소식','근거'],success?8:5,'확인',{news:n.id});
+    }
+  } else if(op.type==='tool'){
+    const tool=pick(place.tools); const fail=rnd()>(.60+norm(a.focus,30,90)*.22+(hasSkill('반복 작업 묶기')?.12:0));
+    if(fail){state.resources.혼선=clamp(state.resources.혼선+2,0,100);text=`${a.name}이 ${place.name}에서 ${tool}을 시험하다가 작은 시행착오를 겪었다.`;memory(a,text,['도구','혼선',place.id],4,'도구');}
+    else {state.resources.기술=clamp(state.resources.기술+1.4,0,100);text=`${a.name}이 ${place.name}에서 ${tool}을 작은 절차로 정리했다.`;state.artifacts.unshift({id:'art'+artifactSeq++,title:`${tool} 노트`,by:a.name,where:place.name,time:timeText(),text:`다음번에는 더 짧은 절차로 반복할 수 있게 되었다.`});memory(a,text,['도구','기술',place.id],7,'도구');}
+  } else if(op.type==='archive'){
+    const mem=pick(a.memories.slice(0,8)); text=`${a.name}이 ${place.name}에서 “${mem?mem.text.slice(0,30):'오늘의 일'}…”을 짧게 정리했다.`; memory(a,text,['기록','기억',place.id],5,'기록'); state.resources.기술=clamp(state.resources.기술+.5,0,100);
+  } else if(op.type==='recover'){
+    text=`${a.name}이 ${place.name}에서 잠깐 숨을 고르고 다시 움직일 힘을 얻었다.`; a.energy=clamp(a.energy+13,0,100); a.mood=clamp(a.mood+3,0,100); memory(a,text,['회복','활기',place.id],4,'회복');
+  }
+  if(text){addLife(text,op.type==='verify'?'확인':op.type==='tool'?'도구':op.type==='project'?'발전':'기록');addRecentOp(text)}
+  a.op=null; a.task=`${place.name} 주변을 살피는 중`;
+}
+function completeProject(pr,a,place){
+  if(pr.done)return; pr.done=true; pr.p=100; place.lv++; state.resources.활기=clamp(state.resources.활기+5,0,100); state.resources.신뢰=clamp(state.resources.신뢰+3,0,100);
+  if(!skills.some(s=>s.name===pr.skill))skills.unshift({id:'s'+skills.length,name:pr.skill,desc:`${pr.name}에서 생긴 재사용 가능한 행동 묶음`,level:1,source:place.name}); else skills.find(s=>s.name===pr.skill).level++;
+  const title=pr.skill==='반복 작업 묶기'?'마을발전기 첫 회전':`${pr.skill} 카드`;
+  state.artifacts.unshift({id:'art'+artifactSeq++,title,by:a.name,where:place.name,time:timeText(),text:`${pr.name}이 완성되며 ${place.name}의 레벨이 올랐다.`});
+  addLife(`${a.name}이 ${place.name}에서 「${title}」을 완성했다.`, '완성');
+  agents.forEach(o=>{memory(o,`${pr.name}이 완성되어 마을의 다음 행동이 쉬워졌다.`,['발전',pr.need,pr.place],7,'소식',{project:pr.id}); if(o!==a)o.rel[a.id]=clamp(o.rel[a.id]+5,0,100)});
+  toast(`${title} 완성`);
+}
+function nearbyBuilding(a){return buildings.find(b=>Math.abs(a.x-b.x)<b.w*.55&&Math.abs(a.y-b.y)<b.h*.55)}
+function workDecision(a){
+  const place=nearbyBuilding(a); if(!place||a.op)return;
+  const pr=projectAt(place.id); const uncertain=state.news.find(n=>a.known[n.id]&&!n.verified&&a.known[n.id].confidence<78);
+  if(place.id==='garden'&&a.energy<58&&rnd()<.20){startOperation(a,'recover',place.id);return}
+  if(place.id==='tower'&&uncertain&&rnd()<.20){startOperation(a,'verify',place.id,null,uncertain.id);return}
+  if(pr&&rnd()<.20){startOperation(a,'project',place.id,pr.id);return}
+  if((place.id==='workshop'||place.id==='gate'||place.id==='studio')&&rnd()<.10){startOperation(a,'tool',place.id);return}
+  if(place.id==='library'&&rnd()<.11){startOperation(a,'archive',place.id);return}
+}
+function observe(a){
+  if(rnd()>.025)return; const near=agents.filter(o=>o!==a&&dist(a,o)<90); const place=nearbyBuilding(a);
+  if(near.length){const o=pick(near); memory(a,`${o.name}이 ${place?place.name:'길목'} 근처에서 ${o.task} 모습을 보았다.`,['관계',o.role,place?place.id:'길목'],3,'관찰',{agent:o.id});}
+  else if(place)memory(a,`${place.name}의 분위기가 ${state.scene}에 맞춰 조금 달라졌다.`,[place.id,place.kind],2,'관찰');
+}
+function converse(a,b){
+  if(a.cool>0||b.cool>0||a.op||b.op||dist(a,b)>76||rnd()>.036)return;
+  let speaker=a, listener=b; if(rnd()<.5){speaker=b;listener=a}
+  const transferable=state.news.find(n=>speaker.known[n.id]&&!listener.known[n.id]&&(speaker.known[n.id].confidence>34||rnd()<.25));
+  const knownBoth=state.news.find(n=>speaker.known[n.id]&&listener.known[n.id]&&!n.verified&&Math.abs(speaker.known[n.id].confidence-listener.known[n.id].confidence)>18);
+  let line='',kind='대화',summary='',delta=2;
+  const recall=retrieve(speaker,transferable?['소식','관계']:['관계',speaker.place],listener.name);
+  if(transferable){
+    const conf=clamp(speaker.known[transferable.id].confidence-6+rnd()*12,12,94); giveNews(listener,transferable,speaker,conf); transferable.path.push({from:speaker.id,to:listener.id,time:timeText(),confidence:Math.round(conf)}); state.spreads.unshift({news:transferable.id,from:speaker.id,to:listener.id,t:now()}); state.spreads=state.spreads.slice(0,36);
+    line=transferable.verified?`확인된 말인데, ${transferable.text}`:`아직 확인 중이지만, ${transferable.text}`; kind=transferable.verified?'공유':'소식'; summary=`${speaker.name}이 ${listener.name}에게 “${transferable.text}”를 전했다.`; delta=transferable.verified?4:1; if(!transferable.verified&&conf<45)state.resources.혼선=clamp(state.resources.혼선+1.1,0,100);
+  } else if(knownBoth){
+    line=`그 말은 둘 다 들었지만, 근거를 한 번 더 보자.`; kind='확인'; summary=`${speaker.name}와 ${listener.name}이 같은 소식을 두고 확인이 필요하다고 맞췄다.`; delta=2; setTarget(speaker,'tower','함께 소식을 확인하러 가는 중'); if(rnd()<.45)setTarget(listener,'tower','함께 소식을 확인하러 가는 중');
+  } else {
+    const topics=['오늘 일정','마을발전기','관계 온도','다음 행사','작은 도구','기억 도서관']; const topic=pick(topics);
+    const good=(speaker.mood+listener.mood+speaker.rel[listener.id]+listener.rel[speaker.id])/4 + rnd()*16>56;
+    line=good?pick([`${topic}는 같이 해보면 길이 보여.`,`네가 남긴 기록 덕분에 다음 걸음이 쉬워졌어.`,`지금은 각자 한 조각씩 맡으면 되겠다.`]):pick([`그건 조금 더 확인하고 움직이자.`,`서두르면 마을이 헷갈릴 수 있어.`,`좋아, 단정하지 말고 기록부터 남기자.`]);
+    summary=`${speaker.name}와 ${listener.name}이 ${topic}에 대해 짧게 맞췄다.`; delta=good?3:0; kind=good?'대화':'조율';
+  }
+  speaker.bubble=line; listener.bubble=pick(['응, 짧게 남겨둘게.','좋아. 광장에서 다시 맞춰보자.','내가 확인할 부분을 볼게.']); speaker.bubbleT=listener.bubbleT=3.4; speaker.cool=listener.cool=5.4;
+  speaker.rel[listener.id]=clamp(speaker.rel[listener.id]+delta,0,100); listener.rel[speaker.id]=clamp(listener.rel[speaker.id]+delta,0,100); state.resources.신뢰=clamp(state.resources.신뢰+delta*.12,0,100);
+  addLife(summary,kind); addTalk(speaker.name,`${listener.name}에게: ${line}`,kind);
+  memory(speaker,summary,['관계','대화',speaker.place],5,'대화',{with:listener.id,recall:recall.map(m=>m.id)}); memory(listener,summary,['관계','대화',listener.place],5,'대화',{with:speaker.id});
+}
+function daily(){
+  state.day++; state.hour=6.75; state.generation++; state.weather=pick(['맑음','구름 많음','옅은 비','별빛 선명']);
+  agents.forEach(a=>{a.energy=clamp(a.energy+26+rnd()*16,0,100);a.focus=clamp(a.focus+12+rnd()*12,0,100);a.mood=clamp(a.mood+3-rnd()*2,0,100);buildPlan(a);const r=retrieve(a,['계획','소식','관계']); if(r[0])a.thought=`어제의 “${r[0].text.slice(0,30)}…”을 오늘의 출발점으로 삼았다.`;});
+  const unresolved=state.news.filter(n=>!n.verified).length; if(unresolved>2)state.resources.혼선=clamp(state.resources.혼선+unresolved*.9,0,100);
+  addLife(`${state.day}일차가 시작됐다. 날씨는 ${state.weather}, 아직 확인 중인 소식은 ${unresolved}개다.`, '아침');
+}
+function sceneText(){const h=state.hour;return h<6?'깊은 밤':h<8.5?'아침 정리':h<12?'오전 작업':h<14?'점심 대화':h<18?'마을 발전':h<21?'저녁 조율':'밤의 기록'}
+function sim(dt){
+  state.hour+=dt*.18*speed; if(state.hour>=24)daily(); state.scene=sceneText(); handleInputs();
+  agents.forEach(a=>{
+    if(!a.plan.length)buildPlan(a); const slot=currentSlot(a); const slotKey=a.plan.indexOf(slot); if(slot&&slotKey!==a.lastSlot&&!a.op){a.lastSlot=slotKey;setTarget(a,chooseDestination(a),slot.label);retrieve(a,[slot.place,slot.label,'계획']);}
+    if(a.op){a.op.left-=dt*speed; if(a.op.left<=0)finishOperation(a)}
+    else {if(Math.hypot(a.tx-a.x,a.ty-a.y)<9||rnd()<.0035)setTarget(a,chooseDestination(a)); const vx=a.tx-a.x,vy=a.ty-a.y,d=Math.hypot(vx,vy)||1,sp=(18+norm(a.energy,0,100)*34)*dt*speed; a.pathTrail.push({x:a.x,y:a.y,t:now()}); a.pathTrail=a.pathTrail.slice(-18); a.x+=vx/d*Math.min(sp,d); a.y+=vy/d*Math.min(sp,d); workDecision(a);}
+    observe(a); a.energy=clamp(a.energy-dt*.42*speed+(nearbyBuilding(a)?.id==='garden'?.08:0),0,100); a.mood=clamp(a.mood+((state.resources.활기-50)/500)*dt*speed,0,100); a.cool=Math.max(0,a.cool-dt*speed); a.bubbleT=Math.max(0,a.bubbleT-dt*speed);
+  });
+  for(let i=0;i<agents.length;i++)for(let j=i+1;j<agents.length;j++)converse(agents[i],agents[j]);
+  state.resources.활기=clamp(state.resources.활기-.005*dt*speed,0,100); state.resources.신뢰=clamp(state.resources.신뢰-(state.resources.혼선>45?.02:.004)*dt*speed,0,100); state.resources.혼선=clamp(state.resources.혼선-.006*dt*speed,0,100); state.tick++;
+}
+function sx(x){return x/world.w*W} function sy(y){return y/world.h*H}
+function rr(x,y,w,h,r){ctx.beginPath(); if(ctx.roundRect)ctx.roundRect(x,y,w,h,r); else {ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);ctx.arcTo(x+w,y+h,x,y+h,r);ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r)}}
+function isMobile(){return window.innerWidth<=720}
+function wrapBubble(text,maxChars){
+  const out=[]; let line='';
+  for(const word of String(text).split(' ')){
+    const cand=line?line+' '+word:word;
+    if(cand.length<=maxChars){line=cand; continue;}
+    if(line) out.push(line);
+    if(word.length>maxChars){
+      out.push(word.slice(0,maxChars));
+      line=word.slice(maxChars,maxChars*2);
+    }else line=word;
+    if(out.length>=2) break;
+  }
+  if(line && out.length<2) out.push(line);
+  return out.length?out.map(s=>s.trim()).slice(0,2):[''];
+}
+function rectHit(a,b){return !(a.x+a.w<b.x||a.x>b.x+b.w||a.y+a.h<b.y||a.y>b.y+b.h)}
+function layoutBubbles(){
+  bubbleRects.clear();
+  let list=agents.filter(a=>a.bubbleT>0);
+  if(!list.length) return;
+  list.sort((a,b)=>b.bubbleT-a.bubbleT);
+  const focus=agents.find(a=>a.id===selected);
+  if(focus&&focus.bubbleT>0) list=[focus,...list.filter(a=>a!==focus)];
+  list=list.slice(0,isMobile()?2:4);
+  const placed=[];
+  for(const a of list){
+    const lines=wrapBubble(a.bubble, isMobile()?14:18);
+    const maxLen=Math.max(...lines.map(v=>v.length));
+    const bw=Math.min(isMobile()?190:228,Math.max(isMobile()?112:118,maxLen*(isMobile()?7.2:7.6)+(isMobile()?24:26)));
+    const bh=14+lines.length*14;
+    let bx=sx(a.x)-bw/2;
+    let by=sy(a.y)-(isMobile()?78:70)-bh;
+    bx=clamp(bx,8,W-bw-8); by=clamp(by,8,H-bh-8);
+    let tries=0;
+    while(placed.some(r=>rectHit({x:bx,y:by,w:bw,h:bh},r)) && tries<10){
+      by-=18; bx+=(tries%2===0?14:-14);
+      bx=clamp(bx,8,W-bw-8); by=clamp(by,8,H-bh-8);
+      tries++;
+    }
+    const rect={x:bx,y:by,w:bw,h:bh,lines};
+    placed.push(rect); bubbleRects.set(a.id,rect);
+  }
+}
+function drawPath(points,color,width,alpha){ctx.save();ctx.globalAlpha=alpha;ctx.strokeStyle=color;ctx.lineWidth=width;ctx.lineCap='round';ctx.lineJoin='round';ctx.beginPath();ctx.moveTo(sx(points[0][0]),sy(points[0][1]));for(let i=1;i<points.length;i++)ctx.lineTo(sx(points[i][0]),sy(points[i][1]));ctx.stroke();ctx.restore()}
+function drawTerrain(night){
+  const g=ctx.createLinearGradient(0,0,0,H); const r=state.weather==='옅은 비'?.88:1; g.addColorStop(0,`rgb(${Math.round(28*r-night*18)},${Math.round(45*r-night*26)},${Math.round(76*r-night*36)})`); g.addColorStop(.58,`rgb(${Math.round(27*r-night*14)},${Math.round(62*r-night*25)},${Math.round(48*r-night*20)})`); g.addColorStop(1,`rgb(${Math.round(13*r-night*7)},${Math.round(24*r-night*10)},${Math.round(19*r-night*7)})`); ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+  ctx.save();ctx.globalAlpha=.10-night*.04;ctx.strokeStyle='#fff';for(let x=-80;x<W+80;x+=52){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x+34,H);ctx.stroke()}for(let y=0;y<H;y+=52){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y-22);ctx.stroke()}ctx.restore();
+  drawPath([[-70,558],[125,502],[252,462],[410,486],[565,442],[742,372],[1190,346]],'rgba(143,215,255,.23)',22,.95); drawPath([[-70,558],[125,502],[252,462],[410,486],[565,442],[742,372],[1190,346]],'rgba(215,244,255,.18)',5,.75);
+  drawPath([[126,398],[232,190],[560,300],[884,270]],'rgba(255,255,255,.13)',11,.75); drawPath([[322,528],[560,300],[704,542],[860,506]],'rgba(255,255,255,.12)',10,.68); drawPath([[560,300],[704,542],[884,270],[860,506]],'rgba(255,255,255,.09)',8,.58); drawPath([[126,398],[560,300],[860,506]],'rgba(255,255,255,.08)',7,.44);
+  decos.forEach(o=>{const x=sx(o.x),y=sy(o.y),s=o.s*(W/world.w);ctx.save();ctx.globalAlpha=.72-night*.22;if(o.t==='tree'){ctx.fillStyle='rgba(167,243,183,.38)';ctx.beginPath();ctx.arc(x,y,8*s,0,Math.PI*2);ctx.fill();ctx.fillStyle='rgba(63,42,26,.55)';ctx.fillRect(x-1.4*s,y+5*s,2.8*s,7*s)}else{ctx.fillStyle='rgba(238,246,255,.16)';ctx.beginPath();ctx.ellipse(x,y,6*s,4*s,.3,0,Math.PI*2);ctx.fill()}ctx.restore()});
+}
+function drawBuilding(b){
+  const x=sx(b.x),y=sy(b.y),w=b.w/world.w*W,h=b.h/world.h*H; const sel=selected===b.id||hover===b.id; const mobile=isMobile();
+  ctx.save();ctx.shadowColor='rgba(0,0,0,.36)';ctx.shadowBlur=28;ctx.shadowOffsetY=15;rr(x-w/2,y-h/2,w,h,21);const g=ctx.createLinearGradient(x,y-h/2,x,y+h/2);g.addColorStop(0,'rgba(255,255,255,.17)');g.addColorStop(1,'rgba(255,255,255,.048)');ctx.fillStyle=g;ctx.fill();ctx.shadowBlur=0;ctx.strokeStyle=sel?'rgba(143,215,255,.86)':'rgba(255,255,255,.145)';ctx.lineWidth=sel?2:1;ctx.stroke();
+  ctx.textAlign='center';ctx.font=mobile?'23px system-ui':'25px system-ui';ctx.fillText(b.icon,x,y-(mobile?7:10));ctx.font=`800 ${mobile?11:13}px system-ui,"Noto Sans KR"`;ctx.fillStyle='#fff';ctx.fillText(b.name,x,y+(mobile?15:17));
+  if(!mobile){ctx.font='11px system-ui,"Noto Sans KR"';ctx.fillStyle='rgba(238,246,255,.64)';ctx.fillText(`Lv.${b.lv} · ${b.kind}`,x,y+35)}
+  const pr=projectAt(b.id); if(pr){ctx.fillStyle='rgba(255,255,255,.10)';rr(x-w*.34,y+h/2-(mobile?10:15),w*.68,mobile?4:5,9);ctx.fill();ctx.fillStyle='rgba(143,215,255,.88)';rr(x-w*.34,y+h/2-(mobile?10:15),w*.68*pr.p/100,mobile?4:5,9);ctx.fill()} ctx.restore();
+}
+function drawAgentLinks(){
+  const a=agents.find(a=>a.id===selected); if(!a)return; ctx.save();agents.forEach(o=>{if(o===a)return;const v=a.rel[o.id]||50;ctx.globalAlpha=.12+v/180;ctx.strokeStyle=v>62?'#a7f3b7':v<42?'#ff9ca8':'#ffe08a';ctx.lineWidth=1+v/42;ctx.beginPath();ctx.moveTo(sx(a.x),sy(a.y));ctx.lineTo(sx(o.x),sy(o.y));ctx.stroke()});ctx.restore();
+}
+function drawSpreadArcs(){
+  ctx.save();state.spreads.slice(0,10).forEach((s,i)=>{const a=agents.find(x=>x.id===s.from),b=agents.find(x=>x.id===s.to);if(!a||!b)return;const age=now()-s.t,alpha=clamp(1-age/5,0,1)*(.28-i*.015);if(alpha<=0)return;ctx.globalAlpha=alpha;ctx.strokeStyle='rgba(255,224,138,.95)';ctx.lineWidth=2;ctx.setLineDash([5,6]);ctx.beginPath();const ax=sx(a.x),ay=sy(a.y),bx=sx(b.x),by=sy(b.y),mx=(ax+bx)/2,my=(ay+by)/2-35;ctx.moveTo(ax,ay-16);ctx.quadraticCurveTo(mx,my,bx,by-16);ctx.stroke()});ctx.restore();
+}
+function drawAgent(a){
+  const x=sx(a.x),y=sy(a.y),s=(selected===a.id?19:16)*(W/world.w)**.15; ctx.save();
+  if(a.pathTrail.length>4){ctx.globalAlpha=.11;ctx.strokeStyle=a.color;ctx.lineWidth=2;ctx.beginPath();a.pathTrail.slice(-12).forEach((p,i)=>{const px=sx(p.x),py=sy(p.y);if(i===0)ctx.moveTo(px,py);else ctx.lineTo(px,py)});ctx.stroke()}
+  if(a.op){ctx.globalAlpha=.78;ctx.strokeStyle=a.color;ctx.lineWidth=2;ctx.beginPath();ctx.arc(x,y,s+8,-Math.PI/2,-Math.PI/2+Math.PI*2*(1-a.op.left/a.op.total));ctx.stroke()}
+  const bubble=bubbleRects.get(a.id);
+  if(bubble){ctx.globalAlpha=.94;rr(bubble.x,bubble.y,bubble.w,bubble.h,13);ctx.fillStyle='rgba(5,9,16,.82)';ctx.fill();ctx.strokeStyle='rgba(255,255,255,.14)';ctx.stroke();ctx.fillStyle='rgba(238,246,255,.93)';ctx.textAlign='center';ctx.font='11px system-ui,"Noto Sans KR"';bubble.lines.forEach((line,i)=>ctx.fillText(line,bubble.x+bubble.w/2,bubble.y+16+i*14));}
+  ctx.globalAlpha=1;ctx.shadowColor='rgba(0,0,0,.42)';ctx.shadowBlur=16;ctx.shadowOffsetY=8;ctx.beginPath();ctx.arc(x,y,s,0,Math.PI*2);ctx.fillStyle=a.color;ctx.fill();ctx.shadowBlur=0;ctx.lineWidth=2;ctx.strokeStyle=selected===a.id?'#fff':'rgba(255,255,255,.82)';ctx.stroke();ctx.font='17px system-ui';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(a.face,x,y+1);ctx.textBaseline='alphabetic';
+  if(selected===a.id||hover===a.id){ctx.font='700 11px system-ui,"Noto Sans KR"';ctx.fillStyle='rgba(238,246,255,.92)';ctx.fillText(a.name,x,y+s+17)}
+  ctx.restore();
+}
+function drawAtmosphere(night){
+  if(state.weather==='옅은 비'){ctx.save();ctx.globalAlpha=.18;ctx.strokeStyle='rgba(210,235,255,.72)';for(let i=0;i<80;i++){const x=(i*71+state.tick*3)%W,y=(i*37+state.tick*7)%H;ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x-6,y+16);ctx.stroke()}ctx.restore()}
+  if(night>.25){ctx.save();fireflies.forEach(f=>{const x=sx((f.x+Math.sin(state.tick/50+f.p)*18+world.w)%world.w),y=sy((f.y+Math.cos(state.tick/70+f.p)*12+world.h)%world.h);ctx.globalAlpha=(.25+Math.sin(state.tick/18+f.p)*.2)*night;ctx.fillStyle='rgba(255,224,138,.9)';ctx.beginPath();ctx.arc(x,y,f.s,0,Math.PI*2);ctx.fill()});ctx.restore()}
+  ctx.save();const g=ctx.createRadialGradient(W*.48,H*.42,Math.min(W,H)*.25,W*.5,H*.52,Math.max(W,H)*.72);g.addColorStop(0,'rgba(0,0,0,0)');g.addColorStop(1,`rgba(0,0,0,${.24+night*.42})`);ctx.fillStyle=g;ctx.fillRect(0,0,W,H);ctx.restore();
+}
+function render(){
+  const r=cvs.getBoundingClientRect();DPR=Math.min(2,window.devicePixelRatio||1);if(W!==r.width||H!==r.height){W=r.width;H=r.height;cvs.width=W*DPR;cvs.height=H*DPR;ctx.setTransform(DPR,0,0,DPR,0,0)}
+  const night=(state.hour<6||state.hour>20)?0.64:(state.hour>18?norm(state.hour,18,21)*.56:state.hour<8?norm(8-state.hour,0,2)*.34:0);
+  drawTerrain(night); buildings.forEach(drawBuilding); drawAgentLinks(); drawSpreadArcs(); layoutBubbles(); agents.forEach(drawAgent); drawAtmosphere(night);
+}
+function networkDensity(){let e=0,n=agents.length;for(let i=0;i<n;i++)for(let j=i+1;j<n;j++)if(((agents[i].rel[agents[j].id]||0)+(agents[j].rel[agents[i].id]||0))/2>58)e++;return Math.round(e/(n*(n-1)/2)*100)}
+function spreadRate(n){return Math.round((n.knownBy.length/agents.length)*100)}
+function avgMood(){return Math.round(agents.reduce((s,a)=>s+a.mood,0)/agents.length)}
+function metricCards(){
+  const unresolved=state.news.filter(n=>!n.verified).length; const latest=state.news[0];
+  return `<div class="card"><p class="cap">마을 맥박</p><div class="meterGrid">${meter('평균 기분',avgMood())}${meter('관계 밀도',networkDensity())}${meter('확인 대기',Math.min(100,unresolved*16),'rose')}${meter('기술 서랍',Math.min(100,skills.length*13))}</div></div><div class="card"><p class="cap">가장 최근 소식</p><div class="note">${latest?`“${esc(latest.text)}”<br><span class="subtle">${spreadRate(latest)}%가 들었고, ${latest.verified?'확인됐어.':'아직 확인 중이야.'}</span>`:'아직 들어온 소식이 없어.'}</div></div>`;
+}
+function renderSide(){
+  const body=$('#sideBody'), obj=agents.find(a=>a.id===selected)||buildings.find(b=>b.id===selected)||state.news.find(n=>n.id===selected);
+  if(!obj){
+    $('#sideTitle').textContent='마을 전체'; $('#sideSub').textContent='주민·소식·도구가 서로 영향을 주는 흐름을 보고 있어.'; $('#sideBadge').textContent='관찰 중';
+    body.innerHTML=metricCards()+`<div class="card"><p class="cap">주민 선택</p><div class="tags">${agents.map(a=>`<button class="tag" data-pick="${a.id}">${a.face} ${a.name}</button>`).join('')}</div></div><div class="card"><p class="cap">소식 상태</p><div class="miniList">${state.news.slice(0,3).map(n=>`<button class="mini" data-pick="${n.id}"><b>${n.verified?'확인됨':'확인 중'}</b> · ${esc(n.text.slice(0,56))}${n.text.length>56?'…':''}</button>`).join('')||'<div class="note subtle">소식이 들어오면 여기에 떠.</div>'}</div></div>`; bindPick(); return;
+  }
+  if(obj.face){
+    const a=obj, place=building(a.place)||nearbyBuilding(a), slot=currentSlot(a), known=state.news.filter(n=>a.known[n.id]).slice(0,4);
+    $('#sideTitle').textContent=a.name; $('#sideSub').textContent=`${a.role} · ${a.task}`; $('#sideBadge').textContent=place?place.name:'이동 중';
+    const rels=agents.filter(o=>o!==a).map(o=>`<div class="rel"><span>${o.name}</span><div class="relLine"><i style="width:${a.rel[o.id]}%"></i></div><span>${a.rel[o.id]}</span></div>`).join('');
+    body.innerHTML=`<div class="profile"><div class="avatar" style="background:${a.color}22">${a.face}</div><div><h3>${a.name}</h3><p>${a.role}<br>${esc(a.thought)}</p></div></div><div class="card"><p class="cap">지금</p><div class="note">${slot?slot.label:'자유 행동'} · ${place?place.name:'길 위'}${a.op?`<br><span class="subtle">${a.op.label} · ${Math.round((1-a.op.left/a.op.total)*100)}%</span>`:''}</div></div><div class="card"><p class="cap">상태</p><div class="meterGrid">${meter('기분',a.mood)}${meter('에너지',a.energy)}${meter('집중',a.focus)}${meter('확신',a.confidence)}</div></div><div class="card"><p class="cap">오늘 일정</p><div class="schedule">${a.plan.map(s=>`<div class="slot ${s===slot?'now':''}"><span>${hourLabel(s.s)}</span><b>${esc(s.label)}</b></div>`).join('')}</div></div><div class="card"><p class="cap">방금 꺼낸 기억</p><div class="miniList">${(a.recalled.length?a.recalled:a.memories.slice(0,3)).map(m=>`<div class="mini"><b>${esc(m.type)}</b> · ${esc(m.text)}<br><span class="subtle">무게 ${m.importance} · ${m.tags.map(esc).join(' / ')}</span></div>`).join('')}</div></div><div class="card"><p class="cap">알고 있는 소식</p><div class="tags">${known.map(n=>`<button class="tag" data-pick="${n.id}">${n.verified?'✓':'?'} ${esc(n.text.slice(0,18))}</button>`).join('')||'<span class="tag">아직 조용함</span>'}</div></div><div class="card"><p class="cap">관계 온도</p><div class="rels">${rels}</div></div>`; bindPick(); return;
+  }
+  if(obj.tools){
+    const b=obj, pr=projectAt(b.id), near=agents.filter(a=>Math.abs(a.x-b.x)<150&&Math.abs(a.y-b.y)<125);
+    $('#sideTitle').textContent=b.name; $('#sideSub').textContent=`${b.kind} 시설 · 레벨 ${b.lv}`; $('#sideBadge').textContent='건물';
+    body.innerHTML=`<div class="profile"><div class="avatar">${b.icon}</div><div><h3>${b.name}</h3><p>${esc(b.desc)}</p></div></div><div class="card"><p class="cap">진행 중인 일</p>${pr?`<div class="note"><b>${esc(pr.name)}</b><br>${esc(pr.desc)}</div><div class="bar"><i style="width:${pr.p}%"></i></div><div class="progressLabel"><span>${pr.need}</span><b>${Math.round(pr.p)}%</b></div>`:'<div class="note subtle">이 건물의 당장 큰 일은 완성된 상태야.</div>'}</div><div class="card"><p class="cap">사용 가능한 도구</p><div class="tags">${b.tools.map(t=>`<span class="tag">${esc(t)}</span>`).join('')}</div></div><div class="card"><p class="cap">근처 주민</p><div class="tags">${near.map(a=>`<button class="tag" data-pick="${a.id}">${a.face} ${a.name}</button>`).join('')||'<span class="tag">지금은 조용함</span>'}</div></div>`; bindPick(); return;
+  }
+  const n=obj; $('#sideTitle').textContent=n.verified?'확인된 소식':'확인 중인 소식'; $('#sideSub').textContent=n.text; $('#sideBadge').textContent=`${spreadRate(n)}% 확산`;
+  body.innerHTML=`<div class="card"><p class="cap">소식 내용</p><div class="note">“${esc(n.text)}”<br><span class="subtle">출처 ${esc(n.origin)} · ${timeTextFrom(n.created)} 생성 · 신뢰도 ${Math.round(n.confidence)}</span></div></div><div class="card"><p class="cap">확산</p>${meter('들은 주민',spreadRate(n))}<div class="tags" style="margin-top:9px">${agents.filter(a=>a.known[n.id]).map(a=>`<button class="tag" data-pick="${a.id}">${a.face} ${a.name}</button>`).join('')}</div></div><div class="card"><p class="cap">이동 경로</p><div class="miniList">${n.path.slice(-8).reverse().map(p=>`<div class="mini">${agentName(p.from)} → ${agentName(p.to)} <span class="subtle">${p.time} · 확신 ${p.confidence}</span></div>`).join('')||'<div class="note subtle">처음 들어온 뒤 아직 크게 퍼지지 않았어.</div>'}</div></div>`; bindPick();
+}
+function timeTextFrom(t){const d=Math.floor(t/24), h=Math.floor(t%24);return `${d}일 ${pad(h)}시`}
+function agentName(id){return agents.find(a=>a.id===id)?.name||id}
+function meter(label,value,kind=''){return `<div class="meter"><span><em>${label}</em><b>${Math.round(value)}</b></span><div class="bar ${kind}"><i style="width:${clamp(value,0,100)}%"></i></div></div>`}
+function updateUI(){
+  $('#clock').textContent=timeText(); $('#scene').textContent=state.scene; $('#inputState').textContent=state.inputs.filter(i=>i.status!=='done').length;
+  const statIcons={신뢰:'🤝',기술:'⚙️',문화:'🎐',활기:'🌿',혼선:'〰️'};
+  $('#stats').innerHTML=Object.entries(state.resources).map(([k,v])=>`<div class="stat ${k==='혼선'?'noise':''}" style="--v:${Math.round(v)}"><span>${statIcons[k]||'·'} ${k}</span><b>${Math.round(v)}</b></div>`).join('')+`<div class="stat" style="--v:${networkDensity()}"><span>☍ 관계</span><b>${networkDensity()}</b></div>`;
+  $('#lifeLog').innerHTML=state.life.map(e=>`<div class="event"><div class="time">${e.time}</div><div class="text">${esc(e.text)}</div><div class="kind">${esc(e.kind)}</div></div>`).join('')||'<div class="empty">아직 큰 사건은 없어. 마을이 첫 숨을 고르는 중이야.</div>';
+  $('#talkLog').innerHTML=state.talk.map(e=>`<div class="chat"><b>${esc(e.who)}</b><p>${esc(e.text)}</p><span>${e.time}</span></div>`).join('')||'<div class="empty">주민들이 가까워지고 소식을 나누면 대화가 남아.</div>';
+  $('#newsList').innerHTML=state.news.map(n=>`<button class="tile" data-pick="${n.id}"><div class="newsHead"><h4>${n.verified?'확인된 소식':'확인 중'}</h4><span class="pill ${n.verified?'ok':(n.confidence<45?'bad':'')}">${spreadRate(n)}%</span></div><p>${esc(n.text)}</p><div class="bar ${n.verified?'':'rose'}"><i style="width:${spreadRate(n)}%"></i></div><div class="progressLabel"><span>${esc(n.origin)}</span><b>확신 ${Math.round(n.confidence)}</b></div></button>`).join('')||'<div class="empty">입력창으로 목표나 소식을 넣으면, 몇몇 주민에게 먼저 들어간 뒤 대화로 퍼져.</div>'; bindPick();
+  $('#devList').innerHTML=projects.map(pr=>`<div class="tile"><h4>${esc(pr.name)}</h4><p>${esc(pr.desc)}</p><div class="bar"><i style="width:${pr.p}%"></i></div><div class="progressLabel"><span>${building(pr.place).name} · ${pr.need}</span><b>${pr.done?'완성':Math.round(pr.p)+'%'}</b></div></div>`).join('')+skills.map(s=>`<div class="tile"><h4>기술 서랍 · ${esc(s.name)}</h4><p>${esc(s.desc)}</p><small>${esc(s.source)} · Lv.${s.level}</small></div>`).join('');
+  $('#workList').innerHTML=(state.artifacts.map(a=>`<div class="tile artifact"><b>${esc(a.title)}</b><p>${esc(a.text)}<br>— ${esc(a.by)} · ${esc(a.where)} · ${a.time}</p></div>`).join('')||'<div class="empty">프로젝트, 도구 시험, 확인 작업이 끝나면 결과물이 쌓여.</div>')+state.inputs.slice(0,8).map(i=>`<div class="tile"><h4>입력 ${esc(i.id)} · ${esc(i.status)}</h4><p>${esc(i.text)}</p><small>${timeTextFrom(i.time)}</small></div>`).join('');
+  $('#researchList').innerHTML=researchCards().map(c=>`<div class="tile engine"><b>${esc(c.title)}</b><p>${esc(c.body)}</p></div>`).join('');
+  renderSide();
+}
+function researchCards(){return [
+  {title:'Generative Agents · 기억 흐름',body:'주민마다 시간, 무게, 최근 접근, 태그가 붙은 기억 조각을 갖고 현재 장소와 대화 주제에 맞춰 상위 기억을 꺼낸다.'},
+  {title:'Generative Agents · 계획과 반응',body:'아침에 하루 동선을 만들고, 에너지 저하·확인 안 된 소식·미완성 프로젝트가 생기면 장소를 바꾼다.'},
+  {title:'Generative Agents · 사회적 결과',body:'소식 확산률, 관계 밀도, 공동 프로젝트 참석처럼 마을 단위의 결과가 일대기와 수치에 남는다.'},
+  {title:'AI Town · 입력과 틱',body:'사용자 입력은 바로 세계를 바꾸지 않고 대기열에 들어갔다가 틱에서 처리된다. 주민도 동시에 여러 작업을 하지 않는다.'},
+  {title:'AI Town · 대화 요약 기억',body:'대화가 끝나면 양쪽 주민에게 짧은 요약 기억을 남기고, 다음 대화에서 관련 기억을 다시 꺼낸다.'},
+  {title:'AI Village · 도구 사용과 실패',body:'공방·게이트·무대에서는 도구를 시험한다. 성공하면 산출물과 기술이 쌓이고, 실패하면 혼선이 잠깐 오른다.'},
+  {title:'AI Village · 혼선 전파',body:'확인되지 않은 말도 퍼질 수 있다. 확신이 낮은 주민은 관측대로 이동해 근거를 붙이려 하고, 확인되면 혼선이 내려간다.'},
+  {title:'Voyager · 기술 서랍',body:'완성된 프로젝트는 다음 행동에 쓰이는 작은 기술로 남는다. 마을발전기 코어가 켜지면 반복 작업 효율이 오른다.'},
+  {title:'단일 파일의 선',body:'실제 LLM 호출, 벡터 DB, 서버 작업 큐, 컴퓨터 화면 조작은 없다. 대신 구조의 움직임을 브라우저 규칙으로 압축했다.'}
+]}
+function bindPick(){$$('[data-pick]').forEach(el=>el.onclick=()=>{selected=el.dataset.pick;updateUI()})}
+function canvasPick(e){const r=cvs.getBoundingClientRect(),x=(e.clientX-r.left)/W*world.w,y=(e.clientY-r.top)/H*world.h;let hit=null;for(const a of agents){if(Math.hypot(x-a.x,y-a.y)<30)hit=a.id}if(!hit)for(const b of buildings){if(Math.abs(x-b.x)<b.w/2&&Math.abs(y-b.y)<b.h/2)hit=b.id}selected=hit;updateUI()}
+function canvasHover(e){const r=cvs.getBoundingClientRect(),x=(e.clientX-r.left)/W*world.w,y=(e.clientY-r.top)/H*world.h;let hit=null;for(const a of agents){if(Math.hypot(x-a.x,y-a.y)<30)hit=a.id}if(!hit)for(const b of buildings){if(Math.abs(x-b.x)<b.w/2&&Math.abs(y-b.y)<b.h/2)hit=b.id}hover=hit;cvs.style.cursor=hit?'pointer':'default'}
+function save(){localStorage.setItem('ai-village-polished-research',JSON.stringify({state,agents,buildings,projects,skills,seed,memSeq,newsSeq,artifactSeq,inputSeq}));toast('저장했어')}
+function load(){try{const raw=localStorage.getItem('ai-village-polished-research');if(!raw)return false;const d=JSON.parse(raw);Object.assign(state,d.state);d.agents.forEach((a,i)=>Object.assign(agents[i],a));d.buildings.forEach((b,i)=>Object.assign(buildings[i],b));d.projects.forEach((p,i)=>Object.assign(projects[i],p));skills.splice(0,skills.length,...d.skills);seed=d.seed||seed;memSeq=d.memSeq||memSeq;newsSeq=d.newsSeq||newsSeq;artifactSeq=d.artifactSeq||artifactSeq;inputSeq=d.inputSeq||inputSeq;return true}catch(e){console.warn(e);return false}}
+function reset(){localStorage.removeItem('ai-village-polished-research');location.reload()}
+function sampleIncident(){return pick(['게이트 쪽에서 외부 연구자가 마을 기록을 보고 싶다는 말을 남겼다','광장에 비 예보가 들어와 축제 시간을 조정해야 할지도 모른다','공방의 마을발전기가 밤 사이 이상한 빛을 냈다는 소문이 돌았다','온실 정원에 새 작물이 자랐고 주민들이 함께 나눌 수 있을 것 같다','기억 도서관의 오래된 기록에서 잊힌 초대장이 발견됐다'])}
+function loop(t){const dt=Math.min(.08,(t-last)/1000||0);last=t;if(!paused){acc+=dt;while(acc>.05){sim(.05);acc-=.05}}render();uiTimer+=dt;if(uiTimer>.55){updateUI();uiTimer=0}requestAnimationFrame(loop)}
+function init(){
+  if(!load()){
+    agents.forEach(a=>{memory(a,`${a.name}은 ${a.role}로서 ${building(a.home).name}을 주 무대로 삼는다.`,[a.home,a.role,'정체성'],7,'기본',{},false);memory(a,`첫날 아침, ${a.name}은 광장에 켜지는 불빛을 보며 마을의 리듬을 익혔다.`,['마을','아침'],4,'관찰',{},false);buildPlan(a)});
+    createNews('주말에 별빛 광장에서 작은 축제를 열자는 제안이 생겼다','초기 기억',[agents[1],agents[6]]);
+    createNews('마을발전기 코어를 완성하면 반복 작업이 줄어들 수 있다','초기 기억',[agents[2],agents[0]]);
+    addLife('AI 마을의 첫 아침이 열렸다. 주민들은 각자의 기억과 역할을 품고 움직이기 시작했다.','시작'); addTalk('챗사서','오늘은 대화가 끝나면 짧게 남겨둘게. 그래야 내일의 내가 덜 헤매니까.');
+  }
+  cvs.addEventListener('click',canvasPick); cvs.addEventListener('mousemove',canvasHover); cvs.addEventListener('mouseleave',()=>{hover=null;cvs.style.cursor='default'});
+  $('#seedForm').addEventListener('submit',e=>{e.preventDefault();const v=$('#seedText').value.trim();if(v)submitInput(v,'seed')}); $('#eventBtn').onclick=()=>submitInput(sampleIncident(),'incident');
+  $('#pauseBtn').onclick=()=>{paused=!paused;$('#pauseBtn').textContent=paused?'다시 흐르게':'멈춤'}; $('#stepBtn').onclick=()=>{sim(.9);updateUI()}; $('#speedBtn').onclick=()=>{speed=speed===1?2:speed===2?4:1;$('#speedBtn').textContent=`속도 ${speed}x`}; $('#saveBtn').onclick=save; $('#resetBtn').onclick=reset;
+  $$('.tab').forEach(tab=>tab.onclick=()=>{$$('.tab').forEach(t=>t.classList.remove('active'));$$('.panel').forEach(p=>p.classList.remove('active'));tab.classList.add('active');$('#panel-'+tab.dataset.tab).classList.add('active')});
+  updateUI(); requestAnimationFrame(loop);
+}
+init();
+})();
+</script>
+</body>
+</html>
