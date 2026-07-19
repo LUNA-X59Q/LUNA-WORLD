@@ -170,7 +170,7 @@ button:focus-visible,input:focus-visible{outline:2px solid rgba(137,216,255,.72)
 'use strict';
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const cvs=$('#world'), ctx=cvs.getContext('2d');
-let W=0,H=0,DPR=1,last=0,acc=0,uiTimer=0,paused=false,speed=1,selected=null,hover=null;
+let W=0,H=0,DPR=1,last=0,acc=0,uiTimer=0,paused=false,speed=1,selected=null,hover=null,hiddenAt=0;
 const bubbleRects=new Map();
 let seed=260630, memSeq=1, newsSeq=1, artifactSeq=1, inputSeq=1, promSeq=1, postSeq=1, gathSeq=1;
 const world={w:1120,h:700};
@@ -432,7 +432,7 @@ function giveNews(a,n,from,confidence,heardText){
     else{
       conf=clamp(conf*.55,8,60);landing='의심';
       if(negNews&&!n.countered&&pos>=2&&rnd()<.6){
-        n.countered=true;
+        n.countered=true; state.corrections=(state.corrections||0)+1;
         createNews(`${N(a.name,'eun')} “${n.text.slice(0,22)}…”라는 말이 자기가 아는 ${s?s.name:'그'}와 다르다고 잘라 말했다`,a.name,[a],{subject:n.subject,stance:'옹호'});
         addLife(`${N(a.name,'i')} 떠도는 말에 반박했다 — 겪어본 ${s?s.name:'그'}는 다르다는 것이다.`,'소식');
       }
@@ -460,6 +460,20 @@ function addDesire(a,kind,text,target=null,strength=30){
 }
 function decayDesires(a,h){a.desires=a.desires.filter(d=>{d.strength-=h*.55;return d.strength>4})}
 function homeOf(a){return 'h_'+a.id}
+// ── Project Sid식 관습 다변화: 관습은 한 축이 아니라 여러 누적 축에서 창발한다 —
+//    어그러진 약속, 바로잡힌 말, 성공한 모임, 이뤄진 화해가 각자의 관습 씨앗이 된다 ──
+const hasCustom=k=>state.customs.some(c=>c.key===k);
+function seedCustom(key,text){
+  if(hasCustom(key))return;
+  state.customs.push({key,text,time:timeText()});
+  addLife(`마을에 새 관습이 생겼다 — ${text}.`,'관습');
+}
+function customTick(){
+  if(state.breachTotal>=4)seedCustom('약속','약속은 헤어지기 전에 소리 내어 한 번 더 확인한다');
+  if((state.corrections||0)>=3)seedCustom('되물음','들은 말은 옮기기 전에 겪은 사람에게 한 번 되물어본다');
+  if((state.gatherWins||0)>=3)seedCustom('모임','달이 차오르면 누군가 저녁 자리를 연다');
+  if((state.heals||0)>=3)seedCustom('화해','어긋난 다음 날에는 먼저 말을 거는 쪽이 이긴 것으로 친다');
+}
 // 약속: 대화에서 생기고, 닫히지 않은 동안은 다음 만남을 끌어당기는 중력이 된다
 function openPromises(a){return state.promises.filter(p=>p.status==='열림'&&(p.a===a.id||p.b===a.id))}
 function pairPromise(a,b){return state.promises.find(p=>p.status==='열림'&&((p.a===a.id&&p.b===b.id)||(p.a===b.id&&p.b===a.id)))}
@@ -481,7 +495,7 @@ function gravityList(a){
 }
 function gravity(a,b){const e=gravityList(a).find(x=>x.o===b);return e?e.g:0}
 function promisePull(a){
-  const bonus=state.customs.length?.12:0; // 관습이 생기면 약속이 더 잘 지켜진다
+  const bonus=hasCustom('약속')?.12:0; // 약속의 관습이 생기면 약속이 더 잘 지켜진다
   for(const p of openPromises(a)){
     const t=now(); if(t<p.due-2.5||t>p.due+5)continue;
     if(a.energy<26)continue;
@@ -519,10 +533,6 @@ function promiseTick(){
         addDesire(w,'화해',`${N(o.name,'gwa')} 약속 이야기를 매듭짓고 싶다`,o.id,26)});
       addLife(`${N(A.name,'gwa')} ${B.name}의 약속이 어그러졌다 — ${p.kind==='방문'?'거처 방문':'함께 일하기'}는 없던 일이 됐다.`,'약속');
       culprits.forEach(c=>{if(c.breaches>=2&&!c.repBad){c.repBad=true;createNews(`${N(c.name,'i')} 약속을 자꾸 미룬다는 말이 돈다`,'광장의 말',null,{subject:c.id,stance:'의심'})}});
-      if(state.breachTotal>=4&&!state.customs.length){
-        state.customs.push({text:'약속은 헤어지기 전에 소리 내어 한 번 더 확인한다',time:timeText()});
-        addLife('어그러진 약속들이 쌓이자 마을에 첫 관습이 생겼다 — 약속은 헤어지기 전에 소리 내어 확인하기.','관습');
-      }
     }
   });
   state.promises=state.promises.filter(p=>p.status==='열림'||now()-p.created<48);
@@ -577,7 +587,7 @@ function gatherPull(a){
   if(a.id===g.host)return g.place;
   if(!a.known[g.newsId])return null;
   const want=a.rel[g.host]*.6+a.pers.사교*.4+a.mood*.25-(a.energy<35?26:0);
-  return want>62&&rnd()<.75?g.place:null;
+  return want>(hasCustom('모임')?56:62)&&rnd()<.75?g.place:null;
 }
 function gatheringTick(){
   const g=state.gathering; if(!g)return; const t=now();
@@ -598,6 +608,7 @@ function gatheringTick(){
   } else if(t>g.endAt){
     const host=agents.find(x=>x.id===g.host), n=g.attended.length;
     if(n>=3){
+      state.gatherWins=(state.gatherWins||0)+1;
       state.resources.문화=clamp(state.resources.문화+8,0,100); state.resources.활기=clamp(state.resources.활기+4,0,100);
       addLife(`「${g.title}」에 ${g.attended.map(agentName).join(', ')}이 모여 저녁을 보냈다 — 각본 없이 초대가 만든 자리였다.`,'행사');
       placeEcho(g.place,'행사',`「${g.title}」의 불빛이 밤늦게까지 남았다`);
@@ -644,6 +655,7 @@ function finishOperation(a){
         if(twisted){ // 원본과 다르게 퍼진 것을 발견한다 — 검증은 사실만이 아니라 판본도 바로잡는다
           text=`${N(a.name,'i')} 근거를 확인하다 말이 퍼지며 바뀐 것을 발견했다 — 원래는 “${n.text.slice(0,30)}${n.text.length>30?'…':''}”였다.`;
           agents.forEach(o=>{if(o.known[n.id])o.known[n.id].text=n.text}); n.distorted=false;
+          state.corrections=(state.corrections||0)+1;
           state.resources.혼선=clamp(state.resources.혼선-3,0,100);
         } else text=`${N(a.name,'i')} “${n.text.slice(0,34)}${n.text.length>34?'…':''}”의 근거를 확인했다.`;
         state.artifacts.unshift({id:'art'+artifactSeq++,title:twisted?'교정 메모':'확인 메모',by:a.name,where:place.name,time:timeText(),text:`${n.text} — ${twisted?'퍼진 판본이 원본으로 교정됐다.':'확인 경로가 붙었다.'}`});agents.forEach(o=>{if(o.known[n.id])o.known[n.id].confidence=clamp(o.known[n.id].confidence+18,0,98)});}
@@ -735,11 +747,12 @@ function converse(a,b){
     line=gen('화해말'); kind='화해'; delta=6;
     summary=`${N(speaker.name,'i')} 먼저 손을 내밀어 ${N(listener.name,'gwa')} 어긋났던 매듭을 풀었다.`;
     [speaker,listener].forEach(x=>{x.desires=x.desires.filter(d=>!(d.kind==='화해'&&(d.target===speaker.id||d.target===listener.id)));x.mood=clamp(x.mood+4,0,100)});
+    state.heals=(state.heals||0)+1;
   } else if(transferable){
     const conf=clamp(speaker.known[transferable.id].confidence-6+rnd()*12,12,94);
     // 말하는 이는 자기가 들은 판본을 옮기고, 옮기는 사이 말이 미끄러질 수 있다
     let told=speaker.known[transferable.id].text||transferable.text;
-    if(!transferable.verified&&rnd()<.22*(1-conf/140)){told=distort(told); if(told!==transferable.text)transferable.distorted=true;}
+    if(!transferable.verified&&rnd()<.22*(1-conf/140)*(hasCustom('되물음')?.5:1)){told=distort(told); if(told!==transferable.text)transferable.distorted=true;}
     giveNews(listener,transferable,speaker,conf,told); transferable.path.push({from:speaker.id,to:listener.id,time:timeText(),confidence:Math.round(conf)}); state.spreads.unshift({news:transferable.id,from:speaker.id,to:listener.id,t:now()}); state.spreads=state.spreads.slice(0,36);
     line=transferable.verified?`확인된 말인데, ${told}`:`아직 확인 중이지만, ${told}`; kind=transferable.verified?'공유':'소식'; summary=`${N(speaker.name,'i')} ${listener.name}에게 “${told}”를 전했다.`; delta=transferable.verified?4:1; if(!transferable.verified&&conf<45)state.resources.혼선=clamp(state.resources.혼선+1.1,0,100);
   } else if(knownBoth){
@@ -765,8 +778,9 @@ function converse(a,b){
       line=genFor(speaker,'마찰',{'주제':topic}); summary=`${N(speaker.name,'gwa')} ${N(listener.name,'i')} ${N(topic,'eul')} 두고 서로 어긋났다.`; delta=-2; kind='갈등';
       speaker.mood=clamp(speaker.mood-2,0,100); listener.mood=clamp(listener.mood-3,0,100);
       // 어긋남은 화해의 바람을 남기고, 목격자의 입을 타면 평판 소문이 된다
-      addDesire(speaker,'화해',`${N(listener.name,'gwa')} 어긋난 말을 풀고 싶다`,listener.id,28);
-      addDesire(listener,'화해',`${N(speaker.name,'gwa')} 어긋난 말을 풀고 싶다`,speaker.id,28);
+      const healStr=hasCustom('화해')?36:28; // 화해의 관습은 먼저 말을 걸게 만든다
+      addDesire(speaker,'화해',`${N(listener.name,'gwa')} 어긋난 말을 풀고 싶다`,listener.id,healStr);
+      addDesire(listener,'화해',`${N(speaker.name,'gwa')} 어긋난 말을 풀고 싶다`,speaker.id,healStr);
       const wit=agents.find(o=>o!==speaker&&o!==listener&&!o.op&&dist(o,speaker)<120);
       if(wit){
         memory(wit,`${N(speaker.name,'gwa')} ${N(listener.name,'i')} 언성을 높이는 것을 지켜보았다.`,['관계','갈등'],5,'관찰',{agent:speaker.id});
@@ -852,7 +866,7 @@ function daily(){
     if(a.mood<46&&a.pers.사교>58)addDesire(a,'어울림','사람들 틈에 섞여 기분을 바꾸고 싶다',null,26);
   });
   const fest=agents.find(a=>a.role==='축제지기'); if(fest&&state.resources.문화<45)addDesire(fest,'행사','마을에 불빛이 모이는 저녁을 만들고 싶다',null,30);
-  if(!state.gathering&&rnd()<.3){ // 주민 발의 행사 — 사교성 높거나 행사 바람을 품은 이가 자리를 연다
+  if(!state.gathering&&rnd()<(hasCustom('모임')?.45:.3)){ // 주민 발의 행사 — 사교성 높거나 행사 바람을 품은 이가 자리를 연다
     const cands=agents.filter(a=>a.pers.사교>58||a.desires.some(d=>d.kind==='행사'));
     if(cands.length&&state.resources.문화<72)planGathering(pick(cands));
   }
@@ -873,7 +887,7 @@ function sim(dt){
     observe(a); maybePost(a); readPosts(a); a.energy=clamp(a.energy-dt*.42*speed+(nearbyBuilding(a)?.id==='garden'?.08:0),0,100); a.mood=clamp(a.mood+((state.resources.활기-50)/500)*dt*speed,0,100); a.cool=Math.max(0,a.cool-dt*speed); a.bubbleT=Math.max(0,a.bubbleT-dt*speed);
   });
   for(let i=0;i<agents.length;i++)for(let j=i+1;j<agents.length;j++)converse(agents[i],agents[j]);
-  promiseTick(); gatheringTick();
+  promiseTick(); gatheringTick(); customTick();
   state.resources.활기=clamp(state.resources.활기-.005*dt*speed,0,100); state.resources.신뢰=clamp(state.resources.신뢰-(state.resources.혼선>45?.02:.004)*dt*speed,0,100); state.resources.혼선=clamp(state.resources.혼선-.006*dt*speed,0,100); state.tick++;
 }
 function sx(x){return x/world.w*W} function sy(y){return y/world.h*H}
@@ -1031,7 +1045,7 @@ function researchCards(){return [
   {title:'Voyager · 기술 서랍',body:'완성된 프로젝트는 다음 행동에 쓰이는 작은 기술로 남는다. 마을발전기 코어가 켜지면 반복 작업 효율이 오른다.'},
   {title:'The Sims · 광고하는 건물',body:'건물이 "여기서 할 수 있는 일과 효용"을 광고하고, 주민은 자기 욕구·역할과 곱해 점수만 계산한다. 주민 패널의 행동 점수표가 그 계산을 그대로 보여준다.'},
   {title:'Tracery · 문법 대화',body:'대화와 사건 문장은 고정 문장이 아니라 치환 문법에서 매번 조합되고, 받침에 따라 조사(이/가, 은/는)가 맞춰진다.'},
-  {title:'Veloren rtsim · 따라잡기',body:'탭이 닫혀 있던 시간은 이동·대화 같은 고해상도 연출을 건너뛰고 진척·소식·관계만 저해상도 규칙으로 흘러, 다시 열면 마을이 그만큼 살아 있다.'},
+  {title:'Veloren rtsim · 따라잡기',body:'탭이 닫히거나 가려져 있던 시간은 이동·대화 같은 고해상도 연출을 건너뛰고 진척·소식·관계·약속만 저해상도 규칙으로 흘러, 다시 보면 마을이 그만큼 살아 있다.'},
   {title:'Dwarf Fortress · 기억→성격',body:'기억이 묶여 영구층으로 내려가는 순간 성격 축(낙관·신중·사교·끈기)이 반드시 이동하고, 바뀐 성격은 광고 점수·대화·작업 확률에 되먹임된다.'},
   {title:'RimWorld · 사건 감독',body:'시뮬레이션과 분리된 감독(카산드라·피비·랜디)이 활기·혼선·발전 수준·경과 시간을 읽고 사건을 투하한다. 위기 직후엔 회복이 보장되고, 전개는 시뮬레이션에 맡긴다.'},
   {title:'Dwarf Fortress · 전설 모드',body:'일대기는 90줄에서 잘리지만 굵직한 사건은 연대기에 영구히 남고, 인물·장소·종류 단추로 마을의 역사를 교차 열람한다. 시뮬레이션의 산출물은 게임이 아니라 역사책이다.'},
@@ -1045,6 +1059,7 @@ function researchCards(){return [
   {title:'Tracery · 말투와 기억 인용',body:'주민마다 문법 일부를 자기 말투로 덮어쓰고(기록자는 색인에 넣고, 축제지기는 등불을 켠다), 대화는 방금 회상한 기억을 실제로 인용한다 — 같은 템플릿도 역사가 실리면 매번 다른 말이 된다.'},
   {title:'Talk of the Town · 소문 왜곡',body:'말은 사람을 타며 미끄러진다 — 장소가 바뀌고, 표현이 부풀고, 꼬리가 붙는다. 주민마다 자기가 들은 판본을 갖고, 글(게시판)은 왜곡되지 않으며, 관측대의 확인이 판본을 원본으로 교정한다.'},
   {title:'Talk of the Town · 이야기 발굴',body:'시뮬레이션은 원재료를 만들고, 이야기는 큐레이션이 찾아낸다 — 사건 로그·관계·약속·소문에서 부딪히는 두 사람, 다시 이어진 매듭, 말이 걸어간 길 같은 서사 패턴을 사후 검색한다 (drama.py).'},
+  {title:'Project Sid · 관습의 여러 씨앗',body:'관습은 한 축에서만 나오지 않는다 — 어그러진 약속(확인하는 관습), 바로잡힌 말(되묻는 관습), 성공한 모임(자리를 여는 관습), 이뤄진 화해(먼저 말 거는 관습)가 각자 쌓여 마을의 규범이 되고, 생긴 관습은 행동 확률에 되먹인다.'},
   {title:'단일 파일의 선',body:'실제 LLM 호출, 벡터 DB, 서버 작업 큐, 컴퓨터 화면 조작은 없다. 대신 구조의 움직임을 브라우저 규칙으로 압축했다.'}
 ]}
 // ── TotT drama.py식 이야기 발굴: 시뮬레이션은 원재료를 만들고, 이야기는 큐레이션이 찾아낸다 —
@@ -1136,11 +1151,12 @@ function coarseStep(h,report){
   const g=state.gathering;
   if(g&&now()>g.endAt){
     const att=agents.filter(a=>a.known[g.newsId]&&a.rel[g.host]>55);
-    if(att.length>=3){state.resources.문화=clamp(state.resources.문화+6,0,100);chron(`닫힌 시간 동안 「${g.title}」 모임이 열려 ${att.length}명이 다녀갔다.`,'행사')}
+    if(att.length>=3){state.gatherWins=(state.gatherWins||0)+1;state.resources.문화=clamp(state.resources.문화+6,0,100);chron(`닫힌 시간 동안 「${g.title}」 모임이 열려 ${att.length}명이 다녀갔다.`,'행사')}
     else chron(`「${g.title}」 모임은 닫힌 시간 동안 조용히 지나갔다.`,'행사');
     state.gathering=null;
   }
   agents.forEach(a=>decayDesires(a,h));
+  customTick();
   state.resources.활기=clamp(state.resources.활기-.05*h,0,100); state.resources.혼선=clamp(state.resources.혼선-.06*h,0,100);
   directorTick(h); // 감독은 닫힌 시간에도 같은 리듬으로 사건을 투하한다
 }
@@ -1152,7 +1168,7 @@ function catchUp(elapsedMs){
   state.scene=sceneText();
   const closedText=elapsedMs>3600000?`${Math.round(elapsedMs/3600000)}시간`:`${Math.max(1,Math.round(elapsedMs/60000))}분`;
   const capped=elapsedMs/1000*SIM_HOURS_PER_REAL_SEC>CATCHUP_CAP_HOURS;
-  let text=`탭이 닫혀 있던 ${closedText} 동안 마을 시간 ${Math.round(hours)}시간이 저해상도로 흘렀다${capped?' (사흘치에서 멈춤)':''} — 프로젝트 +${Math.round(report.progress)}, 소식 전달 ${report.spread}회, 관계 표류 ${report.social}회.`;
+  let text=`탭 밖에 있던 ${closedText} 동안 마을 시간 ${Math.round(hours)}시간이 저해상도로 흘렀다${capped?' (사흘치에서 멈춤)':''} — 프로젝트 +${Math.round(report.progress)}, 소식 전달 ${report.spread}회, 관계 표류 ${report.social}회.`;
   if(report.kept)text+=` 약속 ${report.kept}건이 지켜졌다.`;
   if(report.broken)text+=` 약속 ${report.broken}건이 어그러졌다.`;
   if(report.completed.length)text+=` 그 사이 ${report.completed.join(', ')}이 완성됐다.`;
@@ -1161,7 +1177,7 @@ function catchUp(elapsedMs){
   toast(`닫힌 시간 ${Math.round(hours)}시간을 따라잡았어`);
 }
 function save(silent){localStorage.setItem('ai-village-polished-research',JSON.stringify({state,agents,buildings,projects,skills,seed,memSeq,newsSeq,artifactSeq,inputSeq,promSeq,postSeq,gathSeq,savedAt:Date.now()}));if(silent!==true)toast('저장했어')}
-function load(){try{const raw=localStorage.getItem('ai-village-polished-research');if(!raw)return false;const d=JSON.parse(raw);Object.assign(state,d.state);d.agents.forEach((a,i)=>Object.assign(agents[i],a));d.buildings.forEach((b,i)=>Object.assign(buildings[i],b));d.projects.forEach((p,i)=>Object.assign(projects[i],p));skills.splice(0,skills.length,...d.skills);seed=d.seed||seed;memSeq=d.memSeq||memSeq;newsSeq=d.newsSeq||newsSeq;artifactSeq=d.artifactSeq||artifactSeq;inputSeq=d.inputSeq||inputSeq;promSeq=d.promSeq||promSeq;postSeq=d.postSeq||postSeq;gathSeq=d.gathSeq||gathSeq;agents.forEach(a=>{if(!a.pers)a.pers=basePers(a.role);if(!a.persLog)a.persLog=[];if(!a.desires)a.desires=[];if(!a.breaches)a.breaches=0;if(!a.kept)a.kept=0;if(!a.taste)a.taste=makeTaste()});buildings.forEach(b=>{if(!b.log)b.log=[];if(b.kind==='거처'&&!b.deco)b.deco=[]});if(!state.director)state.director={id:'cassandra',last:0,lastKind:'회복'};if(!state.chronicle)state.chronicle=[];if(!state.promises)state.promises=[];if(!state.posts)state.posts=[];if(!state.customs)state.customs=[];if(state.gathering===undefined)state.gathering=null;if(!state.breachTotal)state.breachTotal=0;return {savedAt:d.savedAt||0}}catch(e){console.warn(e);return false}}
+function load(){try{const raw=localStorage.getItem('ai-village-polished-research');if(!raw)return false;const d=JSON.parse(raw);Object.assign(state,d.state);d.agents.forEach((a,i)=>Object.assign(agents[i],a));d.buildings.forEach((b,i)=>Object.assign(buildings[i],b));d.projects.forEach((p,i)=>Object.assign(projects[i],p));skills.splice(0,skills.length,...d.skills);seed=d.seed||seed;memSeq=d.memSeq||memSeq;newsSeq=d.newsSeq||newsSeq;artifactSeq=d.artifactSeq||artifactSeq;inputSeq=d.inputSeq||inputSeq;promSeq=d.promSeq||promSeq;postSeq=d.postSeq||postSeq;gathSeq=d.gathSeq||gathSeq;agents.forEach(a=>{if(!a.pers)a.pers=basePers(a.role);if(!a.persLog)a.persLog=[];if(!a.desires)a.desires=[];if(!a.breaches)a.breaches=0;if(!a.kept)a.kept=0;if(!a.taste)a.taste=makeTaste()});buildings.forEach(b=>{if(!b.log)b.log=[];if(b.kind==='거처'&&!b.deco)b.deco=[]});if(!state.director)state.director={id:'cassandra',last:0,lastKind:'회복'};if(!state.chronicle)state.chronicle=[];if(!state.promises)state.promises=[];if(!state.posts)state.posts=[];if(!state.customs)state.customs=[];state.customs.forEach(c=>{if(!c.key)c.key='약속'});if(state.gathering===undefined)state.gathering=null;if(!state.breachTotal)state.breachTotal=0;return {savedAt:d.savedAt||0}}catch(e){console.warn(e);return false}}
 function reset(){localStorage.removeItem('ai-village-polished-research');location.reload()}
 function sampleIncident(){return gen('사건')}
 function loop(t){const dt=Math.min(.08,(t-last)/1000||0);last=t;if(!paused){acc+=dt;while(acc>.05){sim(.05);acc-=.05}}render();uiTimer+=dt;if(uiTimer>.55){updateUI();uiTimer=0}requestAnimationFrame(loop)}
@@ -1177,7 +1193,12 @@ function init(){
   cvs.addEventListener('click',canvasPick); cvs.addEventListener('mousemove',canvasHover); cvs.addEventListener('mouseleave',()=>{hover=null;cvs.style.cursor='default'});
   $('#seedForm').addEventListener('submit',e=>{e.preventDefault();const v=$('#seedText').value.trim();if(v)submitInput(v,'seed')}); $('#eventBtn').onclick=()=>submitInput(sampleIncident(),'incident');
   $('#pauseBtn').onclick=()=>{paused=!paused;$('#pauseBtn').textContent=paused?'다시 흐르게':'멈춤'}; $('#stepBtn').onclick=()=>{sim(.9);updateUI()}; $('#speedBtn').onclick=()=>{speed=speed===1?2:speed===2?4:1;$('#speedBtn').textContent=`속도 ${speed}x`}; $('#saveBtn').onclick=()=>save(); $('#resetBtn').onclick=reset; $('#directorBtn').onclick=cycleDirector; {const p=directorProfile();$('#directorBtn').textContent=`감독 ${p.icon} ${p.name}`}
-  document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')save(true)}); window.addEventListener('beforeunload',()=>save(true)); setInterval(()=>save(true),30000);
+  // Veloren rtsim 문법의 확장: 탭이 '닫힌' 시간만이 아니라 '가려진' 시간도 저해상도로 메꾼다
+  // (rAF는 숨김 탭에서 멈추므로, 이 처리가 없으면 가려진 마을은 얼어붙는다)
+  document.addEventListener('visibilitychange',()=>{
+    if(document.visibilityState==='hidden'){save(true);hiddenAt=Date.now()}
+    else if(hiddenAt){const el=Date.now()-hiddenAt;hiddenAt=0;if(!paused&&el>=CATCHUP_MIN_MS){catchUp(el);updateUI()}}
+  }); window.addEventListener('beforeunload',()=>save(true)); setInterval(()=>save(true),30000);
   $$('.tab').forEach(tab=>tab.onclick=()=>{$$('.tab').forEach(t=>t.classList.remove('active'));$$('.panel').forEach(p=>p.classList.remove('active'));tab.classList.add('active');$('#panel-'+tab.dataset.tab).classList.add('active')});
   if('serviceWorker' in navigator&&location.protocol!=='file:')navigator.serviceWorker.register('sw.js').catch(()=>{});
   updateUI(); requestAnimationFrame(loop);
