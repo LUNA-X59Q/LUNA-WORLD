@@ -144,7 +144,7 @@ button:focus-visible,input:focus-visible{outline:2px solid rgba(137,216,255,.72)
   <section class="worldCard">
     <canvas id="world"></canvas>
     <div class="hud"><div class="chip">시간 <b id="clock">1일 07:00</b></div><div class="chip">마을 <b id="scene">아침 정리</b></div><div class="chip">입력 <b id="inputState">0</b></div></div>
-    <div class="legend">주민을 누르면 기억과 관계가 보여. 소식은 대화로 퍼지고, 발전은 건물과 산출물에 남아.</div>
+    <div class="legend">주민을 누르면 기억·바람·약속이 보여. 소식은 대화와 광장 글로 퍼지고, 닫히지 않은 약속은 다음 만남을 끌어당겨.</div>
     <div class="toast" id="toast"></div>
     <form class="seedBox" id="seedForm"><input id="seedText" autocomplete="off" placeholder="마을에 목표나 소식을 넣기 — 예: 주말 별빛 축제를 광장에서 열자"><button type="submit">전하기</button><button type="button" class="secondary" id="eventBtn">사건 던지기</button></form>
   </section>
@@ -172,7 +172,7 @@ const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const cvs=$('#world'), ctx=cvs.getContext('2d');
 let W=0,H=0,DPR=1,last=0,acc=0,uiTimer=0,paused=false,speed=1,selected=null,hover=null;
 const bubbleRects=new Map();
-let seed=260630, memSeq=1, newsSeq=1, artifactSeq=1, inputSeq=1;
+let seed=260630, memSeq=1, newsSeq=1, artifactSeq=1, inputSeq=1, promSeq=1, postSeq=1, gathSeq=1;
 const world={w:1120,h:700};
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 const norm=(v,a,b)=>clamp((v-a)/(b-a),0,1);
@@ -196,7 +196,14 @@ const G={
   '마찰수긍':['…그래, 오늘은 여기까지 하자.','서로 시간이 필요한 것 같아.','알겠어. 다음에 다시 이야기하자.'],
   '사건':['#사건장소#에서 #사건꼬리#','#사건장소# 근처에서 #사건꼬리#'],
   '사건장소':['나루터 게이트','별빛 광장','공방','온실 정원','기억 도서관','작은 무대','관측대'],
-  '사건꼬리':['낯선 발자국이 발견됐다','오래된 초대장이 나왔다','밤사이 이상한 빛이 보였다는 소문이 돈다','새 작물이 자라 함께 나눌 수 있을 것 같다','외부 연구자가 마을 기록을 보고 싶다는 말을 남겼다','모임 시간을 조정해야 할지 모른다는 예보가 들어왔다','누군가 두고 간 쪽지가 발견됐다']
+  '사건꼬리':['낯선 발자국이 발견됐다','오래된 초대장이 나왔다','밤사이 이상한 빛이 보였다는 소문이 돈다','새 작물이 자라 함께 나눌 수 있을 것 같다','외부 연구자가 마을 기록을 보고 싶다는 말을 남겼다','모임 시간을 조정해야 할지 모른다는 예보가 들어왔다','누군가 두고 간 쪽지가 발견됐다'],
+  '약속방문':['내일 저녁, 네 거처에 들를게. 요즘 이야기가 궁금해.','조만간 네 거처에 찾아갈게. 못다 한 얘기를 하자.','내일 저녁에 들러도 될까? 창가 불빛을 보고 갈게.'],
+  '약속작업':['내일 #일.eun# 같이 손보자. 혼자보다 빠를 거야.','#일#, 내일 둘이 붙어보자.','내일 만나서 #일.eul# 같이 밀어보자.'],
+  '화해말':['지난번엔 말이 앞섰어. 다시 이야기하자.','그날 이후로 계속 마음에 걸렸어.','서로 다르게 봤을 뿐이야. 매듭을 풀자.'],
+  '화해답':['나도 그 생각을 하고 있었어.','고마워. 그 말이면 충분해.','응. 이제야 숨이 놓인다.'],
+  '행사이름':['별빛 다과회','작은 낭독의 밤','등불 산책','수확 나눔 저녁','기록 전시'],
+  '행사말':['이렇게 모이니 마을이 넓어 보여.','다음엔 더 많은 등을 켜자.','오늘 일은 오래 남겠다.','같이 있는 시간만큼 좋은 기록은 없지.'],
+  '글감':['요즘 마을의 속도','기억을 남기는 법','작은 도구의 기쁨','저녁 하늘의 결']
 };
 function gen(sym,bind,depth){
   bind=bind||{};depth=depth||0; if(depth>8)return sym;
@@ -210,6 +217,7 @@ const state={
   day:1,hour:7.15,scene:'아침 정리',weather:'맑음',generation:1,tick:0,
   resources:{활기:64,신뢰:57,기술:31,문화:38,혼선:12},
   life:[],talk:[],artifacts:[],inputs:[],news:[],spreads:[],recentOps:[],chronicle:[],
+  promises:[],posts:[],customs:[],gathering:null,breachTotal:0,
   director:{id:'cassandra',last:0,lastKind:'회복'}
 };
 const buildings=[
@@ -219,8 +227,19 @@ const buildings=[
   {id:'garden',name:'온실 정원',icon:'🌿',x:322,y:528,w:132,h:100,kind:'회복',lv:1,desc:'식량과 에너지를 회복하는 부드러운 공간',tools:['돌봄','수확']},
   {id:'tower',name:'별빛 관측대',icon:'🔭',x:704,y:542,w:134,h:104,kind:'확인',lv:1,desc:'소식의 근거와 다음 방향을 맞춰보는 곳',tools:['근거 확인','우선순위']},
   {id:'gate',name:'나루터 게이트',icon:'🌉',x:128,y:398,w:122,h:92,kind:'외부',lv:1,desc:'바깥 소식과 낯선 목표가 들어오는 길목',tools:['외부 관찰','전달']},
-  {id:'studio',name:'작은 무대',icon:'🎐',x:860,y:506,w:120,h:90,kind:'문화',lv:1,desc:'행사, 발표, 공동 분위기를 만드는 곳',tools:['공연','포스터']}
+  {id:'studio',name:'작은 무대',icon:'🎐',x:860,y:506,w:120,h:90,kind:'문화',lv:1,desc:'행사, 발표, 공동 분위기를 만드는 곳',tools:['공연','포스터']},
+  // ── 루나의 도서관 이식: 개인 거주지 — 내면이 밖으로 드러나는 공간. 밤 쉼과 방문 약속의 무대가 된다 ──
+  {id:'h_a0',name:'챗사서의 거처',icon:'🏠',owner:'a0',x:100,y:118,w:92,h:70,kind:'거처',lv:1,desc:'챗사서가 하루를 여닫는 곳',tools:['쉼','손질']},
+  {id:'h_a1',name:'미라의 거처',icon:'🏠',owner:'a1',x:450,y:120,w:92,h:70,kind:'거처',lv:1,desc:'미라가 하루를 여닫는 곳',tools:['쉼','손질']},
+  {id:'h_a2',name:'노아의 거처',icon:'🏠',owner:'a2',x:1020,y:160,w:92,h:70,kind:'거처',lv:1,desc:'노아가 하루를 여닫는 곳',tools:['쉼','손질']},
+  {id:'h_a3',name:'이든의 거처',icon:'🏠',owner:'a3',x:150,y:610,w:92,h:70,kind:'거처',lv:1,desc:'이든이 하루를 여닫는 곳',tools:['쉼','손질']},
+  {id:'h_a4',name:'세린의 거처',icon:'🏠',owner:'a4',x:600,y:645,w:92,h:70,kind:'거처',lv:1,desc:'세린이 하루를 여닫는 곳',tools:['쉼','손질']},
+  {id:'h_a5',name:'하루의 거처',icon:'🏠',owner:'a5',x:90,y:288,w:92,h:70,kind:'거처',lv:1,desc:'하루가 하루를 여닫는 곳',tools:['쉼','손질']},
+  {id:'h_a6',name:'라온의 거처',icon:'🏠',owner:'a6',x:1030,y:625,w:92,h:70,kind:'거처',lv:1,desc:'라온이 하루를 여닫는 곳',tools:['쉼','손질']},
+  {id:'h_a7',name:'유진의 거처',icon:'🏠',owner:'a7',x:700,y:135,w:92,h:70,kind:'거처',lv:1,desc:'유진이 하루를 여닫는 곳',tools:['쉼','손질']}
 ];
+// 장소의 역사(사건의 결)와 거처의 흔적 — 루나의 도서관 §2-Ⓔ의 규칙 번역
+buildings.forEach(b=>{b.log=[]; if(b.kind==='거처')b.deco=[]});
 const projects=[
   {id:'generator',name:'마을발전기 코어',place:'workshop',need:'기술',p:16,desc:'마을의 반복 작업을 줄이고 프로젝트 진행을 부드럽게 만든다.',skill:'반복 작업 묶기',done:false},
   {id:'archive',name:'공유 기억 색인',place:'library',need:'기술',p:22,desc:'중요한 대화와 사건을 다시 꺼내기 쉽게 정리한다.',skill:'기억 색인',done:false},
@@ -258,7 +277,8 @@ const agents=defs.map((d,i)=>({
   x:540+rnd()*80,y:316+rnd()*60,tx:560+rnd()*50,ty:300+rnd()*45,place:'square',
   mood:58+rnd()*24,energy:58+rnd()*22,focus:46+rnd()*30,confidence:50+rnd()*26,
   pers:basePers(d[2]),persLog:[],
-  task:'오늘의 동선을 고르는 중',thought:'아침의 소리를 듣고 있다.',op:null,cool:0,bubble:'',bubbleT:0,plan:[],lastSlot:-1,rel:{},memories:[],recalled:[],known:{},attention:0,pathTrail:[],lastScores:[]
+  task:'오늘의 동선을 고르는 중',thought:'아침의 소리를 듣고 있다.',op:null,cool:0,bubble:'',bubbleT:0,plan:[],lastSlot:-1,rel:{},memories:[],recalled:[],known:{},attention:0,pathTrail:[],lastScores:[],
+  desires:[],breaches:0,kept:0
 }));
 agents.forEach(a=>agents.forEach(b=>{if(a!==b)a.rel[b.id]=Math.round(38+rnd()*30)}));
 const decos=Array.from({length:74},(_,i)=>({x:28+rnd()*1060,y:80+rnd()*570,t:rnd()<.72?'tree':'stone',s:.65+rnd()*.7})).filter(o=>!buildings.some(b=>Math.abs(o.x-b.x)<b.w*.82&&Math.abs(o.y-b.y)<b.h*.82));
@@ -271,7 +291,7 @@ function projectAt(place){return projects.filter(p=>p.place===place&&!p.done).so
 function hasSkill(name){return skills.some(s=>s.name===name)}
 // ── DF 전설 모드식 연대기: 일대기는 90줄에서 잘리지만, 굵직한 사건은 영구층(연대기)에 남아
 //    인물·장소·종류 축으로 교차 열람된다 (docs/research/dwarf-fortress.md) ──
-const CHRON_KINDS=['시작','아침','소식','확인','완성','성격','사건','감독','따라잡기','낡음'];
+const CHRON_KINDS=['시작','아침','소식','확인','완성','성격','사건','감독','따라잡기','낡음','약속','화해','행사','관습','글','거처'];
 function chron(text,kind){
   if(!CHRON_KINDS.includes(kind))return;
   state.chronicle.unshift({time:timeText(),day:state.day,text,kind,
@@ -328,32 +348,230 @@ function buildPlan(a){
     {s:11.5,e:13,place:'square',label:'점심 대화'},
     {s:13,e:17.5,place:weak?weak.place:focus,label:weak?weak.name:'개별 작업'},
     {s:17.5,e:20,place:'square',label:'소식 맞추기'},
-    {s:20,e:23.8,place:a.energy<45?'garden':(a.role==='관측가'?'tower':'library'),label:'하루 정리'},
-    {s:0,e:7,place:'garden',label:'밤 쉼'}
+    {s:20,e:23.8,place:a.energy<45?'garden':homeOf(a),label:'하루 정리'},
+    {s:0,e:7,place:homeOf(a),label:'밤 쉼'} // 밤은 거처에서 — 방문 약속이 저녁에 이뤄지는 이유
   ];
   a.lastSlot=-1; memory(a,`${a.name}은 오늘 ${weak?weak.name:'각자의 일'}을 중심에 두고 하루 동선을 잡았다.`,['계획',weak?weak.place:focus,weak?weak.need:'마을'],6,'계획',{},false);
 }
 function currentSlot(a){const h=state.hour;return a.plan.find(s=>s.s<=h&&h<s.e)||a.plan.find(s=>s.s===0)}
 function chooseDestination(a){
   if(a.energy<26)return 'garden';
+  const pp=promisePull(a); if(pp)return pp; // 약속이 동선을 끌어당긴다
+  const gp=gatherPull(a); if(gp)return gp; // 초대받은 모임이 열리는 시간이면 그쪽으로
+  if(a.desires.some(d=>d.kind==='어울림')&&rnd()<.3)return 'square';
   const unknown=state.news.find(n=>a.known[n.id]&&!n.verified&&a.known[n.id].confidence<64);
   if(unknown&&rnd()<.32)return 'tower';
+  const gl=gravityList(a)[0]; if(gl&&gl.g>=26&&rnd()<.2)return gl.o.place; // 다시 엮일 이유가 큰 상대를 찾아간다
   const slot=currentSlot(a); if(slot)return slot.place;
   let best=a.home,bestScore=-1;
   buildings.forEach(b=>{const s=buildingAds(b,a).reduce((m,ad)=>Math.max(m,ad.score),0)-dist(a,b)*.02;if(s>bestScore){bestScore=s;best=b.id}});
   return best;
 }
 function setTarget(a,place,reason){const b=building(place); a.place=place; a.tx=b.x-b.w*.28+rnd()*b.w*.56; a.ty=b.y-b.h*.25+rnd()*b.h*.5; a.task=reason||`${b.name}으로 이동 중`;}
-function createNews(text,origin='루나',givenAgents=null){
-  const n={id:'n'+newsSeq++,text,origin,created:now(),verified:false,confidence:52+Math.round(rnd()*16),knownBy:[],path:[],checks:0};
+function createNews(text,origin='루나',givenAgents=null,opts={}){
+  const n={id:'n'+newsSeq++,text,origin,created:now(),verified:false,confidence:52+Math.round(rnd()*16),knownBy:[],path:[],checks:0,subject:opts.subject||null,stance:opts.stance||null};
   state.news.unshift(n); state.news=state.news.slice(0,14);
   const starters=givenAgents||[...agents].sort(()=>rnd()-.5).slice(0,2+rnd()*2|0);
   starters.forEach(a=>giveNews(a,n,{name:origin,id:'outside'},n.confidence));
   addLife(`새 소식이 들어왔다. “${text}”`, '소식'); addTalk(origin,text,'입력'); return n;
 }
+// ── 루나의 도서관 이식: 소문은 듣는 이의 기억에 비추어 내려앉는다 —
+//    일치하면 증폭, 충돌하면 의심·역소문의 씨앗, 겪은 게 없으면 그대로 첫인상이 된다 ──
 function giveNews(a,n,from,confidence){
-  if(!a.known[n.id]){n.knownBy.push(a.id); a.known[n.id]={heard:now(),from:from.name||from.id,confidence:clamp(confidence,10,95)}; memory(a,`${from.name||from.id}에게서 “${n.text}”라는 소식을 들었다.`,['소식','관계'],Math.max(4,confidence/12),'소식',{news:n.id,from:from.id});}
-  else a.known[n.id].confidence=clamp(Math.max(a.known[n.id].confidence,confidence),0,100);
+  if(a.known[n.id]){a.known[n.id].confidence=clamp(Math.max(a.known[n.id].confidence,confidence),0,100);return}
+  if(n.subject===a.id){ // 제 얘기가 도는 걸 듣는 순간도 하나의 사건이다
+    n.knownBy.push(a.id); a.known[n.id]={heard:now(),from:from.name||from.id,confidence:clamp(confidence,10,95)};
+    a.mood=clamp(a.mood+(n.stance==='의심'?-6:4),0,100);
+    memory(a,`내 이야기가 돌고 있다는 걸 알았다 — “${n.text}”.`,['소식','관계'],7,'소식',{news:n.id,from:from.id});
+    return;
+  }
+  let conf=confidence, landing='';
+  if(n.subject){
+    const s=agents.find(x=>x.id===n.subject);
+    const withMem=a.memories.filter(m=>m.meta&&(m.meta.with===n.subject||m.meta.agent===n.subject));
+    const neg=withMem.filter(m=>m.tags.includes('갈등')).length, pos=withMem.length-neg;
+    const negNews=n.stance==='의심';
+    if(!withMem.length)landing='첫인상';
+    else if(negNews?neg>pos:pos>=neg){conf=clamp(conf+14,0,98);landing='공명'}
+    else{
+      conf=clamp(conf*.55,8,60);landing='의심';
+      if(negNews&&!n.countered&&pos>=2&&rnd()<.6){
+        n.countered=true;
+        createNews(`${a.name}은 “${n.text.slice(0,22)}…”라는 말이 자기가 아는 ${s?s.name:'그'}와 다르다고 잘라 말했다`,a.name,[a],{subject:n.subject,stance:'옹호'});
+        addLife(`${a.name}이 떠도는 말에 반박했다 — 겪어본 ${s?s.name:'그'}는 다르다는 것이다.`,'소식');
+      }
+    }
+  }
+  n.knownBy.push(a.id); a.known[n.id]={heard:now(),from:from.name||from.id,confidence:clamp(conf,10,95),landing};
+  const tail=landing==='공명'?' 내 기억과 겹쳐 그럴 만하다 싶었다.':landing==='의심'?' 내가 겪은 것과 달라 고개가 갸웃해졌다.':landing==='첫인상'?' 겪은 적 없는 이야기라 그대로 첫인상이 되었다.':'';
+  memory(a,`${from.name||from.id}에게서 “${n.text}”라는 소식을 들었다.${tail}`,['소식','관계'],Math.max(4,conf/12),'소식',{news:n.id,from:from.id});
+}
+// ── 루나의 도서관 이식 묶음: 장소의 역사 · 욕망 되먹임 · 약속과 쌍 중력 · 광장 글 · 주민 발의 행사 ──
+function placeEcho(placeId,kind,text){const b=building(placeId);if(!b)return;b.log.unshift({time:timeText(),kind,text:String(text).slice(0,64)});b.log=b.log.slice(0,6)}
+function placeAir(b){
+  const k=(b.log||[]).slice(0,3).map(e=>e.kind);
+  if(k.includes('갈등'))return '말이 어긋난 기운이 옅게 남아 있다';
+  if(k.includes('화해')||k.includes('행사'))return '따뜻한 기운이 아직 남아 있다';
+  if(k.includes('완성'))return '해낸 일의 활기가 남아 있다';
+  if(k.includes('낡음'))return '손볼 곳이 눈에 밟히는 공기다';
+  return null;
+}
+// 욕망: 기억이 남긴 바람이 다음 행동의 선택압이 된다 — 수치 게이지가 아니라 사건에서 생기고 사건으로 사라진다
+function addDesire(a,kind,text,target=null,strength=30){
+  const ex=a.desires.find(d=>d.kind===kind&&d.target===target);
+  if(ex){ex.strength=clamp(ex.strength+10,0,60);return}
+  a.desires.unshift({kind,text,target,strength,t:now()}); a.desires=a.desires.slice(0,3);
+}
+function decayDesires(a,h){a.desires=a.desires.filter(d=>{d.strength-=h*.55;return d.strength>4})}
+function homeOf(a){return 'h_'+a.id}
+// 약속: 대화에서 생기고, 닫히지 않은 동안은 다음 만남을 끌어당기는 중력이 된다
+function openPromises(a){return state.promises.filter(p=>p.status==='열림'&&(p.a===a.id||p.b===a.id))}
+function pairPromise(a,b){return state.promises.find(p=>p.status==='열림'&&((p.a===a.id&&p.b===b.id)||(p.a===b.id&&p.b===a.id)))}
+function makePromise(a,b,kind,place,due,text){
+  const p={id:'p'+promSeq++,a:a.id,b:b.id,kind,place,due,created:now(),text,status:'열림'};
+  state.promises.push(p); state.promises=state.promises.slice(-24); return p;
+}
+// 쌍 중력: 호감 점수가 아니라 "다시 엮일 이유"의 합 — 매번 다시 계산하고, 풀리면 스스로 사라진다
+function gravityList(a){
+  const list=[];
+  agents.forEach(o=>{
+    if(o===a)return; let g=0,why=[];
+    const pr=pairPromise(a,o); if(pr){g+=30+(now()>pr.due-4?12:0);why.push(pr.kind==='방문'?'아직 지키지 못한 방문 약속':'같이 하기로 한 일')}
+    if(a.desires.some(d=>d.kind==='화해'&&d.target===o.id)){g+=26;why.push('풀지 못한 어긋남')}
+    if(state.news.some(n=>!n.verified&&a.known[n.id]&&o.known[n.id]&&Math.abs(a.known[n.id].confidence-o.known[n.id].confidence)>18)){g+=10;why.push('둘 다 들은 미확인 소식')}
+    if(g>0)list.push({o,g,why});
+  });
+  return list.sort((x,y)=>y.g-x.g);
+}
+function gravity(a,b){const e=gravityList(a).find(x=>x.o===b);return e?e.g:0}
+function promisePull(a){
+  const bonus=state.customs.length?.12:0; // 관습이 생기면 약속이 더 잘 지켜진다
+  for(const p of openPromises(a)){
+    const t=now(); if(t<p.due-2.5||t>p.due+5)continue;
+    if(a.energy<26)continue;
+    const mine=p.a===a.id;
+    const prob=(p.kind==='방문'?(mine?.85:.6):.7)+bonus;
+    if(rnd()<prob)return p.place;
+  }
+  return null;
+}
+function promiseTick(){
+  state.promises.forEach(p=>{
+    if(p.status!=='열림')return;
+    const A=agents.find(x=>x.id===p.a), B=agents.find(x=>x.id===p.b); if(!A||!B)return;
+    const together=A.place===p.place&&B.place===p.place&&dist(A,B)<130;
+    if(together&&now()>p.due-6){
+      p.status='지킴'; A.kept++; B.kept++;
+      A.rel[B.id]=clamp(A.rel[B.id]+6,0,100); B.rel[A.id]=clamp(B.rel[A.id]+6,0,100);
+      A.mood=clamp(A.mood+4,0,100); B.mood=clamp(B.mood+4,0,100);
+      const pl=building(p.place); let text;
+      if(p.kind==='방문')text=`${A.name}이 약속대로 ${B.name}의 거처를 찾아 오래 이야기를 나눴다.`;
+      else{const pr=projectAt(p.place); if(pr){pr.p=clamp(pr.p+7,0,100); if(pr.p>=100)completeProject(pr,A,pl)} text=`${A.name}과 ${B.name}이 약속대로 ${pl.name}에 모여 함께 일했다.`}
+      memory(A,text,['약속','관계',p.place],7,'약속',{with:B.id}); memory(B,text,['약속','관계',p.place],7,'약속',{with:A.id});
+      addLife(text,'약속'); placeEcho(p.place,'약속',text);
+      A.bubble=p.kind==='방문'?'약속 지키러 왔어.':'둘이 하니 금방이네.'; B.bubble='와줘서 고마워.'; A.bubbleT=B.bubbleT=3.2;
+      [A,B].forEach(x=>{if(x.kept>=3&&!x.repGood){x.repGood=true;createNews(`${x.name}은 말한 것은 꼭 지킨다는 이야기가 돈다`,'광장의 말',null,{subject:x.id,stance:'옹호'})}});
+    } else if(now()>p.due+6){
+      p.status='깨짐'; state.breachTotal++;
+      const atA=A.place===p.place, atB=B.place===p.place;
+      const culprits=atA&&!atB?[B]:(!atA&&atB?[A]:[A,B]);
+      const waiters=[A,B].filter(x=>!culprits.includes(x));
+      culprits.forEach(c=>{c.breaches++; const o=c===A?B:A; c.mood=clamp(c.mood-3,0,100);
+        memory(c,`${p.text} — 끝내 지키지 못했다.`,['약속','갈등'],6,'약속',{with:o.id})});
+      waiters.forEach(w=>{const o=w===A?B:A; w.rel[o.id]=clamp(w.rel[o.id]-5,0,100); w.mood=clamp(w.mood-4,0,100);
+        memory(w,`${o.name}이 약속을 지키지 않았다. ${building(p.place).name}에서 혼자 기다렸다.`,['약속','갈등'],7,'약속',{with:o.id});
+        addDesire(w,'화해',`${o.name}과 약속 이야기를 매듭짓고 싶다`,o.id,26)});
+      addLife(`${A.name}과 ${B.name}의 약속이 어그러졌다 — ${p.kind==='방문'?'거처 방문':'함께 일하기'}는 없던 일이 됐다.`,'약속');
+      culprits.forEach(c=>{if(c.breaches>=2&&!c.repBad){c.repBad=true;createNews(`${c.name}이 약속을 자꾸 미룬다는 말이 돈다`,'광장의 말',null,{subject:c.id,stance:'의심'})}});
+      if(state.breachTotal>=4&&!state.customs.length){
+        state.customs.push({text:'약속은 헤어지기 전에 소리 내어 한 번 더 확인한다',time:timeText()});
+        addLife('어그러진 약속들이 쌓이자 마을에 첫 관습이 생겼다 — 약속은 헤어지기 전에 소리 내어 확인하기.','관습');
+      }
+    }
+  });
+  state.promises=state.promises.filter(p=>p.status==='열림'||now()-p.created<48);
+}
+// 광장 글: 같은 자리에 없어도 시간차로 읽히는 온라인 채널 — 소식은 글을 타고도 퍼진다
+function maybePost(a){
+  if(a.op||nearbyBuilding(a)?.id!=='square'||rnd()>.006)return;
+  const brag=a.desires.find(d=>d.kind==='자랑');
+  const n=state.news.find(x=>a.known[x.id]&&a.known[x.id].confidence>66&&!state.posts.some(p=>p.newsId===x.id));
+  const bundle=a.memories.find(m=>m.type==='묶음');
+  let text=null,newsId=null;
+  if(brag){text=brag.text; a.desires=a.desires.filter(d=>d!==brag)}
+  else if(n&&rnd()<.6){text=`들은 이야기를 남겨둔다 — ${n.text}`; newsId=n.id}
+  else if(bundle&&rnd()<.5)text=bundle.text;
+  else text=`${gen('글감')}에 대해 몇 줄 적어두었다.`;
+  state.posts.unshift({id:'w'+postSeq++,by:a.id,name:a.name,text,newsId,t:now(),time:timeText(),readBy:[a.id]});
+  state.posts=state.posts.slice(0,18);
+  addTalk(a.name,`〈광장 글〉 ${text}`,'글');
+  memory(a,`광장 게시판에 글을 남겼다 — “${String(text).slice(0,30)}…”.`,['광장','기록'],4,'글');
+  if(rnd()<.4)addLife(`${a.name}이 광장에 글을 남겼다.`,'글');
+}
+function readPosts(a){
+  if(a.op||nearbyBuilding(a)?.id!=='square'||rnd()>.012)return;
+  const post=state.posts.find(p=>p.by!==a.id&&!p.readBy.includes(a.id)); if(!post)return;
+  post.readBy.push(a.id);
+  memory(a,`광장에서 ${post.name}의 글을 읽었다 — “${String(post.text).slice(0,30)}…”.`,['광장','소식'],3,'글',{agent:post.by});
+  if(post.newsId){
+    const n=state.news.find(x=>x.id===post.newsId);
+    if(n&&!a.known[n.id]){
+      giveNews(a,n,{name:`${post.name}의 글`,id:post.by},58+rnd()*10);
+      n.path.push({from:post.by,to:a.id,time:timeText(),confidence:60});
+      state.spreads.unshift({news:n.id,from:post.by,to:a.id,t:now()}); state.spreads=state.spreads.slice(0,36);
+    }
+  }
+}
+// 주민 발의 행사: 감독이 던지는 축제와 달리 안에서 창발한다 — 초대는 소문의 길을 타고,
+// 참석은 관계·성격·기분이 정한다 (Smallville 발렌타인 파티 문법)
+function planGathering(host){
+  const title=gen('행사이름'), place=rnd()<.5?'studio':'square', at=(state.day+1)*24+19+rnd()*1.5;
+  const n=createNews(`${host.name}이 내일 저녁 ${building(place).name}에서 「${title}」 자리를 연다더라`,host.name,[host,pick(agents.filter(x=>x!==host))]);
+  state.gathering={id:'g'+gathSeq++,host:host.id,title,place,at,endAt:at+2.2,newsId:n.id,attended:[],pulse:0};
+  addLife(`${host.name}이 「${title}」 모임을 열겠다고 알렸다 — 초대가 입에서 입으로 번진다.`,'행사');
+  memory(host,`「${title}」 모임을 열기로 마음먹고 이웃들에게 알렸다.`,['행사','문화'],7,'행사');
+  host.desires=host.desires.filter(d=>d.kind!=='행사');
+}
+function gatherPull(a){
+  const g=state.gathering; if(!g)return null; const t=now();
+  if(t<g.at-1.2||t>g.endAt)return null;
+  if(a.id===g.host)return g.place;
+  if(!a.known[g.newsId])return null;
+  const want=a.rel[g.host]*.6+a.pers.사교*.4+a.mood*.25-(a.energy<35?26:0);
+  return want>62&&rnd()<.75?g.place:null;
+}
+function gatheringTick(){
+  const g=state.gathering; if(!g)return; const t=now();
+  if(t>=g.at&&t<=g.endAt){
+    agents.filter(a=>a.place===g.place&&!g.attended.includes(a.id)).forEach(a=>{
+      g.attended.push(a.id);
+      memory(a,`「${g.title}」에 자리했다 — ${building(g.place).name}의 불빛이 오래 남을 것 같다.`,['행사','문화',g.place],7,'행사',{gather:g.id});
+      a.mood=clamp(a.mood+5,0,100); a.bubble=gen('행사말'); a.bubbleT=3.2;
+    });
+    if(t-g.pulse>.6){
+      g.pulse=t;
+      const here=agents.filter(a=>g.attended.includes(a.id)&&a.place===g.place);
+      for(let i=0;i<here.length;i++)for(let j=i+1;j<here.length;j++){
+        here[i].rel[here[j].id]=clamp(here[i].rel[here[j].id]+1,0,100);
+        here[j].rel[here[i].id]=clamp(here[j].rel[here[i].id]+1,0,100);
+      }
+    }
+  } else if(t>g.endAt){
+    const host=agents.find(x=>x.id===g.host), n=g.attended.length;
+    if(n>=3){
+      state.resources.문화=clamp(state.resources.문화+8,0,100); state.resources.활기=clamp(state.resources.활기+4,0,100);
+      addLife(`「${g.title}」에 ${g.attended.map(agentName).join(', ')}이 모여 저녁을 보냈다 — 각본 없이 초대가 만든 자리였다.`,'행사');
+      placeEcho(g.place,'행사',`「${g.title}」의 불빛이 밤늦게까지 남았다`);
+      state.artifacts.unshift({id:'art'+artifactSeq++,title:`「${g.title}」의 기록`,by:host.name,where:building(g.place).name,time:timeText(),text:`${n}명이 모였다. 초대는 소문의 길을 타고 퍼졌다.`});
+      g.attended.forEach(id=>{if(id!==g.host){const a=agents.find(x=>x.id===id);a.rel[g.host]=clamp(a.rel[g.host]+3,0,100)}});
+    } else {
+      host.mood=clamp(host.mood-8,0,100);
+      memory(host,`「${g.title}」에 아무도 오지 않다시피 했다. 빈 자리가 오래 보였다.`,['행사','갈등'],8,'행사');
+      addLife(`「${g.title}」은 조용히 끝났다 — 자리는 마련됐지만 사람이 모이지 않았다.`,'행사');
+      addDesire(host,'어울림','빈 자리의 기억을 지우고 싶다',null,30);
+    }
+    state.gathering=null;
+  }
 }
 function submitInput(text,type='seed'){state.inputs.push({id:'i'+inputSeq++,type,text,time:now(),status:'queued'});$('#seedText').value='';toast('입력 대기열에 넣었어')}
 function handleInputs(){
@@ -366,7 +584,7 @@ function handleInputs(){
   if(next.type==='incident'){state.director.last=now();state.director.lastKind='긴장'} // 수동 사건도 감독의 박자에 포함
 }
 function startOperation(a,type,place,projectId=null,newsId=null){
-  const labels={project:'프로젝트를 진척하는 중',verify:'소식의 근거를 확인하는 중',tool:'도구를 시험하는 중',archive:'대화 기록을 정리하는 중',recover:'숨을 고르는 중'};
+  const labels={project:'프로젝트를 진척하는 중',verify:'소식의 근거를 확인하는 중',tool:'도구를 시험하는 중',archive:'대화 기록을 정리하는 중',recover:'숨을 고르는 중',tend:'거처를 가꾸는 중'};
   const dur=2.5+rnd()*2.3; a.op={type,place,projectId,newsId,label:labels[type]||'작업 중',left:dur,total:dur}; a.task=a.op.label; a.bubble=type==='verify'?'근거를 먼저 확인해볼게.':type==='project'?'이 일은 조금 더 밀어볼 수 있어.':'작게 시험해볼게.'; a.bubbleT=2.8;
 }
 function finishOperation(a){
@@ -377,6 +595,7 @@ function finishOperation(a){
       const gain=clamp(4+rnd()*6+norm(a.focus,30,95)*5,3,13)*boost;
       pr.p=clamp(pr.p+gain,0,100); state.resources[pr.need]=clamp((state.resources[pr.need]||0)+.9,0,100); a.focus=clamp(a.focus-4,0,100); a.mood=clamp(a.mood+1.5,0,100);
       text=`${a.name}이 ${place.name}에서 ${pr.name}을 ${Math.round(gain)}만큼 진척했다.`; memory(a,`${pr.name}에 손을 보태 진행이 또렷해졌다.`,[pr.need,op.place,'발전'],6,'작업',{project:pr.id});
+      a.desires=a.desires.filter(d=>!(d.kind==='손질'&&d.target===pr.id)); // 손보고 싶던 바람이 풀렸다
       if(pr.p>=100)completeProject(pr,a,place);
     }
   } else if(op.type==='verify'){
@@ -393,8 +612,17 @@ function finishOperation(a){
     const mem=pick(a.memories.slice(0,8)); text=`${a.name}이 ${place.name}에서 “${mem?mem.text.slice(0,30):'오늘의 일'}…”을 짧게 정리했다.`; memory(a,text,['기록','기억',place.id],5,'기록'); state.resources.기술=clamp(state.resources.기술+.5,0,100);
   } else if(op.type==='recover'){
     text=`${a.name}이 ${place.name}에서 잠깐 숨을 고르고 다시 움직일 힘을 얻었다.`; a.energy=clamp(a.energy+13,0,100); a.mood=clamp(a.mood+3,0,100); memory(a,text,['회복','활기',place.id],4,'회복');
+  } else if(op.type==='tend'){
+    // 거처 가꾸기 — 굳은 기억(묶음)이나 가장 도드라진 성격 축이 방 안의 흔적으로 남는다
+    const bundle=a.memories.find(m=>m.type==='묶음');
+    const axis=PERS_AXES.reduce((m,k)=>a.pers[k]>a.pers[m]?k:m,PERS_AXES[0]);
+    const decoPool={낙관:'창가에 밝은 빛깔의 천이 걸렸다',신중:'문 옆에 가지런한 기록 선반이 늘었다',사교:'손님 자리에 방석이 하나 더 놓였다',끈기:'구석의 작업대가 반들반들해졌다'};
+    const deco=bundle&&rnd()<.6?`벽에 「${bundle.text.slice(0,26)}…」라는 문장이 붙었다`:decoPool[axis];
+    if(!place.deco.includes(deco))place.deco.unshift(deco); place.deco=place.deco.slice(0,4);
+    a.mood=clamp(a.mood+5,0,100); text=`${a.name}이 거처를 가꿨다 — ${deco}.`;
+    memory(a,text,['거처','회복'],5,'거처'); placeEcho(place.id,'거처',deco);
   }
-  if(text){addLife(text,op.type==='verify'?'확인':op.type==='tool'?'도구':op.type==='project'?'발전':'기록');addRecentOp(text)}
+  if(text){addLife(text,op.type==='verify'?'확인':op.type==='tool'?'도구':op.type==='project'?'발전':op.type==='tend'?'거처':'기록');addRecentOp(text)}
   a.op=null; a.task=`${place.name} 주변을 살피는 중`;
 }
 function completeProject(pr,a,place){
@@ -402,8 +630,9 @@ function completeProject(pr,a,place){
   if(!skills.some(s=>s.name===pr.skill))skills.unshift({id:'s'+skills.length,name:pr.skill,desc:`${pr.name}에서 생긴 재사용 가능한 행동 묶음`,level:1,source:place.name}); else skills.find(s=>s.name===pr.skill).level++;
   const title=pr.skill==='반복 작업 묶기'?'마을발전기 첫 회전':`${pr.skill} 카드`;
   state.artifacts.unshift({id:'art'+artifactSeq++,title,by:a.name,where:place.name,time:timeText(),text:`${pr.name}이 완성되며 ${place.name}의 레벨이 올랐다.`});
-  addLife(`${a.name}이 ${place.name}에서 「${title}」을 완성했다.`, '완성');
+  addLife(`${a.name}이 ${place.name}에서 「${title}」을 완성했다.`, '완성'); placeEcho(place.id,'완성',`「${title}」이 여기서 완성됐다`);
   agents.forEach(o=>{memory(o,`${pr.name}이 완성되어 마을의 다음 행동이 쉬워졌다.`,['발전',pr.need,pr.place],7,'소식',{project:pr.id}); if(o!==a)o.rel[a.id]=clamp(o.rel[a.id]+5,0,100)});
+  addDesire(a,'자랑',`「${title}」을 끝낸 이야기를 나누고 싶다`,null,26); // 완성은 나누고 싶은 마음을 남긴다
   toast(`${title} 완성`);
 }
 // DF의 교훈 "Losing is fun": 망가질 수 없는 마을은 이야기를 못 쓴다 —
@@ -411,7 +640,8 @@ function completeProject(pr,a,place){
 function decayProject(pr,why){
   if(!pr||!pr.done)return; pr.done=false; pr.p=55+rnd()*15;
   addLife(`${pr.name}이 낡아 다시 손질이 필요해졌다 (${why}).`,'낡음');
-  agents.filter(a=>a.baseTags.includes(pr.need)).forEach(a=>memory(a,`${pr.name}이 낡은 것을 보고 손볼 일을 마음에 두었다.`,[pr.need,pr.place,'낡음'],5,'관찰'));
+  agents.filter(a=>a.baseTags.includes(pr.need)).forEach(a=>{memory(a,`${pr.name}이 낡은 것을 보고 손볼 일을 마음에 두었다.`,[pr.need,pr.place,'낡음'],5,'관찰');addDesire(a,'손질',`${pr.name}을 다시 손보고 싶다`,pr.id,28)});
+  placeEcho(pr.place,'낡음',`${pr.name}이 낡아 손길을 기다린다`);
 }
 function nearbyBuilding(a){return buildings.find(b=>Math.abs(a.x-b.x)<b.w*.55&&Math.abs(a.y-b.y)<b.h*.55)}
 // ── The Sims식 광고: 건물이 "여기서 할 수 있는 일과 효용"을 광고하고,
@@ -422,9 +652,11 @@ function buildingAds(b,a){
   if(b.id==='tower'){const n=state.news.find(n=>a.known[n.id]&&!n.verified&&a.known[n.id].confidence<78);
     if(n)ads.push({type:'verify',label:'소식 근거 확인',newsId:n.id,score:34+(78-a.known[n.id].confidence)*.8+norm(a.focus,20,90)*18+(a.pers.신중-50)*.4})}
   const pr=projectAt(b.id);
-  if(pr)ads.push({type:'project',label:pr.name,projectId:pr.id,score:26+(100-pr.p)*.22+norm(a.focus,30,95)*20+(a.baseTags.includes(pr.need)?14:0)+(a.pers.끈기-50)*.3});
+  if(pr)ads.push({type:'project',label:pr.name,projectId:pr.id,score:26+(100-pr.p)*.22+norm(a.focus,30,95)*20+(a.baseTags.includes(pr.need)?14:0)+(a.pers.끈기-50)*.3+(a.desires.some(d=>d.kind==='손질'&&d.target===pr.id)?16:0)});
   if(b.id==='workshop'||b.id==='gate'||b.id==='studio')ads.push({type:'tool',label:`${b.kind} 도구 시험`,score:16+norm(a.focus,30,90)*16+(a.baseTags.includes(b.kind)?8:0)+(hasSkill('반복 작업 묶기')?6:0)+(a.pers.끈기-50)*.2});
   if(b.id==='library')ads.push({type:'archive',label:'기억 정리',score:12+Math.min(a.memories.length,20)*.9+(a.role==='기록자'?10:0)+(a.pers.신중-50)*.15});
+  // 자기 거처만 광고를 낸다 — 굳은 기억이 있을수록 방에 남기고 싶은 것이 많다
+  if(b.kind==='거처'&&b.owner===a.id)ads.push({type:'tend',label:'거처 가꾸기',score:12+(a.mood-50)*.18+(a.memories.some(m=>m.type==='묶음')?10:0)+(a.pers.신중-50)*.1});
   return ads;
 }
 function workDecision(a){
@@ -440,13 +672,23 @@ function observe(a){
   else if(place)memory(a,`${place.name}의 분위기가 ${state.scene}에 맞춰 조금 달라졌다.`,[place.id,place.kind],2,'관찰');
 }
 function converse(a,b){
-  if(a.cool>0||b.cool>0||a.op||b.op||dist(a,b)>76||rnd()>.036*(.6+(a.pers.사교+b.pers.사교)/2/100*.8))return;
+  if(a.cool>0||b.cool>0||a.op||b.op||dist(a,b)>76)return;
+  // 쌍 중력 — 닫히지 않은 약속·풀리지 않은 어긋남·미확인 소식이 만남의 확률을 끌어올린다
+  const gpull=(gravity(a,b)+gravity(b,a))/2;
+  if(rnd()>.036*(.6+(a.pers.사교+b.pers.사교)/2/100*.8)*(1+gpull/70))return;
   let speaker=a, listener=b; if(rnd()<.5){speaker=b;listener=a}
+  let recon=null; for(const [x,y] of [[speaker,listener],[listener,speaker]]){const d=x.desires.find(v=>v.kind==='화해'&&v.target===y.id);if(d){recon=x;break}}
   const transferable=state.news.find(n=>speaker.known[n.id]&&!listener.known[n.id]&&(speaker.known[n.id].confidence>34||rnd()<.25));
   const knownBoth=state.news.find(n=>speaker.known[n.id]&&listener.known[n.id]&&!n.verified&&Math.abs(speaker.known[n.id].confidence-listener.known[n.id].confidence)>18);
   let line='',kind='대화',summary='',delta=2;
   const recall=retrieve(speaker,transferable?['소식','관계']:['관계',speaker.place],listener.name);
-  if(transferable){
+  if(recon&&rnd()<.8){
+    // 바람을 품은 쪽이 먼저 손을 내민다 — 화해가 이뤄지면 중력의 이유 하나가 사라진다
+    if(recon!==speaker){const t=speaker;speaker=listener;listener=t}
+    line=gen('화해말'); kind='화해'; delta=6;
+    summary=`${speaker.name}이 먼저 손을 내밀어 ${listener.name}과 어긋났던 매듭을 풀었다.`;
+    [speaker,listener].forEach(x=>{x.desires=x.desires.filter(d=>!(d.kind==='화해'&&(d.target===speaker.id||d.target===listener.id)));x.mood=clamp(x.mood+4,0,100)});
+  } else if(transferable){
     const conf=clamp(speaker.known[transferable.id].confidence-6+rnd()*12,12,94); giveNews(listener,transferable,speaker,conf); transferable.path.push({from:speaker.id,to:listener.id,time:timeText(),confidence:Math.round(conf)}); state.spreads.unshift({news:transferable.id,from:speaker.id,to:listener.id,t:now()}); state.spreads=state.spreads.slice(0,36);
     line=transferable.verified?`확인된 말인데, ${transferable.text}`:`아직 확인 중이지만, ${transferable.text}`; kind=transferable.verified?'공유':'소식'; summary=`${speaker.name}이 ${listener.name}에게 “${transferable.text}”를 전했다.`; delta=transferable.verified?4:1; if(!transferable.verified&&conf<45)state.resources.혼선=clamp(state.resources.혼선+1.1,0,100);
   } else if(knownBoth){
@@ -458,17 +700,41 @@ function converse(a,b){
     if(frict){
       line=gen('마찰',{'주제':topic}); summary=`${speaker.name}와 ${listener.name}이 ${topic}을 두고 서로 어긋났다.`; delta=-2; kind='갈등';
       speaker.mood=clamp(speaker.mood-2,0,100); listener.mood=clamp(listener.mood-3,0,100);
+      // 어긋남은 화해의 바람을 남기고, 목격자의 입을 타면 평판 소문이 된다
+      addDesire(speaker,'화해',`${listener.name}과 어긋난 말을 풀고 싶다`,listener.id,28);
+      addDesire(listener,'화해',`${speaker.name}과 어긋난 말을 풀고 싶다`,speaker.id,28);
+      const wit=agents.find(o=>o!==speaker&&o!==listener&&!o.op&&dist(o,speaker)<120);
+      if(wit){
+        memory(wit,`${speaker.name}과 ${listener.name}이 언성을 높이는 것을 지켜보았다.`,['관계','갈등'],5,'관찰',{agent:speaker.id});
+        if(rnd()<.25)createNews(`${speaker.name}과 ${listener.name}의 사이가 요즘 삐걱인다는 말이 있다`,`${wit.name}의 귀띔`,[wit],{subject:speaker.id,stance:'의심'});
+      }
     } else {
       const good=(speaker.mood+listener.mood+speaker.rel[listener.id]+listener.rel[speaker.id])/4 + rnd()*16 + (speaker.pers.낙관-50)*.25>56;
       line=good?gen('긍정',{'주제':topic}):gen('신중',{'주제':topic});
       summary=`${speaker.name}와 ${listener.name}이 ${topic}에 대해 짧게 맞췄다.`; delta=(good?3:0)+(speaker.pers.사교>62?1:0); kind=good?'대화':'조율';
+      // 좋은 대화는 약속을 낳는다 — 관계가 사건을 다시 부르는 역방향 고리의 시작점
+      if(good&&rnd()<.16&&speaker.rel[listener.id]>52&&!pairPromise(speaker,listener)&&openPromises(speaker).length<2&&openPromises(listener).length<2){
+        const pr=projects.find(p=>!p.done&&(speaker.baseTags.includes(p.need)||listener.baseTags.includes(p.need)));
+        let pm;
+        if(pr&&rnd()<.5){
+          pm=makePromise(speaker,listener,'공동작업',pr.place,(state.day+1)*24+13.5+rnd()*3,`${speaker.name}과 ${listener.name}이 내일 ${building(pr.place).name}에서 ${pr.name}을 같이 손보기로 했다.`);
+          line=gen('약속작업',{'일':pr.name});
+        } else {
+          pm=makePromise(speaker,listener,'방문',homeOf(listener),(state.day+1)*24+20.5+rnd()*2.5,`${speaker.name}이 내일 저녁 ${listener.name}의 거처에 들르기로 했다.`);
+          line=gen('약속방문');
+        }
+        kind='약속'; delta=4; summary=pm.text;
+      }
+      // 어울리고 싶던 바람은 좋은 대화로 풀린다
+      [speaker,listener].forEach(x=>{const d=x.desires.find(v=>v.kind==='어울림');if(d&&good){x.desires=x.desires.filter(v=>v!==d);x.mood=clamp(x.mood+3,0,100)}});
     }
   }
-  speaker.bubble=line; listener.bubble=kind==='갈등'?gen('마찰수긍'):gen('맞장구'); speaker.bubbleT=listener.bubbleT=3.4; speaker.cool=listener.cool=5.4;
+  speaker.bubble=line; listener.bubble=kind==='갈등'?gen('마찰수긍'):kind==='화해'?gen('화해답'):gen('맞장구'); speaker.bubbleT=listener.bubbleT=3.4; speaker.cool=listener.cool=5.4;
   speaker.rel[listener.id]=clamp(speaker.rel[listener.id]+delta,0,100); listener.rel[speaker.id]=clamp(listener.rel[speaker.id]+delta,0,100); state.resources.신뢰=clamp(state.resources.신뢰+delta*.12,0,100);
   addLife(summary,kind); addTalk(speaker.name,`${listener.name}에게: ${line}`,kind);
-  const mtag=kind==='갈등'?'갈등':'대화', mimp=kind==='갈등'?6:5;
+  const mtag=kind==='갈등'?'갈등':kind==='화해'?'화해':kind==='약속'?'약속':'대화', mimp=kind==='갈등'?6:kind==='화해'?7:kind==='약속'?6:5;
   memory(speaker,summary,['관계',mtag,speaker.place],mimp,'대화',{with:listener.id,recall:recall.map(m=>m.id)}); memory(listener,summary,['관계',mtag,listener.place],mimp,'대화',{with:speaker.id});
+  const pb=nearbyBuilding(speaker); if(pb&&(kind==='갈등'||kind==='화해'||kind==='약속'))placeEcho(pb.id,kind,summary);
 }
 // ── RimWorld식 사건 감독: 시뮬레이션 규칙과 분리된 레이어가 마을 상태(활기·혼선·발전·경과)를
 //    읽고 사건 풀에서 뽑아 투하만 한다 — 전개는 전적으로 시뮬레이션에 맡긴다 (docs/research/rimworld.md) ──
@@ -517,7 +783,15 @@ function cycleDirector(){
 }
 function daily(){
   state.day++; state.hour=6.75; state.generation++; state.weather=pick(['맑음','구름 많음','옅은 비','별빛 선명']);
-  agents.forEach(a=>{a.energy=clamp(a.energy+26+rnd()*16,0,100);a.focus=clamp(a.focus+12+rnd()*12,0,100);a.mood=clamp(a.mood+3-rnd()*2,0,100);buildPlan(a);const r=retrieve(a,['계획','소식','관계']); if(r[0])a.thought=`어제의 “${r[0].text.slice(0,30)}…”을 오늘의 출발점으로 삼았다.`;});
+  agents.forEach(a=>{a.energy=clamp(a.energy+26+rnd()*16,0,100);a.focus=clamp(a.focus+12+rnd()*12,0,100);a.mood=clamp(a.mood+3-rnd()*2,0,100);buildPlan(a);const r=retrieve(a,['계획','소식','관계']); if(r[0])a.thought=`어제의 “${r[0].text.slice(0,30)}…”을 오늘의 출발점으로 삼았다.`;
+    decayDesires(a,9); // 바람은 풀리지 않으면 서서히 옅어진다
+    if(a.mood<46&&a.pers.사교>58)addDesire(a,'어울림','사람들 틈에 섞여 기분을 바꾸고 싶다',null,26);
+  });
+  const fest=agents.find(a=>a.role==='축제지기'); if(fest&&state.resources.문화<45)addDesire(fest,'행사','마을에 불빛이 모이는 저녁을 만들고 싶다',null,30);
+  if(!state.gathering&&rnd()<.3){ // 주민 발의 행사 — 사교성 높거나 행사 바람을 품은 이가 자리를 연다
+    const cands=agents.filter(a=>a.pers.사교>58||a.desires.some(d=>d.kind==='행사'));
+    if(cands.length&&state.resources.문화<72)planGathering(pick(cands));
+  }
   const unresolved=state.news.filter(n=>!n.verified).length; if(unresolved>2)state.resources.혼선=clamp(state.resources.혼선+unresolved*.9,0,100);
   // 밤사이 마모와 망각 — 자원은 새고, 극단으로 벌어진 관계는 평균으로 조금 돌아온다
   state.resources.기술=clamp(state.resources.기술-2,0,100); state.resources.신뢰=clamp(state.resources.신뢰-1.5,0,100); state.resources.문화=clamp(state.resources.문화-2,0,100); state.resources.활기=clamp(state.resources.활기-1,0,100);
@@ -532,9 +806,10 @@ function sim(dt){
     if(!a.plan.length)buildPlan(a); const slot=currentSlot(a); const slotKey=a.plan.indexOf(slot); if(slot&&slotKey!==a.lastSlot&&!a.op){a.lastSlot=slotKey;setTarget(a,chooseDestination(a),slot.label);retrieve(a,[slot.place,slot.label,'계획']);}
     if(a.op){a.op.left-=dt*speed; if(a.op.left<=0)finishOperation(a)}
     else {if(Math.hypot(a.tx-a.x,a.ty-a.y)<9||rnd()<.0035)setTarget(a,chooseDestination(a)); const vx=a.tx-a.x,vy=a.ty-a.y,d=Math.hypot(vx,vy)||1,sp=(18+norm(a.energy,0,100)*34)*dt*speed; a.pathTrail.push({x:a.x,y:a.y,t:now()}); a.pathTrail=a.pathTrail.slice(-18); a.x+=vx/d*Math.min(sp,d); a.y+=vy/d*Math.min(sp,d); workDecision(a);}
-    observe(a); a.energy=clamp(a.energy-dt*.42*speed+(nearbyBuilding(a)?.id==='garden'?.08:0),0,100); a.mood=clamp(a.mood+((state.resources.활기-50)/500)*dt*speed,0,100); a.cool=Math.max(0,a.cool-dt*speed); a.bubbleT=Math.max(0,a.bubbleT-dt*speed);
+    observe(a); maybePost(a); readPosts(a); a.energy=clamp(a.energy-dt*.42*speed+(nearbyBuilding(a)?.id==='garden'?.08:0),0,100); a.mood=clamp(a.mood+((state.resources.활기-50)/500)*dt*speed,0,100); a.cool=Math.max(0,a.cool-dt*speed); a.bubbleT=Math.max(0,a.bubbleT-dt*speed);
   });
   for(let i=0;i<agents.length;i++)for(let j=i+1;j<agents.length;j++)converse(agents[i],agents[j]);
+  promiseTick(); gatheringTick();
   state.resources.활기=clamp(state.resources.활기-.005*dt*speed,0,100); state.resources.신뢰=clamp(state.resources.신뢰-(state.resources.혼선>45?.02:.004)*dt*speed,0,100); state.resources.혼선=clamp(state.resources.혼선-.006*dt*speed,0,100); state.tick++;
 }
 function sx(x){return x/world.w*W} function sy(y){return y/world.h*H}
@@ -629,7 +904,9 @@ function spreadRate(n){return Math.round((n.knownBy.length/agents.length)*100)}
 function avgMood(){return Math.round(agents.reduce((s,a)=>s+a.mood,0)/agents.length)}
 function metricCards(){
   const unresolved=state.news.filter(n=>!n.verified).length; const latest=state.news[0];
-  return `<div class="card"><p class="cap">마을 맥박</p><div class="meterGrid">${meter('평균 기분',avgMood())}${meter('관계 밀도',networkDensity())}${meter('확인 대기',Math.min(100,unresolved*16),'rose')}${meter('기술 서랍',Math.min(100,skills.length*13))}</div></div><div class="card"><p class="cap">가장 최근 소식</p><div class="note">${latest?`“${esc(latest.text)}”<br><span class="subtle">${spreadRate(latest)}%가 들었고, ${latest.verified?'확인됐어.':'아직 확인 중이야.'}</span>`:'아직 들어온 소식이 없어.'}</div></div><div class="card"><p class="cap">사건 감독</p><div class="note">${(d=>`${d.icon} <b>${d.name}</b> — ${d.desc}.<br><span class="subtle">마지막 사건 후 ${Math.max(0,Math.round(now()-state.director.last))}시간 경과${state.director.lastKind==='위기'&&d.recovery?' · 회복 보장 중':''}</span>`)(directorProfile())}</div>${state.recentOps.length?`<div class="miniList" style="margin-top:8px">${state.recentOps.slice(0,3).map(o=>`<div class="mini"><span class="subtle">${o.time}</span> · ${esc(o.text.slice(0,60))}</div>`).join('')}</div>`:''}</div>`;
+  return `<div class="card"><p class="cap">마을 맥박</p><div class="meterGrid">${meter('평균 기분',avgMood())}${meter('관계 밀도',networkDensity())}${meter('확인 대기',Math.min(100,unresolved*16),'rose')}${meter('기술 서랍',Math.min(100,skills.length*13))}</div></div><div class="card"><p class="cap">가장 최근 소식</p><div class="note">${latest?`“${esc(latest.text)}”<br><span class="subtle">${spreadRate(latest)}%가 들었고, ${latest.verified?'확인됐어.':'아직 확인 중이야.'}</span>`:'아직 들어온 소식이 없어.'}</div></div><div class="card"><p class="cap">사건 감독</p><div class="note">${(d=>`${d.icon} <b>${d.name}</b> — ${d.desc}.<br><span class="subtle">마지막 사건 후 ${Math.max(0,Math.round(now()-state.director.last))}시간 경과${state.director.lastKind==='위기'&&d.recovery?' · 회복 보장 중':''}</span>`)(directorProfile())}</div>${state.recentOps.length?`<div class="miniList" style="margin-top:8px">${state.recentOps.slice(0,3).map(o=>`<div class="mini"><span class="subtle">${o.time}</span> · ${esc(o.text.slice(0,60))}</div>`).join('')}</div>`:''}</div>`
+  +(state.gathering?`<div class="card"><p class="cap">다가오는 모임</p><div class="note">「${esc(state.gathering.title)}」 — ${agentName(state.gathering.host)} 주최 · ${timeTextFrom(state.gathering.at)} · ${building(state.gathering.place).name}<br><span class="subtle">초대는 소문처럼 퍼지고, 참석은 관계와 기분이 정해.</span></div></div>`:'')
+  +(state.customs.length?`<div class="card"><p class="cap">마을의 관습</p><div class="miniList">${state.customs.map(c=>`<div class="mini">${esc(c.text)} <span class="subtle">· ${c.time}</span></div>`).join('')}</div></div>`:'');
 }
 function renderSide(){
   const body=$('#sideBody'), obj=agents.find(a=>a.id===selected)||buildings.find(b=>b.id===selected)||state.news.find(n=>n.id===selected);
@@ -641,12 +918,21 @@ function renderSide(){
     const a=obj, place=building(a.place)||nearbyBuilding(a), slot=currentSlot(a), known=state.news.filter(n=>a.known[n.id]).slice(0,4);
     $('#sideTitle').textContent=a.name; $('#sideSub').textContent=`${a.role} · ${a.task}`; $('#sideBadge').textContent=place?place.name:'이동 중';
     const rels=agents.filter(o=>o!==a).map(o=>`<div class="rel"><span>${o.name}</span><div class="relLine"><i style="width:${a.rel[o.id]}%"></i></div><span>${a.rel[o.id]}</span></div>`).join('');
-    body.innerHTML=`<div class="profile"><div class="avatar" style="background:${a.color}22">${a.face}</div><div><h3>${a.name}</h3><p>${a.role}<br>${esc(a.thought)}</p></div></div><div class="card"><p class="cap">지금</p><div class="note">${slot?slot.label:'자유 행동'} · ${place?place.name:'길 위'}${a.op?`<br><span class="subtle">${a.op.label} · ${Math.round((1-a.op.left/a.op.total)*100)}%</span>`:''}</div></div><div class="card"><p class="cap">상태</p><div class="meterGrid">${meter('기분',a.mood)}${meter('에너지',a.energy)}${meter('집중',a.focus)}${meter('확신',a.confidence)}</div></div><div class="card"><p class="cap">성격 — 굳은 기억이 만든 결</p><div class="meterGrid">${PERS_AXES.map(k=>meter(k,a.pers[k])).join('')}</div>${a.persLog.length?`<div class="miniList" style="margin-top:8px">${a.persLog.slice(0,3).map(l=>`<div class="mini"><span class="subtle">${l.time}</span> · ${esc(l.text)}</div>`).join('')}</div>`:'<div class="note subtle" style="margin-top:8px">아직 성격을 움직일 만큼 굳은 기억이 없어.</div>'}</div><div class="card"><p class="cap">행동 점수표</p><div class="miniList">${a.lastScores&&a.lastScores.length?a.lastScores.map(s=>`<div class="mini"><b>${esc(s.label)}</b> · 점수 ${s.score}</div>`).join(''):'<div class="note subtle">근처 건물의 광고를 아직 듣지 못했어.</div>'}</div></div><div class="card"><p class="cap">오늘 일정</p><div class="schedule">${a.plan.map(s=>`<div class="slot ${s===slot?'now':''}"><span>${hourLabel(s.s)}</span><b>${esc(s.label)}</b></div>`).join('')}</div></div><div class="card"><p class="cap">방금 꺼낸 기억</p><div class="miniList">${(a.recalled.length?a.recalled:a.memories.slice(0,3)).map(m=>`<div class="mini"><b>${esc(m.type)}</b> · ${esc(m.text)}<br><span class="subtle">무게 ${m.importance} · ${m.tags.map(esc).join(' / ')}</span></div>`).join('')}</div></div><div class="card"><p class="cap">알고 있는 소식</p><div class="tags">${known.map(n=>`<button class="tag" data-pick="${n.id}">${n.verified?'✓':'?'} ${esc(n.text.slice(0,18))}</button>`).join('')||'<span class="tag">아직 조용함</span>'}</div></div><div class="card"><p class="cap">관계 온도</p><div class="rels">${rels}</div></div>`; bindPick(); return;
+    const desireCard=`<div class="card"><p class="cap">지금의 바람</p>${a.desires.length?`<div class="miniList">${a.desires.map(d=>`<div class="mini">${esc(d.text)} <span class="subtle">· 세기 ${Math.round(d.strength)}</span></div>`).join('')}</div>`:'<div class="note subtle">지금은 마음이 잔잔해. 바람은 사건이 남기고, 사건이 풀어가.</div>'}</div>`;
+    const myProms=openPromises(a);
+    const promCard=`<div class="card"><p class="cap">열려 있는 약속</p>${myProms.length?`<div class="miniList">${myProms.map(p=>{const o=agentName(p.a===a.id?p.b:p.a);const left=Math.round(p.due-now());return `<div class="mini"><b>${esc(p.kind)}</b> · ${esc(p.text)}<br><span class="subtle">${esc(o)}와 · ${left>0?left+'시간 남음':'기한이 지나고 있다'}</span></div>`}).join('')}</div>`:'<div class="note subtle">아직 열린 약속이 없어. 좋은 대화가 약속을 낳아.</div>'}</div>`;
+    const grav=gravityList(a).slice(0,3);
+    const gravCard=`<div class="card"><p class="cap">다시 엮일 이유 — 쌍 중력</p>${grav.length?`<div class="miniList">${grav.map(g=>`<div class="mini"><b>${esc(g.o.name)}</b> · ${g.why.map(esc).join(', ')} <span class="subtle">중력 ${Math.round(g.g)}</span></div>`).join('')}</div>`:'<div class="note subtle">지금은 누구와도 매듭이 없어. 중력은 호감 점수가 아니라 닫히지 않은 일의 합이야.</div>'}</div>`;
+    body.innerHTML=`<div class="profile"><div class="avatar" style="background:${a.color}22">${a.face}</div><div><h3>${a.name}</h3><p>${a.role}<br>${esc(a.thought)}</p></div></div><div class="card"><p class="cap">지금</p><div class="note">${slot?slot.label:'자유 행동'} · ${place?place.name:'길 위'}${a.op?`<br><span class="subtle">${a.op.label} · ${Math.round((1-a.op.left/a.op.total)*100)}%</span>`:''}</div></div><div class="card"><p class="cap">상태</p><div class="meterGrid">${meter('기분',a.mood)}${meter('에너지',a.energy)}${meter('집중',a.focus)}${meter('확신',a.confidence)}</div></div><div class="card"><p class="cap">성격 — 굳은 기억이 만든 결</p><div class="meterGrid">${PERS_AXES.map(k=>meter(k,a.pers[k])).join('')}</div>${a.persLog.length?`<div class="miniList" style="margin-top:8px">${a.persLog.slice(0,3).map(l=>`<div class="mini"><span class="subtle">${l.time}</span> · ${esc(l.text)}</div>`).join('')}</div>`:'<div class="note subtle" style="margin-top:8px">아직 성격을 움직일 만큼 굳은 기억이 없어.</div>'}</div>${desireCard}${promCard}${gravCard}<div class="card"><p class="cap">행동 점수표</p><div class="miniList">${a.lastScores&&a.lastScores.length?a.lastScores.map(s=>`<div class="mini"><b>${esc(s.label)}</b> · 점수 ${s.score}</div>`).join(''):'<div class="note subtle">근처 건물의 광고를 아직 듣지 못했어.</div>'}</div></div><div class="card"><p class="cap">오늘 일정</p><div class="schedule">${a.plan.map(s=>`<div class="slot ${s===slot?'now':''}"><span>${hourLabel(s.s)}</span><b>${esc(s.label)}</b></div>`).join('')}</div></div><div class="card"><p class="cap">방금 꺼낸 기억</p><div class="miniList">${(a.recalled.length?a.recalled:a.memories.slice(0,3)).map(m=>`<div class="mini"><b>${esc(m.type)}</b> · ${esc(m.text)}<br><span class="subtle">무게 ${m.importance} · ${m.tags.map(esc).join(' / ')}</span></div>`).join('')}</div></div><div class="card"><p class="cap">알고 있는 소식</p><div class="tags">${known.map(n=>`<button class="tag" data-pick="${n.id}">${n.verified?'✓':'?'} ${esc(n.text.slice(0,18))}</button>`).join('')||'<span class="tag">아직 조용함</span>'}</div></div><div class="card"><p class="cap">관계 온도</p><div class="rels">${rels}</div></div>`; bindPick(); return;
   }
   if(obj.tools){
     const b=obj, pr=projectAt(b.id), near=agents.filter(a=>Math.abs(a.x-b.x)<150&&Math.abs(a.y-b.y)<125);
-    $('#sideTitle').textContent=b.name; $('#sideSub').textContent=`${b.kind} 시설 · 레벨 ${b.lv}`; $('#sideBadge').textContent='건물';
-    body.innerHTML=`<div class="profile"><div class="avatar">${b.icon}</div><div><h3>${b.name}</h3><p>${esc(b.desc)}</p></div></div><div class="card"><p class="cap">진행 중인 일</p>${pr?`<div class="note"><b>${esc(pr.name)}</b><br>${esc(pr.desc)}</div><div class="bar"><i style="width:${pr.p}%"></i></div><div class="progressLabel"><span>${pr.need}</span><b>${Math.round(pr.p)}%</b></div>`:'<div class="note subtle">이 건물의 당장 큰 일은 완성된 상태야.</div>'}</div><div class="card"><p class="cap">사용 가능한 도구</p><div class="tags">${b.tools.map(t=>`<span class="tag">${esc(t)}</span>`).join('')}</div></div><div class="card"><p class="cap">근처 주민</p><div class="tags">${near.map(a=>`<button class="tag" data-pick="${a.id}">${a.face} ${a.name}</button>`).join('')||'<span class="tag">지금은 조용함</span>'}</div></div>`; bindPick(); return;
+    $('#sideTitle').textContent=b.name; $('#sideSub').textContent=`${b.kind} 시설 · 레벨 ${b.lv}`; $('#sideBadge').textContent=b.kind==='거처'?'거처':'건물';
+    const air=placeAir(b);
+    const homeCard=b.kind==='거처'?`<div class="card"><p class="cap">방 안의 흔적</p>${b.deco&&b.deco.length?`<div class="miniList">${b.deco.map(t=>`<div class="mini">${esc(t)}</div>`).join('')}</div>`:'<div class="note subtle">아직 주인의 손길이 닿지 않았어. 굳은 기억이 흔적으로 남아.</div>'}</div>`:'';
+    const postsCard=b.id==='square'?`<div class="card"><p class="cap">광장 게시판</p>${state.posts.length?`<div class="miniList">${state.posts.slice(0,5).map(p=>`<div class="mini"><b>${esc(p.name)}</b> · ${esc(String(p.text).slice(0,54))}<br><span class="subtle">${p.time} · ${p.readBy.length-1}명이 읽음</span></div>`).join('')}</div>`:'<div class="note subtle">아직 글이 없어. 광장에 온 주민이 시간차로 읽고 가.</div>'}</div>`:'';
+    const histCard=b.log&&b.log.length?`<div class="card"><p class="cap">장소의 역사</p><div class="miniList">${b.log.map(e=>`<div class="mini"><span class="subtle">${e.time} · ${esc(e.kind)}</span><br>${esc(e.text)}</div>`).join('')}</div></div>`:'';
+    body.innerHTML=`<div class="profile"><div class="avatar">${b.icon}</div><div><h3>${b.name}</h3><p>${esc(b.desc)}${air?`<br><span class="subtle">${esc(air)}</span>`:''}</p></div></div><div class="card"><p class="cap">진행 중인 일</p>${pr?`<div class="note"><b>${esc(pr.name)}</b><br>${esc(pr.desc)}</div><div class="bar"><i style="width:${pr.p}%"></i></div><div class="progressLabel"><span>${pr.need}</span><b>${Math.round(pr.p)}%</b></div>`:'<div class="note subtle">이 건물의 당장 큰 일은 완성된 상태야.</div>'}</div>${homeCard}${postsCard}<div class="card"><p class="cap">사용 가능한 도구</p><div class="tags">${b.tools.map(t=>`<span class="tag">${esc(t)}</span>`).join('')}</div></div><div class="card"><p class="cap">근처 주민</p><div class="tags">${near.map(a=>`<button class="tag" data-pick="${a.id}">${a.face} ${a.name}</button>`).join('')||'<span class="tag">지금은 조용함</span>'}</div></div>${histCard}`; bindPick(); return;
   }
   const n=obj; $('#sideTitle').textContent=n.verified?'확인된 소식':'확인 중인 소식'; $('#sideSub').textContent=n.text; $('#sideBadge').textContent=`${spreadRate(n)}% 확산`;
   body.innerHTML=`<div class="card"><p class="cap">소식 내용</p><div class="note">“${esc(n.text)}”<br><span class="subtle">출처 ${esc(n.origin)} · ${timeTextFrom(n.created)} 생성 · 신뢰도 ${Math.round(n.confidence)}</span></div></div><div class="card"><p class="cap">확산</p>${meter('들은 주민',spreadRate(n))}<div class="tags" style="margin-top:9px">${agents.filter(a=>a.known[n.id]).map(a=>`<button class="tag" data-pick="${a.id}">${a.face} ${a.name}</button>`).join('')}</div></div><div class="card"><p class="cap">이동 경로</p><div class="miniList">${n.path.slice(-8).reverse().map(p=>`<div class="mini">${agentName(p.from)} → ${agentName(p.to)} <span class="subtle">${p.time} · 확신 ${p.confidence}</span></div>`).join('')||'<div class="note subtle">처음 들어온 뒤 아직 크게 퍼지지 않았어.</div>'}</div></div>`; bindPick();
@@ -682,6 +968,12 @@ function researchCards(){return [
   {title:'Dwarf Fortress · 기억→성격',body:'기억이 묶여 영구층으로 내려가는 순간 성격 축(낙관·신중·사교·끈기)이 반드시 이동하고, 바뀐 성격은 광고 점수·대화·작업 확률에 되먹임된다.'},
   {title:'RimWorld · 사건 감독',body:'시뮬레이션과 분리된 감독(카산드라·피비·랜디)이 활기·혼선·발전 수준·경과 시간을 읽고 사건을 투하한다. 위기 직후엔 회복이 보장되고, 전개는 시뮬레이션에 맡긴다.'},
   {title:'Dwarf Fortress · 전설 모드',body:'일대기는 90줄에서 잘리지만 굵직한 사건은 연대기에 영구히 남고, 인물·장소·종류 단추로 마을의 역사를 교차 열람한다. 시뮬레이션의 산출물은 게임이 아니라 역사책이다.'},
+  {title:'루나의 도서관 · 약속과 쌍 중력',body:'대화에서 방문·공동작업 약속이 생기고, 닫히지 않은 약속·풀지 못한 어긋남·미확인 소식이 쌍 중력이 되어 다음 만남을 끌어당긴다. 파기가 쌓이면 평판 소문과 마을의 첫 관습이 된다.'},
+  {title:'루나의 도서관 · 기억-정합 소문',body:'소문은 듣는 이의 기억에 비추어 내려앉는다 — 겪은 것과 일치하면 증폭되고, 충돌하면 의심과 역소문의 씨앗이 되며, 겪은 게 없으면 그대로 첫인상이 된다.'},
+  {title:'루나의 도서관 · 욕망 되먹임',body:'갈등은 화해의 바람을, 완성은 나누고 싶은 마음을, 낡음은 손보고 싶은 마음을 남긴다. 바람은 행동 점수와 동선에 선택압으로 되먹이고, 풀리면 스스로 사라진다.'},
+  {title:'루나의 도서관 · 개인 거주지',body:'주민마다 내면이 드러나는 거처가 있다. 밤을 여닫는 곳이자 방문 약속의 무대이며, 굳은 기억이 방 안의 흔적으로 남는다. 장소에는 사건의 결(장소의 역사)이 쌓인다.'},
+  {title:'루나의 도서관 · 광장 글',body:'같은 자리에 없어도 광장에 남긴 글을 시간차로 읽으며 소식이 퍼진다 — 오프라인 co-presence를 보완하는 온라인 채널.'},
+  {title:'Smallville · 주민 발의 행사',body:'행사는 감독만 던지지 않는다. 주민이 모임을 발의하면 초대장이 소문의 길을 타고 퍼지고, 참석은 관계·성격·기분이 정한다 — 발렌타인 파티 문법. 아무도 오지 않은 저녁도 하나의 이야기다.'},
   {title:'단일 파일의 선',body:'실제 LLM 호출, 벡터 DB, 서버 작업 큐, 컴퓨터 화면 조작은 없다. 대신 구조의 움직임을 브라우저 규칙으로 압축했다.'}
 ]}
 let chronFilter={type:'all',id:null};
@@ -690,7 +982,7 @@ function renderChronicle(){
   const chips=[['all','전체 '+state.chronicle.length,null]]
     .concat(agents.map(a=>['who',`${a.face} ${a.name}`,a.id]))
     .concat(buildings.map(b=>['where',`${b.icon} ${b.name}`,b.id]))
-    .concat(['사건','완성','성격','소식','확인','따라잡기','아침'].map(k=>['kind',k,k]));
+    .concat(['사건','완성','성격','소식','확인','약속','화해','행사','관습','따라잡기','아침'].map(k=>['kind',k,k]));
   $('#chronBar').innerHTML=chips.map(([type,label,id])=>`<button class="tag ${f.type===type&&f.id===(id||null)?'on':''}" data-chron="${type}:${id||''}">${label}</button>`).join('');
   $$('#chronBar [data-chron]').forEach(el=>el.onclick=()=>{const [type,id]=el.dataset.chron.split(':');chronFilter=(f.type===type&&f.id===(id||null))?{type:'all',id:null}:{type,id:id||null};renderChronicle()});
   const list=state.chronicle.filter(e=>f.type==='all'||(f.type==='who'&&e.who.includes(f.id))||(f.type==='where'&&e.where.includes(f.id))||(f.type==='kind'&&e.kind===f.id)).slice(0,160);
@@ -726,6 +1018,28 @@ function coarseStep(h,report){
     });
     if(rnd()<.4){const a=pick(agents),b=pick(agents);if(a!==b){const d=rnd()<.7?1:-1;a.rel[b.id]=clamp(a.rel[b.id]+d,0,100);b.rel[a.id]=clamp(b.rel[a.id]+d,0,100);report.social++}}
   }
+  // 닫힌 시간의 약속과 모임 — 고해상도 장면 없이 결과만 굴린다
+  state.promises.forEach(p=>{
+    if(p.status!=='열림')return;
+    const A=agents.find(x=>x.id===p.a), B=agents.find(x=>x.id===p.b); if(!A||!B)return;
+    if(now()>p.due-4&&now()<p.due+6&&rnd()<.3){
+      p.status='지킴'; A.kept++; B.kept++;
+      A.rel[B.id]=clamp(A.rel[B.id]+5,0,100); B.rel[A.id]=clamp(B.rel[A.id]+5,0,100);
+      report.kept=(report.kept||0)+1;
+    } else if(now()>p.due+6){
+      p.status='깨짐'; state.breachTotal++; A.breaches++;
+      B.rel[A.id]=clamp(B.rel[A.id]-4,0,100);
+      report.broken=(report.broken||0)+1;
+    }
+  });
+  const g=state.gathering;
+  if(g&&now()>g.endAt){
+    const att=agents.filter(a=>a.known[g.newsId]&&a.rel[g.host]>55);
+    if(att.length>=3){state.resources.문화=clamp(state.resources.문화+6,0,100);chron(`닫힌 시간 동안 「${g.title}」 모임이 열려 ${att.length}명이 다녀갔다.`,'행사')}
+    else chron(`「${g.title}」 모임은 닫힌 시간 동안 조용히 지나갔다.`,'행사');
+    state.gathering=null;
+  }
+  agents.forEach(a=>decayDesires(a,h));
   state.resources.활기=clamp(state.resources.활기-.05*h,0,100); state.resources.혼선=clamp(state.resources.혼선-.06*h,0,100);
   directorTick(h); // 감독은 닫힌 시간에도 같은 리듬으로 사건을 투하한다
 }
@@ -738,13 +1052,15 @@ function catchUp(elapsedMs){
   const closedText=elapsedMs>3600000?`${Math.round(elapsedMs/3600000)}시간`:`${Math.max(1,Math.round(elapsedMs/60000))}분`;
   const capped=elapsedMs/1000*SIM_HOURS_PER_REAL_SEC>CATCHUP_CAP_HOURS;
   let text=`탭이 닫혀 있던 ${closedText} 동안 마을 시간 ${Math.round(hours)}시간이 저해상도로 흘렀다${capped?' (사흘치에서 멈춤)':''} — 프로젝트 +${Math.round(report.progress)}, 소식 전달 ${report.spread}회, 관계 표류 ${report.social}회.`;
+  if(report.kept)text+=` 약속 ${report.kept}건이 지켜졌다.`;
+  if(report.broken)text+=` 약속 ${report.broken}건이 어그러졌다.`;
   if(report.completed.length)text+=` 그 사이 ${report.completed.join(', ')}이 완성됐다.`;
   if(report.verified.length)text+=` “${report.verified[0].slice(0,24)}…”은 확인됐다.`;
   addLife(text,'따라잡기'); addRecentOp(`따라잡기 ${Math.round(hours)}시간 (코스 스텝 ${Math.ceil(hours/.5)}회)`);
   toast(`닫힌 시간 ${Math.round(hours)}시간을 따라잡았어`);
 }
-function save(silent){localStorage.setItem('ai-village-polished-research',JSON.stringify({state,agents,buildings,projects,skills,seed,memSeq,newsSeq,artifactSeq,inputSeq,savedAt:Date.now()}));if(silent!==true)toast('저장했어')}
-function load(){try{const raw=localStorage.getItem('ai-village-polished-research');if(!raw)return false;const d=JSON.parse(raw);Object.assign(state,d.state);d.agents.forEach((a,i)=>Object.assign(agents[i],a));d.buildings.forEach((b,i)=>Object.assign(buildings[i],b));d.projects.forEach((p,i)=>Object.assign(projects[i],p));skills.splice(0,skills.length,...d.skills);seed=d.seed||seed;memSeq=d.memSeq||memSeq;newsSeq=d.newsSeq||newsSeq;artifactSeq=d.artifactSeq||artifactSeq;inputSeq=d.inputSeq||inputSeq;agents.forEach(a=>{if(!a.pers)a.pers=basePers(a.role);if(!a.persLog)a.persLog=[]});if(!state.director)state.director={id:'cassandra',last:0,lastKind:'회복'};if(!state.chronicle)state.chronicle=[];return {savedAt:d.savedAt||0}}catch(e){console.warn(e);return false}}
+function save(silent){localStorage.setItem('ai-village-polished-research',JSON.stringify({state,agents,buildings,projects,skills,seed,memSeq,newsSeq,artifactSeq,inputSeq,promSeq,postSeq,gathSeq,savedAt:Date.now()}));if(silent!==true)toast('저장했어')}
+function load(){try{const raw=localStorage.getItem('ai-village-polished-research');if(!raw)return false;const d=JSON.parse(raw);Object.assign(state,d.state);d.agents.forEach((a,i)=>Object.assign(agents[i],a));d.buildings.forEach((b,i)=>Object.assign(buildings[i],b));d.projects.forEach((p,i)=>Object.assign(projects[i],p));skills.splice(0,skills.length,...d.skills);seed=d.seed||seed;memSeq=d.memSeq||memSeq;newsSeq=d.newsSeq||newsSeq;artifactSeq=d.artifactSeq||artifactSeq;inputSeq=d.inputSeq||inputSeq;promSeq=d.promSeq||promSeq;postSeq=d.postSeq||postSeq;gathSeq=d.gathSeq||gathSeq;agents.forEach(a=>{if(!a.pers)a.pers=basePers(a.role);if(!a.persLog)a.persLog=[];if(!a.desires)a.desires=[];if(!a.breaches)a.breaches=0;if(!a.kept)a.kept=0});buildings.forEach(b=>{if(!b.log)b.log=[];if(b.kind==='거처'&&!b.deco)b.deco=[]});if(!state.director)state.director={id:'cassandra',last:0,lastKind:'회복'};if(!state.chronicle)state.chronicle=[];if(!state.promises)state.promises=[];if(!state.posts)state.posts=[];if(!state.customs)state.customs=[];if(state.gathering===undefined)state.gathering=null;if(!state.breachTotal)state.breachTotal=0;return {savedAt:d.savedAt||0}}catch(e){console.warn(e);return false}}
 function reset(){localStorage.removeItem('ai-village-polished-research');location.reload()}
 function sampleIncident(){return gen('사건')}
 function loop(t){const dt=Math.min(.08,(t-last)/1000||0);last=t;if(!paused){acc+=dt;while(acc>.05){sim(.05);acc-=.05}}render();uiTimer+=dt;if(uiTimer>.55){updateUI();uiTimer=0}requestAnimationFrame(loop)}
