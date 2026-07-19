@@ -573,18 +573,64 @@ function researchCards(){return [
   {title:'Voyager · 기술 서랍',body:'완성된 프로젝트는 다음 행동에 쓰이는 작은 기술로 남는다. 마을발전기 코어가 켜지면 반복 작업 효율이 오른다.'},
   {title:'The Sims · 광고하는 건물',body:'건물이 "여기서 할 수 있는 일과 효용"을 광고하고, 주민은 자기 욕구·역할과 곱해 점수만 계산한다. 주민 패널의 행동 점수표가 그 계산을 그대로 보여준다.'},
   {title:'Tracery · 문법 대화',body:'대화와 사건 문장은 고정 문장이 아니라 치환 문법에서 매번 조합되고, 받침에 따라 조사(이/가, 은/는)가 맞춰진다.'},
+  {title:'Veloren rtsim · 따라잡기',body:'탭이 닫혀 있던 시간은 이동·대화 같은 고해상도 연출을 건너뛰고 진척·소식·관계만 저해상도 규칙으로 흘러, 다시 열면 마을이 그만큼 살아 있다.'},
   {title:'단일 파일의 선',body:'실제 LLM 호출, 벡터 DB, 서버 작업 큐, 컴퓨터 화면 조작은 없다. 대신 구조의 움직임을 브라우저 규칙으로 압축했다.'}
 ]}
 function bindPick(){$$('[data-pick]').forEach(el=>el.onclick=()=>{selected=el.dataset.pick;updateUI()})}
 function canvasPick(e){const r=cvs.getBoundingClientRect(),x=(e.clientX-r.left)/W*world.w,y=(e.clientY-r.top)/H*world.h;let hit=null;for(const a of agents){if(Math.hypot(x-a.x,y-a.y)<30)hit=a.id}if(!hit)for(const b of buildings){if(Math.abs(x-b.x)<b.w/2&&Math.abs(y-b.y)<b.h/2)hit=b.id}selected=hit;updateUI()}
 function canvasHover(e){const r=cvs.getBoundingClientRect(),x=(e.clientX-r.left)/W*world.w,y=(e.clientY-r.top)/H*world.h;let hit=null;for(const a of agents){if(Math.hypot(x-a.x,y-a.y)<30)hit=a.id}if(!hit)for(const b of buildings){if(Math.abs(x-b.x)<b.w/2&&Math.abs(y-b.y)<b.h/2)hit=b.id}hover=hit;cvs.style.cursor=hit?'pointer':'default'}
-function save(){localStorage.setItem('ai-village-polished-research',JSON.stringify({state,agents,buildings,projects,skills,seed,memSeq,newsSeq,artifactSeq,inputSeq}));toast('저장했어')}
-function load(){try{const raw=localStorage.getItem('ai-village-polished-research');if(!raw)return false;const d=JSON.parse(raw);Object.assign(state,d.state);d.agents.forEach((a,i)=>Object.assign(agents[i],a));d.buildings.forEach((b,i)=>Object.assign(buildings[i],b));d.projects.forEach((p,i)=>Object.assign(projects[i],p));skills.splice(0,skills.length,...d.skills);seed=d.seed||seed;memSeq=d.memSeq||memSeq;newsSeq=d.newsSeq||newsSeq;artifactSeq=d.artifactSeq||artifactSeq;inputSeq=d.inputSeq||inputSeq;return true}catch(e){console.warn(e);return false}}
+// ── Veloren rtsim식 따라잡기: 탭이 닫혀 있던 시간을 저해상도 규칙으로 메꾼다 (docs/research/veloren-rtsim.md)
+//    고해상도(sim: 이동·대화·거품)와 분리된 코스 규칙만 사용 — 사건·자원·소식·진척만 추상적으로 굴린다 ──
+const SIM_HOURS_PER_REAL_SEC=.18, CATCHUP_CAP_HOURS=72, CATCHUP_MIN_MS=5000;
+function coarseStep(h,report){
+  state.hour+=h; if(state.hour>=24){daily();report.days++}
+  const daylight=state.hour>=7.5&&state.hour<20;
+  agents.forEach(a=>{
+    if(!a.plan.length)buildPlan(a);
+    if(daylight){a.energy=clamp(a.energy-h*1.3,16,100);a.focus=clamp(a.focus-h*.6,10,100)}
+    else{a.energy=clamp(a.energy+h*3,0,100);a.mood=clamp(a.mood+h*.3,0,100)}
+    const slot=currentSlot(a), b=slot&&building(slot.place);
+    if(b){a.place=slot.place;a.x=b.x-b.w*.3+rnd()*b.w*.6;a.y=b.y-b.h*.28+rnd()*b.h*.56;a.tx=a.x;a.ty=a.y;a.task=slot.label;a.op=null;a.pathTrail=[]}
+  });
+  if(daylight){
+    const pr=pick(projects.filter(p=>!p.done));
+    if(pr&&rnd()<.5){
+      const gain=2+rnd()*4; pr.p=clamp(pr.p+gain,0,100); report.progress+=gain;
+      state.resources[pr.need]=clamp((state.resources[pr.need]||0)+.3,0,100);
+      if(pr.p>=100){const a=agents.find(x=>x.baseTags.includes(pr.need))||pick(agents);completeProject(pr,a,building(pr.place));report.completed.push(pr.name)}
+    }
+    state.news.filter(n=>!n.verified).forEach(n=>{
+      if(rnd()<.3){const holder=agents.find(a=>a.known[n.id]), un=agents.filter(a=>!a.known[n.id]);
+        if(holder&&un.length){giveNews(pick(un),n,holder,holder.known[n.id].confidence-4+rnd()*8);report.spread++}}
+      if(rnd()<.05+(hasSkill('근거 확인')?.05:0)){n.verified=true;n.confidence=clamp(n.confidence+20,0,96);state.resources.혼선=clamp(state.resources.혼선-6,0,100);state.resources.신뢰=clamp(state.resources.신뢰+2,0,100);report.verified.push(n.text)}
+    });
+    if(rnd()<.4){const a=pick(agents),b=pick(agents);if(a!==b){const d=rnd()<.7?1:-1;a.rel[b.id]=clamp(a.rel[b.id]+d,0,100);b.rel[a.id]=clamp(b.rel[a.id]+d,0,100);report.social++}}
+  }
+  state.resources.활기=clamp(state.resources.활기-.05*h,0,100); state.resources.혼선=clamp(state.resources.혼선-.06*h,0,100);
+}
+function catchUp(elapsedMs){
+  const hours=Math.min(CATCHUP_CAP_HOURS,elapsedMs/1000*SIM_HOURS_PER_REAL_SEC);
+  if(elapsedMs<CATCHUP_MIN_MS||hours<1)return;
+  const report={days:0,progress:0,spread:0,social:0,completed:[],verified:[]};
+  for(let t=0;t<hours;t+=.5)coarseStep(.5,report);
+  state.scene=sceneText();
+  const closedText=elapsedMs>3600000?`${Math.round(elapsedMs/3600000)}시간`:`${Math.max(1,Math.round(elapsedMs/60000))}분`;
+  const capped=elapsedMs/1000*SIM_HOURS_PER_REAL_SEC>CATCHUP_CAP_HOURS;
+  let text=`탭이 닫혀 있던 ${closedText} 동안 마을 시간 ${Math.round(hours)}시간이 저해상도로 흘렀다${capped?' (사흘치에서 멈춤)':''} — 프로젝트 +${Math.round(report.progress)}, 소식 전달 ${report.spread}회, 관계 표류 ${report.social}회.`;
+  if(report.completed.length)text+=` 그 사이 ${report.completed.join(', ')}이 완성됐다.`;
+  if(report.verified.length)text+=` “${report.verified[0].slice(0,24)}…”은 확인됐다.`;
+  addLife(text,'따라잡기'); addRecentOp(`따라잡기 ${Math.round(hours)}시간 (코스 스텝 ${Math.ceil(hours/.5)}회)`);
+  toast(`닫힌 시간 ${Math.round(hours)}시간을 따라잡았어`);
+}
+function save(silent){localStorage.setItem('ai-village-polished-research',JSON.stringify({state,agents,buildings,projects,skills,seed,memSeq,newsSeq,artifactSeq,inputSeq,savedAt:Date.now()}));if(silent!==true)toast('저장했어')}
+function load(){try{const raw=localStorage.getItem('ai-village-polished-research');if(!raw)return false;const d=JSON.parse(raw);Object.assign(state,d.state);d.agents.forEach((a,i)=>Object.assign(agents[i],a));d.buildings.forEach((b,i)=>Object.assign(buildings[i],b));d.projects.forEach((p,i)=>Object.assign(projects[i],p));skills.splice(0,skills.length,...d.skills);seed=d.seed||seed;memSeq=d.memSeq||memSeq;newsSeq=d.newsSeq||newsSeq;artifactSeq=d.artifactSeq||artifactSeq;inputSeq=d.inputSeq||inputSeq;return {savedAt:d.savedAt||0}}catch(e){console.warn(e);return false}}
 function reset(){localStorage.removeItem('ai-village-polished-research');location.reload()}
 function sampleIncident(){return gen('사건')}
 function loop(t){const dt=Math.min(.08,(t-last)/1000||0);last=t;if(!paused){acc+=dt;while(acc>.05){sim(.05);acc-=.05}}render();uiTimer+=dt;if(uiTimer>.55){updateUI();uiTimer=0}requestAnimationFrame(loop)}
 function init(){
-  if(!load()){
+  const loaded=load();
+  if(loaded&&loaded.savedAt)catchUp(Date.now()-loaded.savedAt);
+  if(!loaded){
     agents.forEach(a=>{memory(a,`${a.name}은 ${a.role}로서 ${building(a.home).name}을 주 무대로 삼는다.`,[a.home,a.role,'정체성'],7,'기본',{},false);memory(a,`첫날 아침, ${a.name}은 광장에 켜지는 불빛을 보며 마을의 리듬을 익혔다.`,['마을','아침'],4,'관찰',{},false);buildPlan(a)});
     createNews('주말에 별빛 광장에서 작은 축제를 열자는 제안이 생겼다','초기 기억',[agents[1],agents[6]]);
     createNews('마을발전기 코어를 완성하면 반복 작업이 줄어들 수 있다','초기 기억',[agents[2],agents[0]]);
@@ -592,7 +638,8 @@ function init(){
   }
   cvs.addEventListener('click',canvasPick); cvs.addEventListener('mousemove',canvasHover); cvs.addEventListener('mouseleave',()=>{hover=null;cvs.style.cursor='default'});
   $('#seedForm').addEventListener('submit',e=>{e.preventDefault();const v=$('#seedText').value.trim();if(v)submitInput(v,'seed')}); $('#eventBtn').onclick=()=>submitInput(sampleIncident(),'incident');
-  $('#pauseBtn').onclick=()=>{paused=!paused;$('#pauseBtn').textContent=paused?'다시 흐르게':'멈춤'}; $('#stepBtn').onclick=()=>{sim(.9);updateUI()}; $('#speedBtn').onclick=()=>{speed=speed===1?2:speed===2?4:1;$('#speedBtn').textContent=`속도 ${speed}x`}; $('#saveBtn').onclick=save; $('#resetBtn').onclick=reset;
+  $('#pauseBtn').onclick=()=>{paused=!paused;$('#pauseBtn').textContent=paused?'다시 흐르게':'멈춤'}; $('#stepBtn').onclick=()=>{sim(.9);updateUI()}; $('#speedBtn').onclick=()=>{speed=speed===1?2:speed===2?4:1;$('#speedBtn').textContent=`속도 ${speed}x`}; $('#saveBtn').onclick=()=>save(); $('#resetBtn').onclick=reset;
+  document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')save(true)}); window.addEventListener('beforeunload',()=>save(true)); setInterval(()=>save(true),30000);
   $$('.tab').forEach(tab=>tab.onclick=()=>{$$('.tab').forEach(t=>t.classList.remove('active'));$$('.panel').forEach(p=>p.classList.remove('active'));tab.classList.add('active');$('#panel-'+tab.dataset.tab).classList.add('active')});
   updateUI(); requestAnimationFrame(loop);
 }
