@@ -89,10 +89,11 @@ button:focus-visible,input:focus-visible{outline:2px solid rgba(137,216,255,.72)
   body{overflow:auto}
   #app{display:flex;flex-direction:column;height:auto;min-height:100vh}
   .top{grid-template-columns:1fr;gap:10px;padding:14px}
-  /* ── 모바일 상단 탭: 예시처럼 헤더 바로 아래에 붙어 화면(마을/현황/관찰/기록)을 전환한다 ── */
-  .mobileTabs{display:flex;gap:6px;position:sticky;top:0;z-index:40;padding:10px 2px;margin:-8px 0;background:linear-gradient(180deg,#10182b 82%,rgba(16,24,43,0))}
-  .mobileTabs button{flex:1;padding:11px 6px;border-radius:14px;border:1px solid transparent;color:var(--muted);font-size:13px;white-space:nowrap;transition:.16s}
-  .mobileTabs button.on{background:rgba(137,216,255,.13);border-color:rgba(137,216,255,.3);color:#fff;font-weight:700}
+  /* ── 모바일 상단 탭: 화면 맨 위에 붙어 화면(마을/현황/관찰/기록)을 전환한다.
+        예시처럼 불투명 배경 + 하단 경계선 + 활성 탭 밑줄로 경계를 뚜렷하게 ── */
+  .mobileTabs{display:flex;gap:0;position:sticky;top:0;z-index:40;margin:-16px -16px 0;padding:2px 6px 0;background:#0b101f;border-bottom:1px solid var(--line2);box-shadow:0 8px 24px rgba(0,0,0,.35)}
+  .mobileTabs button{flex:1;padding:15px 4px 13px;border-radius:0;border:0;border-bottom:2.5px solid transparent;margin-bottom:-1px;color:var(--muted);font-size:13.5px;white-space:nowrap;transition:color .16s,border-color .16s}
+  .mobileTabs button.on{color:#fff;font-weight:800;border-bottom-color:var(--blue)}
   .sideTabs{display:none} /* 패널 안 탭은 상단 탭이 대신한다 */
   .worldCard{height:62vh;min-height:440px}
   .dock{height:64vh}
@@ -110,6 +111,7 @@ button:focus-visible,input:focus-visible{outline:2px solid rgba(137,216,255,.72)
 }
 @media(max-width:720px){
   #app{padding:10px;gap:10px}
+  .mobileTabs{margin:-10px -10px 0}
   .top{border-radius:22px;padding:12px}
   .brand{gap:10px}
   .brand h1{font-size:18px}
@@ -144,13 +146,12 @@ button:focus-visible,input:focus-visible{outline:2px solid rgba(137,216,255,.72)
 </head>
 <body>
 <div id="app" class="mv-village">
+  <nav class="mobileTabs" id="mobileTabs"><button data-mtab="village" class="on">마을</button><button data-mtab="status">AI마을 현황</button><button data-mtab="observe">AI마을 관찰</button><button data-mtab="records">기록</button></nav>
   <header class="top">
     <div class="brand"><div class="mark">✦</div><div><h1>AI 마을</h1><p>주민이 걷고, 소식이 퍼지고, 작은 기술이 쌓이는 연구형 마을 시뮬레이션</p></div></div>
     <div class="stats" id="stats"></div>
     <div class="controls"><button class="btn primary" id="pauseBtn">멈춤</button><button class="btn" id="stepBtn">한 걸음</button><button class="btn" id="speedBtn">속도 1x</button><button class="btn" id="directorBtn" title="사건 감독 교체">감독 🎭 카산드라</button><button class="btn warn" id="saveBtn">저장</button><button class="btn" id="resetBtn">새 마을</button></div>
   </header>
-
-  <nav class="mobileTabs" id="mobileTabs"><button data-mtab="village" class="on">마을</button><button data-mtab="status">AI마을 현황</button><button data-mtab="observe">AI마을 관찰</button><button data-mtab="records">기록</button></nav>
 
   <div class="hud"><div class="chip">시간 <b id="clock">1일 07:00</b></div><div class="chip">마을 <b id="scene">아침 정리</b></div><div class="chip">입력 <b id="inputState">0</b></div></div>
 
