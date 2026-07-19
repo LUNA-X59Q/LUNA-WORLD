@@ -157,7 +157,7 @@ button:focus-visible,input:focus-visible{outline:2px solid rgba(137,216,255,.72)
   <section class="dock">
     <div class="tabs"><button class="tab active" data-tab="life">일대기</button><button class="tab" data-tab="chron">연대기</button><button class="tab" data-tab="talk">대화</button><button class="tab" data-tab="news">소식지도</button><button class="tab" data-tab="dev">발전·기술</button><button class="tab" data-tab="work">산출물</button><button class="tab" data-tab="research">연구 대응표</button></div>
     <div class="panel active" id="panel-life"><div class="timeline" id="lifeLog"></div></div>
-    <div class="panel" id="panel-chron"><div class="chronBar" id="chronBar"></div><div class="timeline" id="chronLog"></div></div>
+    <div class="panel" id="panel-chron"><div class="grid2" id="storyList" style="margin-bottom:11px"></div><div class="chronBar" id="chronBar"></div><div class="timeline" id="chronLog"></div></div>
     <div class="panel" id="panel-talk"><div id="talkLog"></div></div>
     <div class="panel" id="panel-news"><div class="grid2" id="newsList"></div></div>
     <div class="panel" id="panel-dev"><div class="grid3" id="devList"></div></div>
@@ -186,6 +186,8 @@ const overlap=(a,b)=>{let n=0;for(const x of a)if(b.includes(x))n++;return n};
 // ── Tracery식 치환 문법 + 한국어 조사 (docs/research/tracery.md) ──
 function jongCode(s){if(!s)return -1;const c=s.charCodeAt(s.length-1)-0xAC00;return c>=0&&c<11172?c%28:-1}
 const JOSA={i:['이','가'],eun:['은','는'],eul:['을','를'],gwa:['과','와'],euro:['으로','로'],ram:['이라면','라면']};
+// 이름·제목 뒤 조사를 받침에 맞춘다 — 꼬리의 기호(」 등)는 떼고 마지막 한글로 판정
+const N=(w,m)=>{const s=String(w).replace(/[^가-힣]+$/,'');const j=jongCode(s),p=JOSA[m];return w+(m==='euro'?(j>0&&j!==8?p[0]:p[1]):(j>0?p[0]:p[1]))};
 const G={
   '주제':['오늘 일정','마을발전기','관계 온도','다음 행사','작은 도구','기억 도서관','광장의 소문','온실의 새 작물','거처 손질','약속 지키는 법','광장 게시판','이웃 마을 소식','밤하늘 관측','겨울 준비'],
   '장소':['별빛 광장','기억 도서관','관측대','온실 정원','공방'],
@@ -313,7 +315,7 @@ function projectAt(place){return projects.filter(p=>p.place===place&&!p.done).so
 function hasSkill(name){return skills.some(s=>s.name===name)}
 // ── DF 전설 모드식 연대기: 일대기는 90줄에서 잘리지만, 굵직한 사건은 영구층(연대기)에 남아
 //    인물·장소·종류 축으로 교차 열람된다 (docs/research/dwarf-fortress.md) ──
-const CHRON_KINDS=['시작','아침','소식','확인','완성','성격','사건','감독','따라잡기','낡음','약속','화해','행사','관습','글','거처','취향'];
+const CHRON_KINDS=['시작','아침','소식','확인','완성','성격','사건','감독','따라잡기','낡음','약속','화해','행사','관습','글','거처','취향','갈등'];
 function chron(text,kind){
   if(!CHRON_KINDS.includes(kind))return;
   state.chronicle.unshift({time:timeText(),day:state.day,text,kind,
@@ -343,15 +345,15 @@ function makeBundle(a){
   const counts={}; recent.forEach(m=>m.tags.forEach(t=>counts[t]=(counts[t]||0)+1));
   const topic=Object.entries(counts).sort((x,y)=>y[1]-x[1])[0]?.[0]||'마을';
   const lines={
-    '소식':`${a.name}은 퍼지는 말에는 경로와 근거가 함께 필요하다고 정리했다.`,
-    '관계':`${a.name}은 가까운 관계가 일을 빠르게 움직이지만, 확인 없는 동의는 마을을 헷갈리게 만든다고 느꼈다.`,
-    '기술':`${a.name}은 반복되는 일을 작은 도구로 묶으면 마을이 오래 버틴다고 보았다.`,
-    '문화':`${a.name}은 행사가 단순한 놀이가 아니라 주민들이 같은 시간을 약속하는 방식이라고 여겼다.`,
-    '확인':`${a.name}은 소식이 퍼지기 전에 한 번 멈춰 근거를 보는 습관이 중요하다고 묶어두었다.`,
-    '갈등':`${a.name}은 어긋난 말들이 쌓일 땐 밀어붙이기보다 거리와 시간이 필요하다고 정리했다.`,
-    '낡음':`${a.name}은 만든 것을 지키는 일이 만드는 일만큼 크다는 것을 깨달았다.`
+    '소식':`${N(a.name,'eun')} 퍼지는 말에는 경로와 근거가 함께 필요하다고 정리했다.`,
+    '관계':`${N(a.name,'eun')} 가까운 관계가 일을 빠르게 움직이지만, 확인 없는 동의는 마을을 헷갈리게 만든다고 느꼈다.`,
+    '기술':`${N(a.name,'eun')} 반복되는 일을 작은 도구로 묶으면 마을이 오래 버틴다고 보았다.`,
+    '문화':`${N(a.name,'eun')} 행사가 단순한 놀이가 아니라 주민들이 같은 시간을 약속하는 방식이라고 여겼다.`,
+    '확인':`${N(a.name,'eun')} 소식이 퍼지기 전에 한 번 멈춰 근거를 보는 습관이 중요하다고 묶어두었다.`,
+    '갈등':`${N(a.name,'eun')} 어긋난 말들이 쌓일 땐 밀어붙이기보다 거리와 시간이 필요하다고 정리했다.`,
+    '낡음':`${N(a.name,'eun')} 만든 것을 지키는 일이 만드는 일만큼 크다는 것을 깨달았다.`
   };
-  const text=lines[topic]||`${a.name}은 최근의 여러 일을 묶어 ${topic} 쪽이 다음 움직임의 열쇠라고 보았다.`;
+  const text=lines[topic]||`${N(a.name,'eun')} 최근의 여러 일을 묶어 ${topic} 쪽이 다음 움직임의 열쇠라고 보았다.`;
   memory(a,text,[topic,'묶음','기억'],8,'묶음',{},false); a.thought=text;
   // 기억이 영구층으로 내려가는 순간 성격이 반드시 이동한다 — 기억→성격→행동의 되먹임 고리
   const drift={'소식':['신중',2],'확인':['신중',3],'관계':['사교',2],'대화':['사교',2],'갈등':['신중',2],'낡음':['끈기',2],'기술':['끈기',3],'도구':['끈기',2],'발전':['끈기',2],'문화':['낙관',3],'회복':['낙관',2],'혼선':['신중',2],'계획':['끈기',2],'기록':['신중',2]}[topic]||['끈기',1];
@@ -373,7 +375,7 @@ function buildPlan(a){
     {s:20,e:23.8,place:a.energy<45?'garden':homeOf(a),label:'하루 정리'},
     {s:0,e:7,place:homeOf(a),label:'밤 쉼'} // 밤은 거처에서 — 방문 약속이 저녁에 이뤄지는 이유
   ];
-  a.lastSlot=-1; memory(a,`${a.name}은 오늘 ${weak?weak.name:'각자의 일'}을 중심에 두고 하루 동선을 잡았다.`,['계획',weak?weak.place:focus,weak?weak.need:'마을'],6,'계획',{},false);
+  a.lastSlot=-1; memory(a,`${N(a.name,'eun')} 오늘 ${weak?weak.name:'각자의 일'}을 중심에 두고 하루 동선을 잡았다.`,['계획',weak?weak.place:focus,weak?weak.need:'마을'],6,'계획',{},false);
 }
 function currentSlot(a){const h=state.hour;return a.plan.find(s=>s.s<=h&&h<s.e)||a.plan.find(s=>s.s===0)}
 function chooseDestination(a){
@@ -397,14 +399,26 @@ function createNews(text,origin='루나',givenAgents=null,opts={}){
   starters.forEach(a=>giveNews(a,n,{name:origin,id:'outside'},n.confidence));
   addLife(`새 소식이 들어왔다. “${text}”`, '소식'); addTalk(origin,text,'입력'); return n;
 }
+// ── TotT식 소문 왜곡: 말은 사람을 타며 조금씩 바뀐다 — 장소가 미끄러지고, 표현이 부풀고,
+//    꼬리가 붙는다. 글(게시판)은 바뀌지 않는다 (docs/research/talk-of-the-town.md) ──
+const INTENSIFY=[['낯선','수상한'],['작은','큰'],['말이 돈다','확실하다더라'],['보고 싶다는','가져가고 싶다는'],['조금','꽤'],['하나가','여럿이'],['발견됐다','발견됐다는데 더 있을지도 모른다']];
+function distort(text){
+  const t=String(text), r=rnd();
+  const bNames=buildings.filter(b=>b.kind!=='거처'&&t.includes(b.name));
+  if(bNames.length&&r<.45){const from=pick(bNames), to=pick(buildings.filter(b=>b.kind!=='거처'&&b.name!==from.name)); return t.replace(from.name,to.name)}
+  const hit=INTENSIFY.filter(([w])=>t.includes(w));
+  if(hit.length&&r<.8){const [w,v]=pick(hit); return t.replace(w,v)}
+  return t.length<70?t+' — 듣기로는 생각보다 큰 일이라더라':t;
+}
 // ── 루나의 도서관 이식: 소문은 듣는 이의 기억에 비추어 내려앉는다 —
 //    일치하면 증폭, 충돌하면 의심·역소문의 씨앗, 겪은 게 없으면 그대로 첫인상이 된다 ──
-function giveNews(a,n,from,confidence){
+function giveNews(a,n,from,confidence,heardText){
   if(a.known[n.id]){a.known[n.id].confidence=clamp(Math.max(a.known[n.id].confidence,confidence),0,100);return}
+  const heard=heardText||n.text;
   if(n.subject===a.id){ // 제 얘기가 도는 걸 듣는 순간도 하나의 사건이다
-    n.knownBy.push(a.id); a.known[n.id]={heard:now(),from:from.name||from.id,confidence:clamp(confidence,10,95)};
+    n.knownBy.push(a.id); a.known[n.id]={heard:now(),from:from.name||from.id,confidence:clamp(confidence,10,95),text:heard};
     a.mood=clamp(a.mood+(n.stance==='의심'?-6:4),0,100);
-    memory(a,`내 이야기가 돌고 있다는 걸 알았다 — “${n.text}”.`,['소식','관계'],7,'소식',{news:n.id,from:from.id});
+    memory(a,`내 이야기가 돌고 있다는 걸 알았다 — “${heard}”.`,['소식','관계'],7,'소식',{news:n.id,from:from.id});
     return;
   }
   let conf=confidence, landing='';
@@ -419,14 +433,14 @@ function giveNews(a,n,from,confidence){
       conf=clamp(conf*.55,8,60);landing='의심';
       if(negNews&&!n.countered&&pos>=2&&rnd()<.6){
         n.countered=true;
-        createNews(`${a.name}은 “${n.text.slice(0,22)}…”라는 말이 자기가 아는 ${s?s.name:'그'}와 다르다고 잘라 말했다`,a.name,[a],{subject:n.subject,stance:'옹호'});
-        addLife(`${a.name}이 떠도는 말에 반박했다 — 겪어본 ${s?s.name:'그'}는 다르다는 것이다.`,'소식');
+        createNews(`${N(a.name,'eun')} “${n.text.slice(0,22)}…”라는 말이 자기가 아는 ${s?s.name:'그'}와 다르다고 잘라 말했다`,a.name,[a],{subject:n.subject,stance:'옹호'});
+        addLife(`${N(a.name,'i')} 떠도는 말에 반박했다 — 겪어본 ${s?s.name:'그'}는 다르다는 것이다.`,'소식');
       }
     }
   }
-  n.knownBy.push(a.id); a.known[n.id]={heard:now(),from:from.name||from.id,confidence:clamp(conf,10,95),landing};
+  n.knownBy.push(a.id); a.known[n.id]={heard:now(),from:from.name||from.id,confidence:clamp(conf,10,95),landing,text:heard};
   const tail=landing==='공명'?' 내 기억과 겹쳐 그럴 만하다 싶었다.':landing==='의심'?' 내가 겪은 것과 달라 고개가 갸웃해졌다.':landing==='첫인상'?' 겪은 적 없는 이야기라 그대로 첫인상이 되었다.':'';
-  memory(a,`${from.name||from.id}에게서 “${n.text}”라는 소식을 들었다.${tail}`,['소식','관계'],Math.max(4,conf/12),'소식',{news:n.id,from:from.id});
+  memory(a,`${from.name||from.id}에게서 “${heard}”라는 소식을 들었다.${tail}`,['소식','관계'],Math.max(4,conf/12),'소식',{news:n.id,from:from.id});
 }
 // ── 루나의 도서관 이식 묶음: 장소의 역사 · 욕망 되먹임 · 약속과 쌍 중력 · 광장 글 · 주민 발의 행사 ──
 function placeEcho(placeId,kind,text){const b=building(placeId);if(!b)return;b.log.unshift({time:timeText(),kind,text:String(text).slice(0,64)});b.log=b.log.slice(0,6)}
@@ -487,12 +501,12 @@ function promiseTick(){
       A.rel[B.id]=clamp(A.rel[B.id]+6,0,100); B.rel[A.id]=clamp(B.rel[A.id]+6,0,100);
       A.mood=clamp(A.mood+4,0,100); B.mood=clamp(B.mood+4,0,100);
       const pl=building(p.place); let text;
-      if(p.kind==='방문')text=`${A.name}이 약속대로 ${B.name}의 거처를 찾아 오래 이야기를 나눴다.`;
-      else{const pr=projectAt(p.place); if(pr){pr.p=clamp(pr.p+7,0,100); if(pr.p>=100)completeProject(pr,A,pl)} text=`${A.name}과 ${B.name}이 약속대로 ${pl.name}에 모여 함께 일했다.`}
+      if(p.kind==='방문')text=`${N(A.name,'i')} 약속대로 ${B.name}의 거처를 찾아 오래 이야기를 나눴다.`;
+      else{const pr=projectAt(p.place); if(pr){pr.p=clamp(pr.p+7,0,100); if(pr.p>=100)completeProject(pr,A,pl)} text=`${N(A.name,'gwa')} ${N(B.name,'i')} 약속대로 ${pl.name}에 모여 함께 일했다.`}
       memory(A,text,['약속','관계',p.place],7,'약속',{with:B.id}); memory(B,text,['약속','관계',p.place],7,'약속',{with:A.id});
       addLife(text,'약속'); placeEcho(p.place,'약속',text);
       A.bubble=p.kind==='방문'?'약속 지키러 왔어.':'둘이 하니 금방이네.'; B.bubble='와줘서 고마워.'; A.bubbleT=B.bubbleT=3.2;
-      [A,B].forEach(x=>{if(x.kept>=3&&!x.repGood){x.repGood=true;createNews(`${x.name}은 말한 것은 꼭 지킨다는 이야기가 돈다`,'광장의 말',null,{subject:x.id,stance:'옹호'})}});
+      [A,B].forEach(x=>{if(x.kept>=3&&!x.repGood){x.repGood=true;createNews(`${N(x.name,'eun')} 말한 것은 꼭 지킨다는 이야기가 돈다`,'광장의 말',null,{subject:x.id,stance:'옹호'})}});
     } else if(now()>p.due+6){
       p.status='깨짐'; state.breachTotal++;
       const atA=A.place===p.place, atB=B.place===p.place;
@@ -501,10 +515,10 @@ function promiseTick(){
       culprits.forEach(c=>{c.breaches++; const o=c===A?B:A; c.mood=clamp(c.mood-3,0,100);
         memory(c,`${p.text} — 끝내 지키지 못했다.`,['약속','갈등'],6,'약속',{with:o.id})});
       waiters.forEach(w=>{const o=w===A?B:A; w.rel[o.id]=clamp(w.rel[o.id]-5,0,100); w.mood=clamp(w.mood-4,0,100);
-        memory(w,`${o.name}이 약속을 지키지 않았다. ${building(p.place).name}에서 혼자 기다렸다.`,['약속','갈등'],7,'약속',{with:o.id});
-        addDesire(w,'화해',`${o.name}과 약속 이야기를 매듭짓고 싶다`,o.id,26)});
-      addLife(`${A.name}과 ${B.name}의 약속이 어그러졌다 — ${p.kind==='방문'?'거처 방문':'함께 일하기'}는 없던 일이 됐다.`,'약속');
-      culprits.forEach(c=>{if(c.breaches>=2&&!c.repBad){c.repBad=true;createNews(`${c.name}이 약속을 자꾸 미룬다는 말이 돈다`,'광장의 말',null,{subject:c.id,stance:'의심'})}});
+        memory(w,`${N(o.name,'i')} 약속을 지키지 않았다. ${building(p.place).name}에서 혼자 기다렸다.`,['약속','갈등'],7,'약속',{with:o.id});
+        addDesire(w,'화해',`${N(o.name,'gwa')} 약속 이야기를 매듭짓고 싶다`,o.id,26)});
+      addLife(`${N(A.name,'gwa')} ${B.name}의 약속이 어그러졌다 — ${p.kind==='방문'?'거처 방문':'함께 일하기'}는 없던 일이 됐다.`,'약속');
+      culprits.forEach(c=>{if(c.breaches>=2&&!c.repBad){c.repBad=true;createNews(`${N(c.name,'i')} 약속을 자꾸 미룬다는 말이 돈다`,'광장의 말',null,{subject:c.id,stance:'의심'})}});
       if(state.breachTotal>=4&&!state.customs.length){
         state.customs.push({text:'약속은 헤어지기 전에 소리 내어 한 번 더 확인한다',time:timeText()});
         addLife('어그러진 약속들이 쌓이자 마을에 첫 관습이 생겼다 — 약속은 헤어지기 전에 소리 내어 확인하기.','관습');
@@ -520,16 +534,17 @@ function maybePost(a){
   const n=state.news.find(x=>a.known[x.id]&&a.known[x.id].confidence>66&&!state.posts.some(p=>p.newsId===x.id));
   const bundle=a.memories.find(m=>m.type==='묶음');
   let text=null,newsId=null;
+  let newsVer=null;
   if(brag){text=brag.text; a.desires=a.desires.filter(d=>d!==brag)}
-  else if(n&&rnd()<.6){text=`들은 이야기를 남겨둔다 — ${n.text}`; newsId=n.id}
+  else if(n&&rnd()<.6){newsVer=a.known[n.id].text||n.text; text=`들은 이야기를 남겨둔다 — ${newsVer}`; newsId=n.id}
   else if(bundle&&rnd()<.5)text=bundle.text;
   else if(rnd()<.4)text=`${pick(a.taste.likes)}에 대한 짧은 단상을 적었다.`;
   else text=`${gen('글감')}에 대해 몇 줄 적어두었다.`;
-  state.posts.unshift({id:'w'+postSeq++,by:a.id,name:a.name,text,newsId,t:now(),time:timeText(),readBy:[a.id]});
+  state.posts.unshift({id:'w'+postSeq++,by:a.id,name:a.name,text,newsId,newsVer,t:now(),time:timeText(),readBy:[a.id]});
   state.posts=state.posts.slice(0,18);
   addTalk(a.name,`〈광장 글〉 ${text}`,'글');
   memory(a,`광장 게시판에 글을 남겼다 — “${String(text).slice(0,30)}…”.`,['광장','기록'],4,'글');
-  if(rnd()<.4)addLife(`${a.name}이 광장에 글을 남겼다.`,'글');
+  if(rnd()<.4)addLife(`${N(a.name,'i')} 광장에 글을 남겼다.`,'글');
 }
 function readPosts(a){
   if(a.op||nearbyBuilding(a)?.id!=='square'||rnd()>.012)return;
@@ -539,7 +554,8 @@ function readPosts(a){
   if(post.newsId){
     const n=state.news.find(x=>x.id===post.newsId);
     if(n&&!a.known[n.id]){
-      giveNews(a,n,{name:`${post.name}의 글`,id:post.by},58+rnd()*10);
+      // 글은 왜곡되지 않는다 — 쓴 사람이 알던 판본 그대로 읽힌다
+      giveNews(a,n,{name:`${post.name}의 글`,id:post.by},58+rnd()*10,post.newsVer);
       n.path.push({from:post.by,to:a.id,time:timeText(),confidence:60});
       state.spreads.unshift({news:n.id,from:post.by,to:a.id,t:now()}); state.spreads=state.spreads.slice(0,36);
     }
@@ -549,9 +565,9 @@ function readPosts(a){
 // 참석은 관계·성격·기분이 정한다 (Smallville 발렌타인 파티 문법)
 function planGathering(host){
   const title=rnd()<.3?`${pick(host.taste.likes)}의 밤`:gen('행사이름'), place=rnd()<.5?'studio':'square', at=(state.day+1)*24+19+rnd()*1.5;
-  const n=createNews(`${host.name}이 내일 저녁 ${building(place).name}에서 「${title}」 자리를 연다더라`,host.name,[host,pick(agents.filter(x=>x!==host))]);
+  const n=createNews(`${N(host.name,'i')} 내일 저녁 ${building(place).name}에서 「${title}」 자리를 연다더라`,host.name,[host,pick(agents.filter(x=>x!==host))]);
   state.gathering={id:'g'+gathSeq++,host:host.id,title,place,at,endAt:at+2.2,newsId:n.id,attended:[],pulse:0};
-  addLife(`${host.name}이 「${title}」 모임을 열겠다고 알렸다 — 초대가 입에서 입으로 번진다.`,'행사');
+  addLife(`${N(host.name,'i')} 「${title}」 모임을 열겠다고 알렸다 — 초대가 입에서 입으로 번진다.`,'행사');
   memory(host,`「${title}」 모임을 열기로 마음먹고 이웃들에게 알렸다.`,['행사','문화'],7,'행사');
   host.desires=host.desires.filter(d=>d.kind!=='행사');
 }
@@ -590,7 +606,7 @@ function gatheringTick(){
     } else {
       host.mood=clamp(host.mood-8,0,100);
       memory(host,`「${g.title}」에 아무도 오지 않다시피 했다. 빈 자리가 오래 보였다.`,['행사','갈등'],8,'행사');
-      addLife(`「${g.title}」은 조용히 끝났다 — 자리는 마련됐지만 사람이 모이지 않았다.`,'행사');
+      addLife(`${N('「'+g.title+'」','eun')} 조용히 끝났다 — 자리는 마련됐지만 사람이 모이지 않았다.`,'행사');
       addDesire(host,'어울림','빈 자리의 기억을 지우고 싶다',null,30);
     }
     state.gathering=null;
@@ -617,24 +633,31 @@ function finishOperation(a){
       const boost=(hasSkill('반복 작업 묶기')?1.18:1)*(hasSkill('기억 색인')&&op.place==='library'?1.14:1);
       const gain=clamp(4+rnd()*6+norm(a.focus,30,95)*5,3,13)*boost;
       pr.p=clamp(pr.p+gain,0,100); state.resources[pr.need]=clamp((state.resources[pr.need]||0)+.9,0,100); a.focus=clamp(a.focus-4,0,100); a.mood=clamp(a.mood+1.5,0,100);
-      text=`${a.name}이 ${place.name}에서 ${pr.name}을 ${Math.round(gain)}만큼 진척했다.`; memory(a,`${pr.name}에 손을 보태 진행이 또렷해졌다.`,[pr.need,op.place,'발전'],6,'작업',{project:pr.id});
+      text=`${N(a.name,'i')} ${place.name}에서 ${N(pr.name,'eul')} ${Math.round(gain)}만큼 진척했다.`; memory(a,`${pr.name}에 손을 보태 진행이 또렷해졌다.`,[pr.need,op.place,'발전'],6,'작업',{project:pr.id});
       a.desires=a.desires.filter(d=>!(d.kind==='손질'&&d.target===pr.id)); // 손보고 싶던 바람이 풀렸다
       if(pr.p>=100)completeProject(pr,a,place);
     }
   } else if(op.type==='verify'){
     const n=state.news.find(x=>x.id===op.newsId); if(n){n.checks++; const success=rnd()+norm(a.focus,20,90)*.45+(hasSkill('근거 확인')?.22:0)>.38;
-      if(success){n.verified=true;n.confidence=clamp(n.confidence+22,0,96);state.resources.혼선=clamp(state.resources.혼선-7,0,100);state.resources.신뢰=clamp(state.resources.신뢰+3,0,100);text=`${a.name}이 “${n.text.slice(0,34)}${n.text.length>34?'…':''}”의 근거를 확인했다.`;state.artifacts.unshift({id:'art'+artifactSeq++,title:'확인 메모',by:a.name,where:place.name,time:timeText(),text:`${n.text} — 확인 경로가 붙었다.`});agents.forEach(o=>{if(o.known[n.id])o.known[n.id].confidence=clamp(o.known[n.id].confidence+18,0,98)});} 
-      else {state.resources.혼선=clamp(state.resources.혼선+4,0,100);text=`${a.name}이 소식을 확인하려 했지만 근거가 부족해 보류했다.`;}
+      if(success){n.verified=true;n.confidence=clamp(n.confidence+22,0,96);state.resources.혼선=clamp(state.resources.혼선-7,0,100);state.resources.신뢰=clamp(state.resources.신뢰+3,0,100);
+        const twisted=n.distorted||agents.some(o=>o.known[n.id]&&o.known[n.id].text&&o.known[n.id].text!==n.text);
+        if(twisted){ // 원본과 다르게 퍼진 것을 발견한다 — 검증은 사실만이 아니라 판본도 바로잡는다
+          text=`${N(a.name,'i')} 근거를 확인하다 말이 퍼지며 바뀐 것을 발견했다 — 원래는 “${n.text.slice(0,30)}${n.text.length>30?'…':''}”였다.`;
+          agents.forEach(o=>{if(o.known[n.id])o.known[n.id].text=n.text}); n.distorted=false;
+          state.resources.혼선=clamp(state.resources.혼선-3,0,100);
+        } else text=`${N(a.name,'i')} “${n.text.slice(0,34)}${n.text.length>34?'…':''}”의 근거를 확인했다.`;
+        state.artifacts.unshift({id:'art'+artifactSeq++,title:twisted?'교정 메모':'확인 메모',by:a.name,where:place.name,time:timeText(),text:`${n.text} — ${twisted?'퍼진 판본이 원본으로 교정됐다.':'확인 경로가 붙었다.'}`});agents.forEach(o=>{if(o.known[n.id])o.known[n.id].confidence=clamp(o.known[n.id].confidence+18,0,98)});}
+      else {state.resources.혼선=clamp(state.resources.혼선+4,0,100);text=`${N(a.name,'i')} 소식을 확인하려 했지만 근거가 부족해 보류했다.`;}
       memory(a,text,['확인','소식','근거'],success?8:5,'확인',{news:n.id});
     }
   } else if(op.type==='tool'){
     const tool=pick(place.tools); const fail=rnd()>(.60+norm(a.focus,30,90)*.22+(hasSkill('반복 작업 묶기')?.12:0));
-    if(fail){state.resources.혼선=clamp(state.resources.혼선+2,0,100);text=`${a.name}이 ${place.name}에서 ${tool}을 시험하다가 작은 시행착오를 겪었다.`;memory(a,text,['도구','혼선',place.id],4,'도구');}
-    else {state.resources.기술=clamp(state.resources.기술+1.4,0,100);text=`${a.name}이 ${place.name}에서 ${tool}을 작은 절차로 정리했다.`;state.artifacts.unshift({id:'art'+artifactSeq++,title:`${tool} 노트`,by:a.name,where:place.name,time:timeText(),text:`다음번에는 더 짧은 절차로 반복할 수 있게 되었다.`});memory(a,text,['도구','기술',place.id],7,'도구');}
+    if(fail){state.resources.혼선=clamp(state.resources.혼선+2,0,100);text=`${N(a.name,'i')} ${place.name}에서 ${tool}을 시험하다가 작은 시행착오를 겪었다.`;memory(a,text,['도구','혼선',place.id],4,'도구');}
+    else {state.resources.기술=clamp(state.resources.기술+1.4,0,100);text=`${N(a.name,'i')} ${place.name}에서 ${tool}을 작은 절차로 정리했다.`;state.artifacts.unshift({id:'art'+artifactSeq++,title:`${tool} 노트`,by:a.name,where:place.name,time:timeText(),text:`다음번에는 더 짧은 절차로 반복할 수 있게 되었다.`});memory(a,text,['도구','기술',place.id],7,'도구');}
   } else if(op.type==='archive'){
-    const mem=pick(a.memories.slice(0,8)); text=`${a.name}이 ${place.name}에서 “${mem?mem.text.slice(0,30):'오늘의 일'}…”을 짧게 정리했다.`; memory(a,text,['기록','기억',place.id],5,'기록'); state.resources.기술=clamp(state.resources.기술+.5,0,100);
+    const mem=pick(a.memories.slice(0,8)); text=`${N(a.name,'i')} ${place.name}에서 “${mem?mem.text.slice(0,30):'오늘의 일'}…”을 짧게 정리했다.`; memory(a,text,['기록','기억',place.id],5,'기록'); state.resources.기술=clamp(state.resources.기술+.5,0,100);
   } else if(op.type==='recover'){
-    text=`${a.name}이 ${place.name}에서 잠깐 숨을 고르고 다시 움직일 힘을 얻었다.`; a.energy=clamp(a.energy+13,0,100); a.mood=clamp(a.mood+3,0,100); memory(a,text,['회복','활기',place.id],4,'회복');
+    text=`${N(a.name,'i')} ${place.name}에서 잠깐 숨을 고르고 다시 움직일 힘을 얻었다.`; a.energy=clamp(a.energy+13,0,100); a.mood=clamp(a.mood+3,0,100); memory(a,text,['회복','활기',place.id],4,'회복');
   } else if(op.type==='tend'){
     // 거처 가꾸기 — 굳은 기억(묶음)이나 가장 도드라진 성격 축이 방 안의 흔적으로 남는다
     const bundle=a.memories.find(m=>m.type==='묶음');
@@ -642,7 +665,7 @@ function finishOperation(a){
     const decoPool={낙관:'창가에 밝은 빛깔의 천이 걸렸다',신중:'문 옆에 가지런한 기록 선반이 늘었다',사교:'손님 자리에 방석이 하나 더 놓였다',끈기:'구석의 작업대가 반들반들해졌다'};
     const deco=bundle&&rnd()<.55?`벽에 「${bundle.text.slice(0,26)}…」라는 문장이 붙었다`:rnd()<.5?gen('거처취향',{'취향':pick(a.taste.likes)}):decoPool[axis];
     if(!place.deco.includes(deco))place.deco.unshift(deco); place.deco=place.deco.slice(0,4);
-    a.mood=clamp(a.mood+5,0,100); text=`${a.name}이 거처를 가꿨다 — ${deco}.`;
+    a.mood=clamp(a.mood+5,0,100); text=`${N(a.name,'i')} 거처를 가꿨다 — ${deco}.`;
     memory(a,text,['거처','회복'],5,'거처'); placeEcho(place.id,'거처',deco);
   }
   if(text){addLife(text,op.type==='verify'?'확인':op.type==='tool'?'도구':op.type==='project'?'발전':op.type==='tend'?'거처':'기록');addRecentOp(text)}
@@ -652,19 +675,19 @@ function completeProject(pr,a,place){
   if(pr.done)return; pr.done=true; pr.p=100; place.lv++; state.resources.활기=clamp(state.resources.활기+5,0,100); state.resources.신뢰=clamp(state.resources.신뢰+3,0,100);
   if(!skills.some(s=>s.name===pr.skill))skills.unshift({id:'s'+skills.length,name:pr.skill,desc:`${pr.name}에서 생긴 재사용 가능한 행동 묶음`,level:1,source:place.name}); else skills.find(s=>s.name===pr.skill).level++;
   const title=pr.skill==='반복 작업 묶기'?'마을발전기 첫 회전':`${pr.skill} 카드`;
-  state.artifacts.unshift({id:'art'+artifactSeq++,title,by:a.name,where:place.name,time:timeText(),text:`${pr.name}이 완성되며 ${place.name}의 레벨이 올랐다.`});
-  addLife(`${a.name}이 ${place.name}에서 「${title}」을 완성했다.`, '완성'); placeEcho(place.id,'완성',`「${title}」이 여기서 완성됐다`);
-  agents.forEach(o=>{memory(o,`${pr.name}이 완성되어 마을의 다음 행동이 쉬워졌다.`,['발전',pr.need,pr.place],7,'소식',{project:pr.id}); if(o!==a)o.rel[a.id]=clamp(o.rel[a.id]+5,0,100)});
-  addDesire(a,'자랑',`「${title}」을 끝낸 이야기를 나누고 싶다`,null,26); // 완성은 나누고 싶은 마음을 남긴다
+  state.artifacts.unshift({id:'art'+artifactSeq++,title,by:a.name,where:place.name,time:timeText(),text:`${N(pr.name,'i')} 완성되며 ${place.name}의 레벨이 올랐다.`});
+  addLife(`${N(a.name,'i')} ${place.name}에서 ${N('「'+title+'」','eul')} 완성했다.`, '완성'); placeEcho(place.id,'완성',`${N('「'+title+'」','i')} 여기서 완성됐다`);
+  agents.forEach(o=>{memory(o,`${N(pr.name,'i')} 완성되어 마을의 다음 행동이 쉬워졌다.`,['발전',pr.need,pr.place],7,'소식',{project:pr.id}); if(o!==a)o.rel[a.id]=clamp(o.rel[a.id]+5,0,100)});
+  addDesire(a,'자랑',`${N('「'+title+'」','eul')} 끝낸 이야기를 나누고 싶다`,null,26); // 완성은 나누고 싶은 마음을 남긴다
   toast(`${title} 완성`);
 }
 // DF의 교훈 "Losing is fun": 망가질 수 없는 마을은 이야기를 못 쓴다 —
 // 완성된 것은 세월과 사건에 낡아 다시 손질거리가 된다 (기술 서랍과 건물 레벨은 역사로 남는다)
 function decayProject(pr,why){
-  if(!pr||!pr.done)return; pr.done=false; pr.p=55+rnd()*15;
-  addLife(`${pr.name}이 낡아 다시 손질이 필요해졌다 (${why}).`,'낡음');
-  agents.filter(a=>a.baseTags.includes(pr.need)).forEach(a=>{memory(a,`${pr.name}이 낡은 것을 보고 손볼 일을 마음에 두었다.`,[pr.need,pr.place,'낡음'],5,'관찰');addDesire(a,'손질',`${pr.name}을 다시 손보고 싶다`,pr.id,28)});
-  placeEcho(pr.place,'낡음',`${pr.name}이 낡아 손길을 기다린다`);
+  if(!pr||!pr.done)return; pr.done=false; pr.p=55+rnd()*15; pr.cycles=(pr.cycles||0)+1;
+  addLife(`${N(pr.name,'i')} 낡아 다시 손질이 필요해졌다 (${why}).`,'낡음');
+  agents.filter(a=>a.baseTags.includes(pr.need)).forEach(a=>{memory(a,`${N(pr.name,'i')} 낡은 것을 보고 손볼 일을 마음에 두었다.`,[pr.need,pr.place,'낡음'],5,'관찰');addDesire(a,'손질',`${N(pr.name,'eul')} 다시 손보고 싶다`,pr.id,28)});
+  placeEcho(pr.place,'낡음',`${N(pr.name,'i')} 낡아 손길을 기다린다`);
 }
 function nearbyBuilding(a){return buildings.find(b=>Math.abs(a.x-b.x)<b.w*.55&&Math.abs(a.y-b.y)<b.h*.55)}
 // ── The Sims식 광고: 건물이 "여기서 할 수 있는 일과 효용"을 광고하고,
@@ -691,8 +714,8 @@ function workDecision(a){
 }
 function observe(a){
   if(rnd()>.025)return; const near=agents.filter(o=>o!==a&&dist(a,o)<90); const place=nearbyBuilding(a);
-  if(near.length){const o=pick(near); memory(a,`${o.name}이 ${place?place.name:'길목'} 근처에서 ${o.task} 모습을 보았다.`,['관계',o.role,place?place.id:'길목'],3,'관찰',{agent:o.id});}
-  else if(place&&place.id===a.taste.spot){a.mood=clamp(a.mood+1,0,100);memory(a,`${place.name}은 역시 마음이 놓이는 자리다. ${pick(a.taste.likes)}이 떠올랐다.`,[place.id,'취향'],3,'관찰');}
+  if(near.length){const o=pick(near); memory(a,`${N(o.name,'i')} ${place?place.name:'길목'} 근처에서 ${o.task} 모습을 보았다.`,['관계',o.role,place?place.id:'길목'],3,'관찰',{agent:o.id});}
+  else if(place&&place.id===a.taste.spot){a.mood=clamp(a.mood+1,0,100);memory(a,`${N(place.name,'eun')} 역시 마음이 놓이는 자리다. ${N(pick(a.taste.likes),'i')} 떠올랐다.`,[place.id,'취향'],3,'관찰');}
   else if(place)memory(a,`${place.name}의 분위기가 ${state.scene}에 맞춰 조금 달라졌다.`,[place.id,place.kind],2,'관찰');
 }
 function converse(a,b){
@@ -710,13 +733,17 @@ function converse(a,b){
     // 바람을 품은 쪽이 먼저 손을 내민다 — 화해가 이뤄지면 중력의 이유 하나가 사라진다
     if(recon!==speaker){const t=speaker;speaker=listener;listener=t}
     line=gen('화해말'); kind='화해'; delta=6;
-    summary=`${speaker.name}이 먼저 손을 내밀어 ${listener.name}과 어긋났던 매듭을 풀었다.`;
+    summary=`${N(speaker.name,'i')} 먼저 손을 내밀어 ${N(listener.name,'gwa')} 어긋났던 매듭을 풀었다.`;
     [speaker,listener].forEach(x=>{x.desires=x.desires.filter(d=>!(d.kind==='화해'&&(d.target===speaker.id||d.target===listener.id)));x.mood=clamp(x.mood+4,0,100)});
   } else if(transferable){
-    const conf=clamp(speaker.known[transferable.id].confidence-6+rnd()*12,12,94); giveNews(listener,transferable,speaker,conf); transferable.path.push({from:speaker.id,to:listener.id,time:timeText(),confidence:Math.round(conf)}); state.spreads.unshift({news:transferable.id,from:speaker.id,to:listener.id,t:now()}); state.spreads=state.spreads.slice(0,36);
-    line=transferable.verified?`확인된 말인데, ${transferable.text}`:`아직 확인 중이지만, ${transferable.text}`; kind=transferable.verified?'공유':'소식'; summary=`${speaker.name}이 ${listener.name}에게 “${transferable.text}”를 전했다.`; delta=transferable.verified?4:1; if(!transferable.verified&&conf<45)state.resources.혼선=clamp(state.resources.혼선+1.1,0,100);
+    const conf=clamp(speaker.known[transferable.id].confidence-6+rnd()*12,12,94);
+    // 말하는 이는 자기가 들은 판본을 옮기고, 옮기는 사이 말이 미끄러질 수 있다
+    let told=speaker.known[transferable.id].text||transferable.text;
+    if(!transferable.verified&&rnd()<.22*(1-conf/140)){told=distort(told); if(told!==transferable.text)transferable.distorted=true;}
+    giveNews(listener,transferable,speaker,conf,told); transferable.path.push({from:speaker.id,to:listener.id,time:timeText(),confidence:Math.round(conf)}); state.spreads.unshift({news:transferable.id,from:speaker.id,to:listener.id,t:now()}); state.spreads=state.spreads.slice(0,36);
+    line=transferable.verified?`확인된 말인데, ${told}`:`아직 확인 중이지만, ${told}`; kind=transferable.verified?'공유':'소식'; summary=`${N(speaker.name,'i')} ${listener.name}에게 “${told}”를 전했다.`; delta=transferable.verified?4:1; if(!transferable.verified&&conf<45)state.resources.혼선=clamp(state.resources.혼선+1.1,0,100);
   } else if(knownBoth){
-    line=`그 말은 둘 다 들었지만, 근거를 한 번 더 보자.`; kind='조율'; summary=`${speaker.name}와 ${listener.name}이 같은 소식을 두고 확인이 필요하다고 맞췄다.`; delta=2; setTarget(speaker,'tower','함께 소식을 확인하러 가는 중'); if(rnd()<.45)setTarget(listener,'tower','함께 소식을 확인하러 가는 중');
+    line=`그 말은 둘 다 들었지만, 근거를 한 번 더 보자.`; kind='조율'; summary=`${N(speaker.name,'gwa')} ${N(listener.name,'i')} 같은 소식을 두고 확인이 필요하다고 맞췄다.`; delta=2; setTarget(speaker,'tower','함께 소식을 확인하러 가는 중'); if(rnd()<.45)setTarget(listener,'tower','함께 소식을 확인하러 가는 중');
   } else {
     const topic=rnd()<.3?pick(speaker.taste.likes):pick(G['주제']); // 취향이 대화 주제의 재료가 된다
     const shared=speaker.taste.likes.find(l=>listener.taste.likes.includes(l));
@@ -729,35 +756,35 @@ function converse(a,b){
     if(fresh&&rnd()<.5){
       // 같은 걸 좋아하는 둘이 그걸 처음 알게 되는 순간
       line=gen('취향공명',{'취향':shared}); kind='취향'; delta=4;
-      summary=`${speaker.name}와 ${listener.name}이 서로 ${shared}에 마음이 가는 걸 알게 됐다.`;
+      summary=`${N(speaker.name,'gwa')} ${N(listener.name,'i')} 서로 ${shared}에 마음이 가는 걸 알게 됐다.`;
     } else if(!frict&&cite&&rnd()<.22){
       // 대화가 방금 꺼낸 기억을 실제로 인용한다 — 같은 템플릿도 역사가 실리면 매번 다른 말이 된다
       line=gen('회상말',{'기억':cite.text.replace(/[“”"]/g,'').slice(0,24)}); kind='회상'; delta=3; cite.last=now();
-      summary=`${speaker.name}이 ${listener.name}에게 지난 기억을 꺼내 되짚었다.`;
+      summary=`${N(speaker.name,'i')} ${listener.name}에게 지난 기억을 꺼내 되짚었다.`;
     } else if(frict){
-      line=genFor(speaker,'마찰',{'주제':topic}); summary=`${speaker.name}와 ${listener.name}이 ${topic}을 두고 서로 어긋났다.`; delta=-2; kind='갈등';
+      line=genFor(speaker,'마찰',{'주제':topic}); summary=`${N(speaker.name,'gwa')} ${N(listener.name,'i')} ${N(topic,'eul')} 두고 서로 어긋났다.`; delta=-2; kind='갈등';
       speaker.mood=clamp(speaker.mood-2,0,100); listener.mood=clamp(listener.mood-3,0,100);
       // 어긋남은 화해의 바람을 남기고, 목격자의 입을 타면 평판 소문이 된다
-      addDesire(speaker,'화해',`${listener.name}과 어긋난 말을 풀고 싶다`,listener.id,28);
-      addDesire(listener,'화해',`${speaker.name}과 어긋난 말을 풀고 싶다`,speaker.id,28);
+      addDesire(speaker,'화해',`${N(listener.name,'gwa')} 어긋난 말을 풀고 싶다`,listener.id,28);
+      addDesire(listener,'화해',`${N(speaker.name,'gwa')} 어긋난 말을 풀고 싶다`,speaker.id,28);
       const wit=agents.find(o=>o!==speaker&&o!==listener&&!o.op&&dist(o,speaker)<120);
       if(wit){
-        memory(wit,`${speaker.name}과 ${listener.name}이 언성을 높이는 것을 지켜보았다.`,['관계','갈등'],5,'관찰',{agent:speaker.id});
-        if(rnd()<.25)createNews(`${speaker.name}과 ${listener.name}의 사이가 요즘 삐걱인다는 말이 있다`,`${wit.name}의 귀띔`,[wit],{subject:speaker.id,stance:'의심'});
+        memory(wit,`${N(speaker.name,'gwa')} ${N(listener.name,'i')} 언성을 높이는 것을 지켜보았다.`,['관계','갈등'],5,'관찰',{agent:speaker.id});
+        if(rnd()<.25)createNews(`${N(speaker.name,'gwa')} ${listener.name}의 사이가 요즘 삐걱인다는 말이 있다`,`${wit.name}의 귀띔`,[wit],{subject:speaker.id,stance:'의심'});
       }
     } else {
       const good=(speaker.mood+listener.mood+speaker.rel[listener.id]+listener.rel[speaker.id])/4 + rnd()*16 + (speaker.pers.낙관-50)*.25>56;
       line=good?genFor(speaker,'긍정',{'주제':topic}):genFor(speaker,'신중',{'주제':topic});
-      summary=`${speaker.name}와 ${listener.name}이 ${topic}에 대해 짧게 맞췄다.`; delta=(good?3:0)+(speaker.pers.사교>62?1:0); kind=good?'대화':'조율';
+      summary=`${N(speaker.name,'gwa')} ${N(listener.name,'i')} ${topic}에 대해 짧게 맞췄다.`; delta=(good?3:0)+(speaker.pers.사교>62?1:0); kind=good?'대화':'조율';
       // 좋은 대화는 약속을 낳는다 — 관계가 사건을 다시 부르는 역방향 고리의 시작점
       if(good&&rnd()<.16&&speaker.rel[listener.id]>52&&!pairPromise(speaker,listener)&&openPromises(speaker).length<2&&openPromises(listener).length<2){
         const pr=projects.find(p=>!p.done&&(speaker.baseTags.includes(p.need)||listener.baseTags.includes(p.need)));
         let pm;
         if(pr&&rnd()<.5){
-          pm=makePromise(speaker,listener,'공동작업',pr.place,(state.day+1)*24+13.5+rnd()*3,`${speaker.name}과 ${listener.name}이 내일 ${building(pr.place).name}에서 ${pr.name}을 같이 손보기로 했다.`);
+          pm=makePromise(speaker,listener,'공동작업',pr.place,(state.day+1)*24+13.5+rnd()*3,`${N(speaker.name,'gwa')} ${N(listener.name,'i')} 내일 ${building(pr.place).name}에서 ${N(pr.name,'eul')} 같이 손보기로 했다.`);
           line=gen('약속작업',{'일':pr.name});
         } else {
-          pm=makePromise(speaker,listener,'방문',homeOf(listener),(state.day+1)*24+20.5+rnd()*2.5,`${speaker.name}이 내일 저녁 ${listener.name}의 거처에 들르기로 했다.`);
+          pm=makePromise(speaker,listener,'방문',homeOf(listener),(state.day+1)*24+20.5+rnd()*2.5,`${N(speaker.name,'i')} 내일 저녁 ${listener.name}의 거처에 들르기로 했다.`);
           line=gen('약속방문');
         }
         kind='약속'; delta=4; summary=pm.text;
@@ -973,7 +1000,9 @@ function renderSide(){
     body.innerHTML=`<div class="profile"><div class="avatar">${b.icon}</div><div><h3>${b.name}</h3><p>${esc(b.desc)}${air?`<br><span class="subtle">${esc(air)}</span>`:''}</p></div></div><div class="card"><p class="cap">진행 중인 일</p>${pr?`<div class="note"><b>${esc(pr.name)}</b><br>${esc(pr.desc)}</div><div class="bar"><i style="width:${pr.p}%"></i></div><div class="progressLabel"><span>${pr.need}</span><b>${Math.round(pr.p)}%</b></div>`:'<div class="note subtle">이 건물의 당장 큰 일은 완성된 상태야.</div>'}</div>${homeCard}${postsCard}<div class="card"><p class="cap">사용 가능한 도구</p><div class="tags">${b.tools.map(t=>`<span class="tag">${esc(t)}</span>`).join('')}</div></div><div class="card"><p class="cap">근처 주민</p><div class="tags">${near.map(a=>`<button class="tag" data-pick="${a.id}">${a.face} ${a.name}</button>`).join('')||'<span class="tag">지금은 조용함</span>'}</div></div>${histCard}`; bindPick(); return;
   }
   const n=obj; $('#sideTitle').textContent=n.verified?'확인된 소식':'확인 중인 소식'; $('#sideSub').textContent=n.text; $('#sideBadge').textContent=`${spreadRate(n)}% 확산`;
-  body.innerHTML=`<div class="card"><p class="cap">소식 내용</p><div class="note">“${esc(n.text)}”<br><span class="subtle">출처 ${esc(n.origin)} · ${timeTextFrom(n.created)} 생성 · 신뢰도 ${Math.round(n.confidence)}</span></div></div><div class="card"><p class="cap">확산</p>${meter('들은 주민',spreadRate(n))}<div class="tags" style="margin-top:9px">${agents.filter(a=>a.known[n.id]).map(a=>`<button class="tag" data-pick="${a.id}">${a.face} ${a.name}</button>`).join('')}</div></div><div class="card"><p class="cap">이동 경로</p><div class="miniList">${n.path.slice(-8).reverse().map(p=>`<div class="mini">${agentName(p.from)} → ${agentName(p.to)} <span class="subtle">${p.time} · 확신 ${p.confidence}</span></div>`).join('')||'<div class="note subtle">처음 들어온 뒤 아직 크게 퍼지지 않았어.</div>'}</div></div>`; bindPick();
+  const variants=[...new Set(agents.filter(x=>x.known[n.id]&&x.known[n.id].text&&x.known[n.id].text!==n.text).map(x=>x.known[n.id].text))].slice(0,3);
+  const varCard=variants.length?`<div class="card"><p class="cap">퍼지며 바뀐 판본</p><div class="miniList">${variants.map(v=>`<div class="mini">“${esc(v)}”</div>`).join('')}</div><div class="note subtle" style="margin-top:8px">말은 사람을 타며 미끄러진다. 관측대의 확인이 판본을 원본으로 되돌린다.</div></div>`:'';
+  body.innerHTML=`<div class="card"><p class="cap">소식 내용</p><div class="note">“${esc(n.text)}”<br><span class="subtle">출처 ${esc(n.origin)} · ${timeTextFrom(n.created)} 생성 · 신뢰도 ${Math.round(n.confidence)}</span></div></div>${varCard}<div class="card"><p class="cap">확산</p>${meter('들은 주민',spreadRate(n))}<div class="tags" style="margin-top:9px">${agents.filter(a=>a.known[n.id]).map(a=>`<button class="tag" data-pick="${a.id}">${a.face} ${a.name}</button>`).join('')}</div></div><div class="card"><p class="cap">이동 경로</p><div class="miniList">${n.path.slice(-8).reverse().map(p=>`<div class="mini">${agentName(p.from)} → ${agentName(p.to)} <span class="subtle">${p.time} · 확신 ${p.confidence}</span></div>`).join('')||'<div class="note subtle">처음 들어온 뒤 아직 크게 퍼지지 않았어.</div>'}</div></div>`; bindPick();
 }
 function timeTextFrom(t){const d=Math.floor(t/24), h=Math.floor(t%24);return `${d}일 ${pad(h)}시`}
 function agentName(id){return agents.find(a=>a.id===id)?.name||id}
@@ -1014,15 +1043,47 @@ function researchCards(){return [
   {title:'Smallville · 주민 발의 행사',body:'행사는 감독만 던지지 않는다. 주민이 모임을 발의하면 초대장이 소문의 길을 타고 퍼지고, 참석은 관계·성격·기분이 정한다 — 발렌타인 파티 문법. 아무도 오지 않은 저녁도 하나의 이야기다.'},
   {title:'Dwarf Fortress · 취향 테이블',body:'주민마다 "여섯 번째 계단의 삐걱임" 같은 무의미하게 구체적인 취향이 있다. 취향은 대화 주제·광장 글·거처의 흔적·모임 이름에 스며들고, 같은 걸 좋아하는 둘이 그걸 처음 알게 되는 순간 관계가 한 뼘 가까워진다.'},
   {title:'Tracery · 말투와 기억 인용',body:'주민마다 문법 일부를 자기 말투로 덮어쓰고(기록자는 색인에 넣고, 축제지기는 등불을 켠다), 대화는 방금 회상한 기억을 실제로 인용한다 — 같은 템플릿도 역사가 실리면 매번 다른 말이 된다.'},
+  {title:'Talk of the Town · 소문 왜곡',body:'말은 사람을 타며 미끄러진다 — 장소가 바뀌고, 표현이 부풀고, 꼬리가 붙는다. 주민마다 자기가 들은 판본을 갖고, 글(게시판)은 왜곡되지 않으며, 관측대의 확인이 판본을 원본으로 교정한다.'},
+  {title:'Talk of the Town · 이야기 발굴',body:'시뮬레이션은 원재료를 만들고, 이야기는 큐레이션이 찾아낸다 — 사건 로그·관계·약속·소문에서 부딪히는 두 사람, 다시 이어진 매듭, 말이 걸어간 길 같은 서사 패턴을 사후 검색한다 (drama.py).'},
   {title:'단일 파일의 선',body:'실제 LLM 호출, 벡터 DB, 서버 작업 큐, 컴퓨터 화면 조작은 없다. 대신 구조의 움직임을 브라우저 규칙으로 압축했다.'}
 ]}
+// ── TotT drama.py식 이야기 발굴: 시뮬레이션은 원재료를 만들고, 이야기는 큐레이션이 찾아낸다 —
+//    사건 로그·관계·약속·소문에서 서사 패턴을 사후 검색한다 (docs/research/talk-of-the-town.md) ──
+function mineStories(){
+  const S=[], ch=state.chronicle;
+  const pairKind=k=>{const map={};ch.forEach(e=>{if(e.kind!==k||e.who.length<2)return;const key=e.who.slice(0,2).sort().join('|');(map[key]=map[key]||[]).push(e)});return map};
+  const conf=pairKind('갈등'), heal=pairKind('화해');
+  Object.entries(conf).forEach(([key,evs])=>{
+    const [x,y]=key.split('|').map(id=>agents.find(a=>a.id===id)); if(!x||!y)return;
+    const healed=(heal[key]||[]).length, relAvg=(x.rel[y.id]+y.rel[x.id])/2;
+    if(healed&&evs.length>=2)S.push({title:`${N(x.name,'gwa')} ${y.name}, 다시 이어진 매듭`,text:`${evs.length}번 어긋난 끝에 화해가 있었다.`});
+    else if(evs.length>=3&&relAvg<48)S.push({title:`${N(x.name,'gwa')} ${y.name} — 부딪히는 두 사람`,text:`${evs.length}번 어긋났고 아직 매듭이 없다. 최근: ${evs[0].text}`});
+  });
+  agents.forEach(a=>{
+    if(a.breaches>=2)S.push({title:`${a.name}의 미뤄진 약속들`,text:`약속 ${a.breaches}건이 어그러졌다. 광장의 말이 이를 기억하고 있다.`});
+    else if(a.kept>=3)S.push({title:`말한 것은 지키는 ${a.name}`,text:`약속 ${a.kept}건을 지켰다. 신뢰는 이렇게 쌓인다.`});
+  });
+  for(let i=0;i<agents.length;i++)for(let j=i+1;j<agents.length;j++){
+    const x=agents[i],y=agents[j];
+    if(x.rel[y.id]>76&&y.rel[x.id]>76)S.push({title:`${N(x.name,'gwa')} ${y.name}, 겹쳐 걷는 길`,text:`서로의 온도가 ${Math.round((x.rel[y.id]+y.rel[x.id])/2)}까지 올랐다.`});
+  }
+  state.news.forEach(n=>{
+    if(n.path.length>=4)S.push({title:'말이 걸어간 길',text:`“${n.text.slice(0,36)}…” — ${n.path.length}번 옮겨졌고 ${n.verified?'끝내 확인됐다':'아직 확인되지 않았다'}${n.countered?'. 반박하는 목소리도 있었다':''}${n.distorted?'. 퍼지며 내용이 조금씩 바뀌고 있다':''}.`});
+  });
+  projects.filter(p=>(p.cycles||0)>=2).forEach(p=>S.push({title:`${p.name}, ${p.cycles}번째 손질`,text:'만드는 일과 지키는 일이 번갈아 온다. 완성은 상태가 아니라 리듬이다.'}));
+  const quiet=ch.find(e=>e.kind==='행사'&&e.text.includes('조용히 끝났다')); if(quiet)S.push({title:'아무도 오지 않은 저녁',text:quiet.text});
+  const taste=ch.find(e=>e.kind==='취향'); if(taste)S.push({title:'같은 것을 좋아하는 두 사람',text:taste.text});
+  return S.slice(0,6);
+}
 let chronFilter={type:'all',id:null};
 function renderChronicle(){
+  const stories=mineStories();
+  $('#storyList').innerHTML=stories.length?stories.map(s=>`<div class="tile"><h4>${esc(s.title)}</h4><p>${esc(s.text)}</p></div>`).join(''):'<div class="empty" style="grid-column:1/-1">아직 발굴할 이야기가 없어. 갈등과 화해, 지켜지거나 어그러진 약속이 쌓이면 여기서 서사가 캐내져.</div>';
   const f=chronFilter;
   const chips=[['all','전체 '+state.chronicle.length,null]]
     .concat(agents.map(a=>['who',`${a.face} ${a.name}`,a.id]))
     .concat(buildings.map(b=>['where',`${b.icon} ${b.name}`,b.id]))
-    .concat(['사건','완성','성격','소식','확인','약속','화해','행사','관습','따라잡기','아침'].map(k=>['kind',k,k]));
+    .concat(['사건','완성','성격','소식','확인','약속','화해','갈등','행사','관습','따라잡기','아침'].map(k=>['kind',k,k]));
   $('#chronBar').innerHTML=chips.map(([type,label,id])=>`<button class="tag ${f.type===type&&f.id===(id||null)?'on':''}" data-chron="${type}:${id||''}">${label}</button>`).join('');
   $$('#chronBar [data-chron]').forEach(el=>el.onclick=()=>{const [type,id]=el.dataset.chron.split(':');chronFilter=(f.type===type&&f.id===(id||null))?{type:'all',id:null}:{type,id:id||null};renderChronicle()});
   const list=state.chronicle.filter(e=>f.type==='all'||(f.type==='who'&&e.who.includes(f.id))||(f.type==='where'&&e.where.includes(f.id))||(f.type==='kind'&&e.kind===f.id)).slice(0,160);
@@ -1053,7 +1114,7 @@ function coarseStep(h,report){
     }
     state.news.filter(n=>!n.verified).forEach(n=>{
       if(rnd()<.3){const holder=agents.find(a=>a.known[n.id]), un=agents.filter(a=>!a.known[n.id]);
-        if(holder&&un.length){giveNews(pick(un),n,holder,holder.known[n.id].confidence-4+rnd()*8);report.spread++}}
+        if(holder&&un.length){let told=holder.known[n.id].text||n.text; if(rnd()<.15){told=distort(told); if(told!==n.text)n.distorted=true} giveNews(pick(un),n,holder,holder.known[n.id].confidence-4+rnd()*8,told);report.spread++}}
       if(rnd()<.05+(hasSkill('근거 확인')?.05:0)){n.verified=true;n.confidence=clamp(n.confidence+20,0,96);state.resources.혼선=clamp(state.resources.혼선-6,0,100);state.resources.신뢰=clamp(state.resources.신뢰+2,0,100);report.verified.push(n.text);chron(`닫힌 시간 동안 “${n.text}” 소식이 확인됐다.`,'확인')}
     });
     if(rnd()<.4){const a=pick(agents),b=pick(agents);if(a!==b){const d=rnd()<.7?1:-1;a.rel[b.id]=clamp(a.rel[b.id]+d,0,100);b.rel[a.id]=clamp(b.rel[a.id]+d,0,100);report.social++}}
@@ -1108,7 +1169,7 @@ function init(){
   const loaded=load();
   if(loaded&&loaded.savedAt)catchUp(Date.now()-loaded.savedAt);
   if(!loaded){
-    agents.forEach(a=>{memory(a,`${a.name}은 ${a.role}로서 ${building(a.home).name}을 주 무대로 삼는다.`,[a.home,a.role,'정체성'],7,'기본',{},false);memory(a,`첫날 아침, ${a.name}은 광장에 켜지는 불빛을 보며 마을의 리듬을 익혔다.`,['마을','아침'],4,'관찰',{},false);buildPlan(a)});
+    agents.forEach(a=>{memory(a,`${N(a.name,'eun')} ${a.role}로서 ${building(a.home).name}을 주 무대로 삼는다.`,[a.home,a.role,'정체성'],7,'기본',{},false);memory(a,`첫날 아침, ${N(a.name,'eun')} 광장에 켜지는 불빛을 보며 마을의 리듬을 익혔다.`,['마을','아침'],4,'관찰',{},false);buildPlan(a)});
     createNews('주말에 별빛 광장에서 작은 축제를 열자는 제안이 생겼다','초기 기억',[agents[1],agents[6]]);
     createNews('마을발전기 코어를 완성하면 반복 작업이 줄어들 수 있다','초기 기억',[agents[2],agents[0]]);
     addLife('AI 마을의 첫 아침이 열렸다. 주민들은 각자의 기억과 역할을 품고 움직이기 시작했다.','시작'); addTalk('챗사서','오늘은 대화가 끝나면 짧게 남겨둘게. 그래야 내일의 내가 덜 헤매니까.');
