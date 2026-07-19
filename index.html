@@ -84,20 +84,20 @@ button:focus-visible,input:focus-visible{outline:2px solid rgba(137,216,255,.72)
 .inspectBody::-webkit-scrollbar,.panel::-webkit-scrollbar{width:10px}.inspectBody::-webkit-scrollbar-track,.panel::-webkit-scrollbar-track{background:transparent}.inspectBody::-webkit-scrollbar-thumb,.panel::-webkit-scrollbar-thumb{background:rgba(255,255,255,.11);border:3px solid transparent;background-clip:content-box;border-radius:999px}.inspectBody::-webkit-scrollbar-thumb:hover,.panel::-webkit-scrollbar-thumb:hover{background:rgba(137,216,255,.24);border:3px solid transparent;background-clip:content-box}
 @media(max-width:1180px){
   body{overflow:auto}
-  #app{height:auto;min-height:100vh;grid-template-columns:1fr;grid-template-rows:auto auto minmax(480px,62vh) auto minmax(300px,38vh) auto}
+  #app{height:auto;min-height:100vh;grid-template-columns:1fr;grid-template-rows:auto auto minmax(480px,62vh) auto auto minmax(300px,38vh)}
   .top{grid-column:1;grid-template-columns:1fr;gap:10px;padding:14px}
   .hud{grid-column:1;grid-row:2}
   .worldCard{grid-column:1;grid-row:3}
   .seedBox{grid-column:1;grid-row:4}
-  .dock{grid-column:1;grid-row:5}
-  .inspect{grid-column:1;grid-row:6}
+  .inspect{grid-column:1;grid-row:5}
+  .dock{grid-column:1;grid-row:6}
   .legend{display:none}
   .grid3{grid-template-columns:repeat(2,minmax(0,1fr))}
   .stats,.controls{justify-content:flex-start;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
   .stats::-webkit-scrollbar,.controls::-webkit-scrollbar{display:none}
 }
 @media(max-width:720px){
-  #app{padding:10px;gap:10px;grid-template-rows:auto auto minmax(400px,56vh) auto minmax(300px,38vh) auto}
+  #app{padding:10px;gap:10px;grid-template-rows:auto auto minmax(400px,56vh) auto auto minmax(300px,38vh)}
   .top{border-radius:22px;padding:12px}
   .brand{gap:10px}
   .brand h1{font-size:18px}
@@ -262,7 +262,7 @@ const state={
   day:1,hour:7.15,scene:'아침 정리',weather:'맑음',generation:1,tick:0,
   resources:{활기:64,신뢰:57,기술:31,문화:38,혼선:12},
   life:[],talk:[],artifacts:[],inputs:[],news:[],spreads:[],recentOps:[],chronicle:[],
-  promises:[],posts:[],customs:[],gathering:null,breachTotal:0,series:[],lastSample:0,
+  promises:[],posts:[],customs:[],gathering:null,breachTotal:0,series:[],lastSample:0,knobs:{대화:1,왜곡:1,감독:1},
   director:{id:'cassandra',last:0,lastKind:'회복'}
 };
 const buildings=[
@@ -322,7 +322,7 @@ const agents=defs.map((d,i)=>({
   x:540+rnd()*80,y:316+rnd()*60,tx:560+rnd()*50,ty:300+rnd()*45,place:'square',
   mood:58+rnd()*24,energy:58+rnd()*22,focus:46+rnd()*30,confidence:50+rnd()*26,
   pers:basePers(d[2]),persLog:[],
-  task:'오늘의 동선을 고르는 중',thought:'아침의 소리를 듣고 있다.',op:null,cool:0,bubble:'',bubbleT:0,plan:[],lastSlot:-1,rel:{},memories:[],recalled:[],known:{},attention:0,pathTrail:[],lastScores:[],lastTalkScores:[],
+  task:'오늘의 동선을 고르는 중',thought:'아침의 소리를 듣고 있다.',op:null,cool:0,bubble:'',bubbleT:0,plan:[],lastSlot:-1,rel:{},memories:[],recalled:[],known:{},attention:0,pathTrail:[],lastScores:[],lastTalkScores:[],vx:0,vy:0,phase:rnd()*6.3,movedDay:0,
   desires:[],breaches:0,kept:0,taste:makeTaste()
 }));
 agents.forEach(a=>agents.forEach(b=>{if(a!==b)a.rel[b.id]=Math.round(38+rnd()*30)}));
@@ -842,7 +842,7 @@ function converse(a,b){
   if(a.cool>0||b.cool>0||a.op||b.op||dist(a,b)>76)return;
   // 쌍 중력 — 닫히지 않은 약속·풀리지 않은 어긋남·미확인 소식이 만남의 확률을 끌어올린다
   const gpull=(gravity(a,b)+gravity(b,a))/2;
-  if(rnd()>.036*(.6+(a.pers.사교+b.pers.사교)/2/100*.8)*(1+gpull/70))return;
+  if(rnd()>.036*(.6+(a.pers.사교+b.pers.사교)/2/100*.8)*(1+gpull/70)*((state.knobs||{}).대화||1))return;
   let speaker=a, listener=b; if(rnd()<.5){speaker=b;listener=a}
   // 컨텍스트 수집 — 규칙이 읽을 수 있는 상황 재료
   let recon=null; for(const [x,y] of [[speaker,listener],[listener,speaker]]){const d=x.desires.find(v=>v.kind==='화해'&&v.target===y.id);if(d){recon=x;break}}
@@ -870,7 +870,7 @@ function converse(a,b){
     const conf=clamp(speaker.known[transferable.id].confidence-6+rnd()*12,12,94);
     // 말하는 이는 자기가 들은 판본을 옮기고, 옮기는 사이 말이 미끄러질 수 있다
     let told=speaker.known[transferable.id].text||transferable.text;
-    if(!transferable.verified&&rnd()<.22*(1-conf/140)*(hasCustom('되물음')?.5:1)){told=distort(told); if(told!==transferable.text)transferable.distorted=true;}
+    if(!transferable.verified&&rnd()<.22*(1-conf/140)*(hasCustom('되물음')?.5:1)*((state.knobs||{}).왜곡||1)){told=distort(told); if(told!==transferable.text)transferable.distorted=true;}
     giveNews(listener,transferable,speaker,conf,told); transferable.path.push({from:speaker.id,to:listener.id,time:timeText(),confidence:Math.round(conf)}); state.spreads.unshift({news:transferable.id,from:speaker.id,to:listener.id,t:now()}); state.spreads=state.spreads.slice(0,36);
     const src=speaker.known[transferable.id].from; // 출처를 입에 올리는 순간, 흐려진 기억이 그대로 밖으로 나온다
     line=transferable.verified?`${gen('전달확인')}, ${told}`:(src&&agents.some(x=>x.name===src)&&src!==listener.name&&rnd()<.4?`${src}한테 들었는데, ${told}`:`${gen('전달미확인')}, ${told}`); kind=transferable.verified?'공유':'소식'; summary=`${N(speaker.name,'i')} ${listener.name}에게 “${told}”를 전했다.`; delta=transferable.verified?4:1; if(!transferable.verified&&conf<45)state.resources.혼선=clamp(state.resources.혼선+1.1,0,100);
@@ -944,7 +944,7 @@ function directorTick(hours){
   if(gap<prof.minGap)return;
   if(prof.recovery&&state.director.lastKind==='위기'&&gap<prof.minGap+prof.recovery)return;
   const p=prof.id==='randy'?1:norm(gap,prof.minGap,prof.maxGap);
-  if(rnd()>=p*hours*prof.rate)return;
+  if(rnd()>=p*hours*prof.rate*((state.knobs||{}).감독||1))return;
   dropIncident(prof);
 }
 function dropIncident(prof){
@@ -967,8 +967,42 @@ function cycleDirector(){
   $('#directorBtn').textContent=`감독 ${prof.icon} ${prof.name}`;
   addLife(`사건 감독이 ${prof.name}으로 바뀌었다 — ${prof.desc}.`,'감독'); toast(`${prof.icon} ${prof.name}: ${prof.desc}`);
 }
+// ── Schelling식 거주지 동학: 이웃과의 온도가 낮으면 살 곳을 다시 고른다 — 임계값 하나로
+//    지도에 "구역"이 저절로 생긴다. 이사는 드물어야 눈에 띄므로 하루 한 집만 (docs/research/schelling.md) ──
+function residentialTick(){
+  if(state.day<3)return; // 첫 이틀은 정착기
+  const homes=buildings.filter(b=>b.kind==='거처');
+  for(const a of [...agents].sort(()=>rnd()-.5)){
+    if((a.movedDay||0)>state.day-4)continue; // 이사 후 사흘은 눌러산다
+    const my=building(homeOf(a)); if(!my)continue;
+    const neigh=homes.filter(h=>h!==my&&dist(h,my)<250).map(h=>agents.find(x=>x.id===h.owner)).filter(Boolean);
+    if(!neigh.length)continue;
+    const warm=neigh.filter(o=>a.rel[o.id]>=55).length, cold=neigh.filter(o=>a.rel[o.id]<=42).length;
+    if(!(warm/neigh.length<.34||cold>=2)||rnd()<.5)continue; // Schelling 임계: 따뜻한 이웃 1/3 미만
+    const friends=agents.filter(o=>o!==a&&a.rel[o.id]>=62).sort((x,y)=>a.rel[y.id]-a.rel[x.id]);
+    let spot=null,anchor=null;
+    for(const f of friends){
+      const fh=building(homeOf(f));
+      for(let i=0;i<14&&!spot;i++){
+        const ang=rnd()*Math.PI*2,r=120+rnd()*80;
+        const x=clamp(fh.x+Math.cos(ang)*r,80,1040),y=clamp(fh.y+Math.sin(ang)*r,100,640);
+        if(!buildings.some(b=>b!==my&&Math.abs(x-b.x)<(b.w+my.w)/2+16&&Math.abs(y-b.y)<(b.h+my.h)/2+16))spot={x,y};
+      }
+      if(spot){anchor=f;break}
+    }
+    if(!spot)continue;
+    my.x=spot.x; my.y=spot.y; a.movedDay=state.day;
+    const coldest=[...neigh].sort((x,y)=>a.rel[x.id]-a.rel[y.id])[0];
+    const text=`${N(a.name,'i')} 거처를 옮겼다 — ${anchor.name}의 집 곁으로. ${coldest&&a.rel[coldest.id]<=42?`${coldest.name}네와 서먹해진 뒤로 마음이 떠 있었다.`:'가까운 사람 곁이 그리웠다.'}`;
+    addLife(text,'거처'); placeEcho(my.id,'거처',`${a.name}의 집이 이 자리로 왔다`);
+    memory(a,text,['거처','관계'],7,'거처',{agent:anchor.id});
+    if(rnd()<.5)createNews(`${N(a.name,'i')} ${anchor.name}의 집 곁으로 거처를 옮겼다더라`,'이웃의 눈',null,{subject:a.id});
+    break;
+  }
+}
 function daily(){
   state.day++; state.hour=6.75; state.generation++; state.weather=pick(['맑음','구름 많음','옅은 비','별빛 선명']);
+  residentialTick();
   agents.forEach(a=>{a.energy=clamp(a.energy+26+rnd()*16,0,100);a.focus=clamp(a.focus+12+rnd()*12,0,100);a.mood=clamp(a.mood+3-rnd()*2,0,100);buildPlan(a);const r=retrieve(a,['계획','소식','관계']); if(r[0])a.thought=`어제의 “${r[0].text.slice(0,30)}…”을 오늘의 출발점으로 삼았다.`;
     decayDesires(a,9); // 바람은 풀리지 않으면 서서히 옅어진다
     if(a.mood<46&&a.pers.사교>58)addDesire(a,'어울림','사람들 틈에 섞여 기분을 바꾸고 싶다',null,26);
@@ -997,7 +1031,20 @@ function sim(dt){
   agents.forEach(a=>{
     if(!a.plan.length)buildPlan(a); const slot=currentSlot(a); const slotKey=a.plan.indexOf(slot); if(slot&&slotKey!==a.lastSlot&&!a.op){a.lastSlot=slotKey;setTarget(a,chooseDestination(a),slot.label);retrieve(a,[slot.place,slot.label,'계획']);}
     if(a.op){a.op.left-=dt*speed; if(a.op.left<=0)finishOperation(a)}
-    else {if(Math.hypot(a.tx-a.x,a.ty-a.y)<9||rnd()<.0035)setTarget(a,chooseDestination(a)); const vx=a.tx-a.x,vy=a.ty-a.y,d=Math.hypot(vx,vy)||1,sp=(18+norm(a.energy,0,100)*34)*dt*speed; a.pathTrail.push({x:a.x,y:a.y,t:now()}); a.pathTrail=a.pathTrail.slice(-18); a.x+=vx/d*Math.min(sp,d); a.y+=vy/d*Math.min(sp,d); workDecision(a);}
+    else {
+      if(Math.hypot(a.tx-a.x,a.ty-a.y)<9||rnd()<.0035)setTarget(a,chooseDestination(a));
+      // ── Boids/Reynolds 조향: arrive(감속 도착)+separation(밀집 회피)+wander(잔흔들림) —
+      //    직선 이동보다 군중의 질감이 산다 (docs/research/boids.md) ──
+      const dx=a.tx-a.x,dy=a.ty-a.y,d=Math.hypot(dx,dy)||1,maxSp=18+norm(a.energy,0,100)*34;
+      const arr=maxSp*clamp(d/56,0,1); let dvx=dx/d*arr,dvy=dy/d*arr;
+      agents.forEach(o=>{if(o!==a){const sx2=a.x-o.x,sy2=a.y-o.y,sd=Math.hypot(sx2,sy2);if(sd>0&&sd<30){dvx+=sx2/sd*(30-sd)*1.1;dvy+=sy2/sd*(30-sd)*1.1}}});
+      dvx+=Math.sin(state.tick*.06+a.phase)*2.4; dvy+=Math.cos(state.tick*.05+a.phase)*2.4;
+      const k=Math.min(1,dt*speed*3.2); a.vx+=(dvx-a.vx)*k; a.vy+=(dvy-a.vy)*k;
+      const spd=Math.hypot(a.vx,a.vy); if(spd>maxSp){a.vx*=maxSp/spd;a.vy*=maxSp/spd}
+      a.pathTrail.push({x:a.x,y:a.y,t:now()}); a.pathTrail=a.pathTrail.slice(-18);
+      a.x=clamp(a.x+a.vx*dt*speed,16,world.w-16); a.y=clamp(a.y+a.vy*dt*speed,60,world.h-16);
+      workDecision(a);
+    }
     observe(a); maybePost(a); readPosts(a); a.energy=clamp(a.energy-dt*.42*speed+(nearbyBuilding(a)?.id==='garden'?.08:0),0,100); a.mood=clamp(a.mood+((state.resources.활기-50)/500)*dt*speed,0,100); a.cool=Math.max(0,a.cool-dt*speed); a.bubbleT=Math.max(0,a.bubbleT-dt*speed);
   });
   for(let i=0;i<agents.length;i++)for(let j=i+1;j<agents.length;j++)converse(agents[i],agents[j]);
@@ -1107,9 +1154,13 @@ function metricCards(){
   const unresolved=state.news.filter(n=>!n.verified).length; const latest=state.news[0];
   return `<div class="card"><p class="cap">마을 맥박</p><div class="meterGrid">${meter('평균 기분',avgMood())}${meter('관계 밀도',networkDensity())}${meter('확인 대기',Math.min(100,unresolved*16),'rose')}${meter('기술 서랍',Math.min(100,skills.length*13))}</div></div>${sparklineCard()}<div class="card"><p class="cap">가장 최근 소식</p><div class="note">${latest?`“${esc(latest.text)}”<br><span class="subtle">${spreadRate(latest)}%가 들었고, ${latest.verified?'확인됐어.':'아직 확인 중이야.'}</span>`:'아직 들어온 소식이 없어.'}</div></div><div class="card"><p class="cap">사건 감독</p><div class="note">${(d=>`${d.icon} <b>${d.name}</b> — ${d.desc}.<br><span class="subtle">마지막 사건 후 ${Math.max(0,Math.round(now()-state.director.last))}시간 경과${state.director.lastKind==='위기'&&d.recovery?' · 회복 보장 중':''}</span>`)(directorProfile())}</div>${state.recentOps.length?`<div class="miniList" style="margin-top:8px">${state.recentOps.slice(0,3).map(o=>`<div class="mini"><span class="subtle">${o.time}</span> · ${esc(o.text.slice(0,60))}</div>`).join('')}</div>`:''}</div>`
   +(state.gathering?`<div class="card"><p class="cap">다가오는 모임</p><div class="note">「${esc(state.gathering.title)}」 — ${agentName(state.gathering.host)} 주최 · ${timeTextFrom(state.gathering.at)} · ${building(state.gathering.place).name}<br><span class="subtle">초대는 소문처럼 퍼지고, 참석은 관계와 기분이 정해.</span></div></div>`:'')
-  +(state.customs.length?`<div class="card"><p class="cap">마을의 관습</p><div class="miniList">${state.customs.map(c=>`<div class="mini">${esc(c.text)} <span class="subtle">· ${c.time}</span></div>`).join('')}</div></div>`:'');
+  +(state.customs.length?`<div class="card"><p class="cap">마을의 관습</p><div class="miniList">${state.customs.map(c=>`<div class="mini">${esc(c.text)} <span class="subtle">· ${c.time}</span></div>`).join('')}</div></div>`:'')
+  // ── NetLogo/Schelling식 실험 손잡이: 규칙 상수를 실시간으로 밀며 상전이를 관찰한다 (docs/research/schelling.md) ──
+  +`<div class="card"><p class="cap">실험 손잡이 — 규칙 상수</p>${[['대화','대화 의욕'],['왜곡','소문 왜곡'],['감독','감독 속도']].map(([k,label])=>`<div class="meter"><span><em>${label}</em><b>×${(state.knobs[k]||1).toFixed(1)}</b></span><input data-knob="${k}" type="range" min="20" max="300" value="${Math.round((state.knobs[k]||1)*100)}" style="width:100%;accent-color:var(--blue)"></div>`).join('')}<div class="note subtle" style="margin-top:6px">상수 하나를 밀면 마을의 상이 바뀐다 — 수다스러운 마을, 소문이 미끄러운 마을, 사건이 잦은 마을.</div></div>`;
 }
+let knobHold=false; // 손잡이를 잡고 있는 동안엔 패널을 다시 그리지 않는다
 function renderSide(){
+  if(knobHold)return;
   const body=$('#sideBody'), obj=agents.find(a=>a.id===selected)||buildings.find(b=>b.id===selected)||state.news.find(n=>n.id===selected);
   if(!obj){
     $('#sideTitle').textContent='마을 전체'; $('#sideSub').textContent='주민·소식·도구가 서로 영향을 주는 흐름을 보고 있어.'; $('#sideBadge').textContent='관찰 중';
@@ -1186,6 +1237,9 @@ function researchCards(){return [
   {title:'Ensemble · 사회 물리 규칙표',body:'대화의 수(화해·전달·조율·취향·회상·갈등·약속·잡담)는 코드 분기가 아니라 "조건 → 의지 가중치" 규칙 데이터가 정한다. 매 대화의 의지 순위표가 주민 패널에 남아 "왜 이 말을 했나"에 항상 답할 수 있다.'},
   {title:'Mesa · 지표 시계열',body:'기분·활기·신뢰·혼선을 매시간 수집해 흐름 곡선으로 본다. 감독이 투하한 위기가 회복되는 곡선, 소문 하나가 혼선을 밀어올리는 순간이 순간값이 아니라 역사로 보인다.'},
   {title:'Versu · 진행형 행사',body:'열린 모임은 참여자에게 행동 수(낭독·등불·기록·속 깊은 말·지켜보기)를 제공하고, 선택은 성격과 역할이 정하며 각자 다른 기억으로 남는다. 모임의 관습이 생기면 "다음 자리 약속"이라는 수가 새로 열린다 — 관습이 선택지를 바꾼다.'},
+  {title:'Schelling · 거주지 동학',body:'따뜻한 이웃이 1/3에 못 미치거나 서먹한 이웃이 둘이면 친한 이의 집 곁으로 거처를 옮긴다. 임계값 하나로 지도에 구역이 저절로 생기고, 이사는 소문과 기억의 재료가 된다.'},
+  {title:'Boids · 조향 이동',body:'주민의 걸음은 목표 직선이 아니라 arrive(감속 도착)·separation(밀집 회피)·wander(잔흔들림) 조향력의 합이다. 광장에 모일 때 자연스레 벌어지고, 서성임이 생긴다 — 관찰 재미의 절반은 움직임의 질감이다.'},
+  {title:'NetLogo · 실험 손잡이',body:'대화 의욕·소문 왜곡·감독 속도 상수를 관찰 화면에서 실시간으로 민다. 슬라이더와 플롯이 붙은 화면에서 상전이를 직접 목격하는 것이 이 장르 최고의 "아하 순간"이다.'},
   {title:'단일 파일의 선',body:'실제 LLM 호출, 벡터 DB, 서버 작업 큐, 컴퓨터 화면 조작은 없다. 대신 구조의 움직임을 브라우저 규칙으로 압축했다.'}
 ]}
 // ── TotT drama.py식 이야기 발굴: 시뮬레이션은 원재료를 만들고, 이야기는 큐레이션이 찾아낸다 —
@@ -1255,7 +1309,7 @@ function coarseStep(h,report){
     }
     state.news.filter(n=>!n.verified).forEach(n=>{
       if(rnd()<.3){const holder=agents.find(a=>a.known[n.id]), un=agents.filter(a=>!a.known[n.id]);
-        if(holder&&un.length){let told=holder.known[n.id].text||n.text; if(rnd()<.15){told=distort(told); if(told!==n.text)n.distorted=true} giveNews(pick(un),n,holder,holder.known[n.id].confidence-4+rnd()*8,told);report.spread++}}
+        if(holder&&un.length){let told=holder.known[n.id].text||n.text; if(rnd()<.15*((state.knobs||{}).왜곡||1)){told=distort(told); if(told!==n.text)n.distorted=true} giveNews(pick(un),n,holder,holder.known[n.id].confidence-4+rnd()*8,told);report.spread++}}
       if(rnd()<.05+(hasSkill('근거 확인')?.05:0)){n.verified=true;n.confidence=clamp(n.confidence+20,0,96);state.resources.혼선=clamp(state.resources.혼선-6,0,100);state.resources.신뢰=clamp(state.resources.신뢰+2,0,100);report.verified.push(n.text);chron(`닫힌 시간 동안 “${n.text}” 소식이 확인됐다.`,'확인')}
     });
     if(rnd()<.4){const a=pick(agents),b=pick(agents);if(a!==b){const d=rnd()<.7?1:-1;a.rel[b.id]=clamp(a.rel[b.id]+d,0,100);b.rel[a.id]=clamp(b.rel[a.id]+d,0,100);report.social++}}
@@ -1303,7 +1357,7 @@ function catchUp(elapsedMs){
   toast(`닫힌 시간 ${Math.round(hours)}시간을 따라잡았어`);
 }
 function save(silent){localStorage.setItem('ai-village-polished-research',JSON.stringify({state,agents,buildings,projects,skills,seed,memSeq,newsSeq,artifactSeq,inputSeq,promSeq,postSeq,gathSeq,savedAt:Date.now()}));if(silent!==true)toast('저장했어')}
-function load(){try{const raw=localStorage.getItem('ai-village-polished-research');if(!raw)return false;const d=JSON.parse(raw);Object.assign(state,d.state);d.agents.forEach((a,i)=>Object.assign(agents[i],a));d.buildings.forEach((b,i)=>Object.assign(buildings[i],b));d.projects.forEach((p,i)=>Object.assign(projects[i],p));skills.splice(0,skills.length,...d.skills);seed=d.seed||seed;memSeq=d.memSeq||memSeq;newsSeq=d.newsSeq||newsSeq;artifactSeq=d.artifactSeq||artifactSeq;inputSeq=d.inputSeq||inputSeq;promSeq=d.promSeq||promSeq;postSeq=d.postSeq||postSeq;gathSeq=d.gathSeq||gathSeq;agents.forEach(a=>{if(!a.pers)a.pers=basePers(a.role);if(!a.persLog)a.persLog=[];if(!a.desires)a.desires=[];if(!a.breaches)a.breaches=0;if(!a.kept)a.kept=0;if(!a.taste)a.taste=makeTaste()});buildings.forEach(b=>{if(!b.log)b.log=[];if(b.kind==='거처'&&!b.deco)b.deco=[]});if(!state.director)state.director={id:'cassandra',last:0,lastKind:'회복'};if(!state.chronicle)state.chronicle=[];if(!state.promises)state.promises=[];if(!state.posts)state.posts=[];if(!state.customs)state.customs=[];state.customs.forEach(c=>{if(!c.key)c.key='약속'});if(state.gathering===undefined)state.gathering=null;if(state.gathering&&!state.gathering.acts)state.gathering.acts=[];if(!state.breachTotal)state.breachTotal=0;if(!state.series)state.series=[];if(!state.lastSample)state.lastSample=0;agents.forEach(a=>{if(!a.lastTalkScores)a.lastTalkScores=[]});return {savedAt:d.savedAt||0}}catch(e){console.warn(e);return false}}
+function load(){try{const raw=localStorage.getItem('ai-village-polished-research');if(!raw)return false;const d=JSON.parse(raw);Object.assign(state,d.state);d.agents.forEach((a,i)=>Object.assign(agents[i],a));d.buildings.forEach((b,i)=>Object.assign(buildings[i],b));d.projects.forEach((p,i)=>Object.assign(projects[i],p));skills.splice(0,skills.length,...d.skills);seed=d.seed||seed;memSeq=d.memSeq||memSeq;newsSeq=d.newsSeq||newsSeq;artifactSeq=d.artifactSeq||artifactSeq;inputSeq=d.inputSeq||inputSeq;promSeq=d.promSeq||promSeq;postSeq=d.postSeq||postSeq;gathSeq=d.gathSeq||gathSeq;agents.forEach(a=>{if(!a.pers)a.pers=basePers(a.role);if(!a.persLog)a.persLog=[];if(!a.desires)a.desires=[];if(!a.breaches)a.breaches=0;if(!a.kept)a.kept=0;if(!a.taste)a.taste=makeTaste()});buildings.forEach(b=>{if(!b.log)b.log=[];if(b.kind==='거처'&&!b.deco)b.deco=[]});if(!state.director)state.director={id:'cassandra',last:0,lastKind:'회복'};if(!state.chronicle)state.chronicle=[];if(!state.promises)state.promises=[];if(!state.posts)state.posts=[];if(!state.customs)state.customs=[];state.customs.forEach(c=>{if(!c.key)c.key='약속'});if(state.gathering===undefined)state.gathering=null;if(state.gathering&&!state.gathering.acts)state.gathering.acts=[];if(!state.breachTotal)state.breachTotal=0;if(!state.series)state.series=[];if(!state.lastSample)state.lastSample=0;if(!state.knobs)state.knobs={대화:1,왜곡:1,감독:1};agents.forEach(a=>{if(!a.lastTalkScores)a.lastTalkScores=[];if(a.vx===undefined){a.vx=0;a.vy=0}if(a.phase===undefined)a.phase=rnd()*6.3;if(!a.movedDay)a.movedDay=0});return {savedAt:d.savedAt||0}}catch(e){console.warn(e);return false}}
 function reset(){localStorage.removeItem('ai-village-polished-research');location.reload()}
 function sampleIncident(){return gen('사건')}
 function loop(t){const dt=Math.min(.08,(t-last)/1000||0);last=t;if(!paused){acc+=dt;while(acc>.05){sim(.05);acc-=.05}}render();uiTimer+=dt;if(uiTimer>.55){updateUI();uiTimer=0}requestAnimationFrame(loop)}
@@ -1317,6 +1371,10 @@ function init(){
     addLife('AI 마을의 첫 아침이 열렸다. 주민들은 각자의 기억과 역할을 품고 움직이기 시작했다.','시작'); addTalk('챗사서','오늘은 대화가 끝나면 짧게 남겨둘게. 그래야 내일의 내가 덜 헤매니까.');
   }
   cvs.addEventListener('click',canvasPick); cvs.addEventListener('mousemove',canvasHover); cvs.addEventListener('mouseleave',()=>{hover=null;cvs.style.cursor='default'});
+  // 실험 손잡이 — sideBody가 주기적으로 다시 그려져도 값은 state.knobs에 살아 있다
+  $('#sideBody').addEventListener('input',e=>{if(e.target.matches('[data-knob]'))state.knobs[e.target.dataset.knob]=e.target.value/100});
+  $('#sideBody').addEventListener('pointerdown',e=>{if(e.target.matches('[data-knob]'))knobHold=true});
+  document.addEventListener('pointerup',()=>{if(knobHold){knobHold=false;renderSide()}});
   $('#seedForm').addEventListener('submit',e=>{e.preventDefault();const v=$('#seedText').value.trim();if(v)submitInput(v,'seed')}); $('#eventBtn').onclick=()=>submitInput(sampleIncident(),'incident');
   $('#pauseBtn').onclick=()=>{paused=!paused;$('#pauseBtn').textContent=paused?'다시 흐르게':'멈춤'}; $('#stepBtn').onclick=()=>{sim(.9);updateUI()}; $('#speedBtn').onclick=()=>{speed=speed===1?2:speed===2?4:1;$('#speedBtn').textContent=`속도 ${speed}x`}; $('#saveBtn').onclick=()=>save(); $('#resetBtn').onclick=reset; $('#directorBtn').onclick=cycleDirector; {const p=directorProfile();$('#directorBtn').textContent=`감독 ${p.icon} ${p.name}`}
   // Veloren rtsim 문법의 확장: 탭이 '닫힌' 시간만이 아니라 '가려진' 시간도 저해상도로 메꾼다
