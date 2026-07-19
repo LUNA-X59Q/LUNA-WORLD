@@ -623,8 +623,8 @@ function promiseTick(){
   state.promises=state.promises.filter(p=>p.status==='열림'||now()-p.created<48);
 }
 // 광장 글: 같은 자리에 없어도 시간차로 읽히는 온라인 채널 — 소식은 글을 타고도 퍼진다
-function maybePost(a){
-  if(a.op||nearbyBuilding(a)?.id!=='square'||rnd()>.006)return;
+function maybePost(a,lod=1){
+  if(a.op||nearbyBuilding(a)?.id!=='square'||rnd()>.006*lod)return;
   const brag=a.desires.find(d=>d.kind==='자랑');
   const n=state.news.find(x=>a.known[x.id]&&a.known[x.id].confidence>66&&!state.posts.some(p=>p.newsId===x.id));
   const bundle=a.memories.find(m=>m.type==='묶음');
@@ -641,8 +641,8 @@ function maybePost(a){
   memory(a,`광장 게시판에 글을 남겼다 — “${String(text).slice(0,30)}…”.`,['광장','기록'],4,'글');
   if(rnd()<.4)addLife(`${N(a.name,'i')} 광장에 글을 남겼다.`,'글');
 }
-function readPosts(a){
-  if(a.op||nearbyBuilding(a)?.id!=='square'||rnd()>.012)return;
+function readPosts(a,lod=1){
+  if(a.op||nearbyBuilding(a)?.id!=='square'||rnd()>.012*lod)return;
   const post=state.posts.find(p=>p.by!==a.id&&!p.readBy.includes(a.id)); if(!post)return;
   post.readBy.push(a.id);
   memory(a,`광장에서 ${post.name}의 글을 읽었다 — “${String(post.text).slice(0,30)}…”.`,['광장','소식'],3,'글',{agent:post.by});
@@ -853,15 +853,15 @@ function buildingAds(b,a){
   if(b.kind==='거처'&&b.owner===a.id)ads.push({type:'tend',label:'거처 가꾸기',score:12+(a.mood-50)*.18+(a.memories.some(m=>m.type==='묶음')?10:0)+(a.pers.신중-50)*.1});
   return ads;
 }
-function workDecision(a){
+function workDecision(a,lod=1){
   const place=nearbyBuilding(a); if(!place||a.op)return;
   const ads=buildingAds(place,a).sort((x,y)=>y.score-x.score);
   a.lastScores=ads.slice(0,3).map(ad=>({label:ad.label,score:Math.round(ad.score)}));
   const top=ads[0]; if(!top)return;
-  if(rnd()<clamp(top.score/100,0,.9)*.28*(.7+norm(a.pers.끈기,0,100)*.6))startOperation(a,top.type,place.id,top.projectId||null,top.newsId||null);
+  if(rnd()<clamp(top.score/100,0,.9)*.28*lod*(.7+norm(a.pers.끈기,0,100)*.6))startOperation(a,top.type,place.id,top.projectId||null,top.newsId||null);
 }
-function observe(a){
-  if(rnd()>.025)return; const near=agents.filter(o=>o!==a&&dist(a,o)<90); const place=nearbyBuilding(a);
+function observe(a,lod=1){
+  if(rnd()>.025*lod)return; const near=agents.filter(o=>o!==a&&dist(a,o)<90); const place=nearbyBuilding(a);
   if(near.length){const o=pick(near); memory(a,`${N(o.name,'i')} ${place?place.name:'길목'} 근처에서 ${o.task} 모습을 보았다.`,['관계',o.role,place?place.id:'길목'],3,'관찰',{agent:o.id});}
   else if(place&&place.id===a.taste.spot){a.mood=clamp(a.mood+1,0,100);memory(a,`${N(place.name,'eun')} 역시 마음이 놓이는 자리다. ${N(pick(a.taste.likes),'i')} 떠올랐다.`,[place.id,'취향'],3,'관찰');}
   else if(place)memory(a,`${place.name}의 분위기가 ${state.scene}에 맞춰 조금 달라졌다.`,[place.id,place.kind],2,'관찰');
@@ -886,11 +886,11 @@ function rankSocialMoves(speaker,listener,ctx){
   speaker.lastTalkScores=ranked.slice(0,3).map(r=>({label:`${r.move} · ${r.why}`,score:Math.round(r.score)}));
   return ranked[0].move;
 }
-function converse(a,b){
+function converse(a,b,lod=1){
   if(a.cool>0||b.cool>0||a.op||b.op||dist(a,b)>76)return;
   // 쌍 중력 — 닫히지 않은 약속·풀리지 않은 어긋남·미확인 소식이 만남의 확률을 끌어올린다
   const gpull=(gravity(a,b)+gravity(b,a))/2;
-  if(rnd()>.036*(.6+(a.pers.사교+b.pers.사교)/2/100*.8)*(1+gpull/70))return;
+  if(rnd()>.036*lod*(.6+(a.pers.사교+b.pers.사교)/2/100*.8)*(1+gpull/70))return;
   let speaker=a, listener=b; if(rnd()<.5){speaker=b;listener=a}
   // 컨텍스트 수집 — 규칙이 읽을 수 있는 상황 재료
   let recon=null; for(const [x,y] of [[speaker,listener],[listener,speaker]]){const d=x.desires.find(v=>v.kind==='화해'&&v.target===y.id);if(d){recon=x;break}}
@@ -1077,9 +1077,10 @@ function lifeTick(){
     buildPlan(a);
   });
   // 새 주민 — 활기가 도는 마을에는 게이트를 건너오는 얼굴이 있다
-  if(state.day>=4&&agents.length<12&&state.resources.활기>55&&rnd()<.12)arriveResident();
+  // 상한 12→16 (2026-07-19, 로드맵 #10) — 문장 풀 그라인드가 쌓이는 만큼 단계적으로 더 연다
+  if(state.day>=4&&agents.length<16&&state.resources.활기>55&&rnd()<.12)arriveResident();
 }
-const NEWCOMER_NAMES=['소은','재하','다온','시안','무영','한결','로아','예서','태오','별하'];
+const NEWCOMER_NAMES=['소은','재하','다온','시안','무영','한결','로아','예서','태오','별하','누리','가온','미르','솔아'];
 const NEWCOMER_FACES=['🦉','🐚','🌙','🍀','🪶','🦋','🕯️','🧵'];
 const NEWCOMER_COLORS=['#ffd7a8','#c7f0ff','#ffc7d9','#d2ffc7','#e0d1ff','#fff3a8'];
 function arriveResident(){
@@ -1128,7 +1129,13 @@ function daily(){
 function sceneText(){const h=state.hour;return h<6?'깊은 밤':h<8.5?'아침 정리':h<12?'오전 작업':h<14?'점심 대화':h<18?'마을 발전':h<21?'저녁 조율':'밤의 기록'}
 function sim(dt){
   state.hour+=dt*.18*speed; if(state.hour>=24)daily(); state.scene=sceneText(); handleInputs(); directorTick(dt*.18*speed); fieldTick(dt*.18*speed);
-  agents.forEach(a=>{
+  // ── Veloren식 관심 LOD: 선택한 주민·건물에서 먼 주민은 인지 판단(일·관찰·글·대화)을 3틱에
+  //    1번, 보정된 확률로 굴린다 — 움직임의 질감은 매 틱 그대로, 생각의 해상도만 낮춰
+  //    주민 수 확대를 받친다 (docs/research/veloren-rtsim.md) ──
+  const focus=agents.find(x=>x.id===selected)||buildings.find(b=>b.id===selected)||null;
+  agents.forEach((a,ai)=>{
+    const far=focus&&a.id!==selected&&dist(a,focus)>=280;
+    const lodSkip=far&&(state.tick+ai)%3!==0, lod=far?3:1;
     if(!a.plan.length)buildPlan(a); const slot=currentSlot(a); const slotKey=a.plan.indexOf(slot); if(slot&&slotKey!==a.lastSlot&&!a.op){a.lastSlot=slotKey;setTarget(a,chooseDestination(a),slot.label);retrieve(a,[slot.place,slot.label,'계획']);}
     if(a.op){a.op.left-=dt*speed; if(a.op.left<=0)finishOperation(a)}
     else {
@@ -1143,11 +1150,16 @@ function sim(dt){
       const spd=Math.hypot(a.vx,a.vy); if(spd>maxSp){a.vx*=maxSp/spd;a.vy*=maxSp/spd}
       a.pathTrail.push({x:a.x,y:a.y,t:now()}); a.pathTrail=a.pathTrail.slice(-18);
       a.x=clamp(a.x+a.vx*dt*speed,16,world.w-16); a.y=clamp(a.y+a.vy*dt*speed,60,world.h-16);
-      workDecision(a);
+      if(!lodSkip)workDecision(a,lod);
     }
-    observe(a); maybePost(a); readPosts(a); a.energy=clamp(a.energy-dt*.42*speed+(nearbyBuilding(a)?.id==='garden'?.08:0),0,100); a.mood=clamp(a.mood+((state.resources.활기-50)/500)*dt*speed,0,100); a.cool=Math.max(0,a.cool-dt*speed); a.bubbleT=Math.max(0,a.bubbleT-dt*speed);
+    if(!lodSkip){observe(a,lod); maybePost(a,lod); readPosts(a,lod)} a.energy=clamp(a.energy-dt*.42*speed+(nearbyBuilding(a)?.id==='garden'?.08:0),0,100); a.mood=clamp(a.mood+((state.resources.활기-50)/500)*dt*speed,0,100); a.cool=Math.max(0,a.cool-dt*speed); a.bubbleT=Math.max(0,a.bubbleT-dt*speed);
   });
-  for(let i=0;i<agents.length;i++)for(let j=i+1;j<agents.length;j++)converse(agents[i],agents[j]);
+  for(let i=0;i<agents.length;i++)for(let j=i+1;j<agents.length;j++){
+    const a=agents[i],b=agents[j];
+    const far=focus&&a.id!==selected&&b.id!==selected&&dist(a,focus)>=280&&dist(b,focus)>=280;
+    if(far&&(state.tick+i+j)%3)continue;
+    converse(a,b,far?3:1);
+  }
   promiseTick(); gatheringTick(); customTick();
   state.resources.활기=clamp(state.resources.활기-.005*dt*speed,0,100); state.resources.신뢰=clamp(state.resources.신뢰-(state.resources.혼선>45?.02:.004)*dt*speed,0,100); state.resources.혼선=clamp(state.resources.혼선-.006*dt*speed,0,100); state.tick++;
 }
@@ -1330,6 +1342,7 @@ function researchCards(){return [
   {title:'The Sims · 광고하는 건물',body:'건물이 "여기서 할 수 있는 일과 효용"을 광고하고, 주민은 자기 욕구·역할과 곱해 점수만 계산한다. 주민 패널의 행동 점수표가 그 계산을 그대로 보여준다.'},
   {title:'Tracery · 문법 대화',body:'대화와 사건 문장은 고정 문장이 아니라 치환 문법에서 매번 조합되고, 받침에 따라 조사(이/가, 은/는)가 맞춰진다.'},
   {title:'Veloren rtsim · 따라잡기',body:'탭이 닫히거나 가려져 있던 시간은 이동·대화 같은 고해상도 연출을 건너뛰고 진척·소식·관계·약속만 저해상도 규칙으로 흘러, 다시 보면 마을이 그만큼 살아 있다.'},
+  {title:'Veloren · 관심 LOD',body:'선택한 주민·건물에서 먼 이들은 인지 판단(일 선택·관찰·광장 글·대화 시도)을 3틱에 1번, 보정된 확률로 굴린다. 화면의 움직임은 매 틱 그대로 — 생각의 해상도만 낮춰 주민 수가 늘어도 마을이 가볍다.'},
   {title:'Dwarf Fortress · 기억→성격',body:'기억이 묶여 영구층으로 내려가는 순간 성격 축(낙관·신중·사교·끈기)이 반드시 이동하고, 바뀐 성격은 광고 점수·대화·작업 확률에 되먹임된다.'},
   {title:'RimWorld · 사건 감독',body:'시뮬레이션과 분리된 감독(카산드라·피비·랜디)이 활기·혼선·발전 수준·경과 시간을 읽고 사건을 투하한다. 위기 직후엔 회복이 보장되고, 전개는 시뮬레이션에 맡긴다.'},
   {title:'Dwarf Fortress · 전설 모드',body:'일대기는 90줄에서 잘리지만 굵직한 사건은 연대기에 영구히 남고, 인물·장소·종류 단추로 마을의 역사를 교차 열람한다. 시뮬레이션의 산출물은 게임이 아니라 역사책이다.'},
