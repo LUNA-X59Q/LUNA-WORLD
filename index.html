@@ -84,15 +84,6 @@ button:focus-visible,input:focus-visible{outline:2px solid rgba(137,216,255,.72)
 .dock{grid-column:1/2;grid-row:5/6;min-height:0;display:flex;flex-direction:column;border:1px solid var(--line);border-radius:var(--r);background:linear-gradient(180deg,rgba(12,18,32,.84),rgba(6,9,18,.73));backdrop-filter:blur(22px);box-shadow:var(--shadow);overflow:hidden}.tabs{display:flex;gap:6px;padding:12px 12px 0;overflow:auto;scrollbar-width:none;flex-shrink:0}.tabs::-webkit-scrollbar{display:none}.tab{position:relative;padding:10px 12px;border-radius:16px;background:transparent;border:1px solid transparent;color:var(--muted);font-size:12px;white-space:nowrap;transition:.16s}.tab:hover{color:var(--soft);background:rgba(255,255,255,.045)}.tab.active{background:rgba(137,216,255,.12);border-color:rgba(137,216,255,.25);color:#fff}.tab.active::after{content:"";position:absolute;left:14px;right:14px;bottom:4px;height:2px;border-radius:999px;background:linear-gradient(90deg,var(--blue),var(--violet))}.panel{display:none;min-height:0;overflow:auto;padding:12px 13px 14px;scrollbar-gutter:stable}.panel.active{display:block;flex:1 1 0}.timeline{display:grid;gap:8px}.event{position:relative;display:grid;grid-template-columns:64px 1fr auto;gap:10px;align-items:start;padding:11px 12px;border:1px solid var(--line);border-radius:17px;background:linear-gradient(180deg,rgba(255,255,255,.052),rgba(255,255,255,.028));box-shadow:inset 0 1px 0 rgba(255,255,255,.05)}.event::before{content:"";position:absolute;left:0;top:12px;bottom:12px;width:3px;border-radius:999px;background:linear-gradient(var(--blue),var(--violet));opacity:.65}.event .time{font-size:11px;color:var(--muted)}.event .text{font-size:13px;line-height:1.48;color:var(--soft)}.event .kind{font-size:10px;padding:4px 7px;border-radius:999px;background:rgba(255,255,255,.07);color:var(--muted);white-space:nowrap}.chat{display:grid;grid-template-columns:76px 1fr auto;gap:10px;padding:10px 0;border-bottom:1px solid rgba(255,255,255,.07)}.chat b{font-size:12px;color:#fff}.chat p{margin:0;font-size:13px;color:var(--soft);line-height:1.5}.chat span{font-size:11px;color:var(--muted)}.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.tile{position:relative;padding:13px;border:1px solid var(--line);border-radius:19px;background:linear-gradient(180deg,rgba(255,255,255,.058),rgba(255,255,255,.03));text-align:left;color:inherit;box-shadow:inset 0 1px 0 rgba(255,255,255,.055);transition:transform .16s ease,border-color .16s ease,background .16s ease}.tile:hover{transform:translateY(-2px);border-color:rgba(137,216,255,.25);background:linear-gradient(180deg,rgba(137,216,255,.075),rgba(255,255,255,.036))}.tile h4{margin:0 0 6px;font-size:13px;letter-spacing:-.015em}.tile p{margin:0 0 10px;font-size:12px;color:var(--muted);line-height:1.55}.tile small{color:var(--muted)}.newsHead{display:flex;justify-content:space-between;gap:8px;align-items:flex-start}.pill{padding:4px 7px;border-radius:999px;background:rgba(255,255,255,.07);border:1px solid var(--line);font-size:10px;color:var(--muted)}.ok{color:var(--green);border-color:rgba(168,243,189,.24);background:rgba(168,243,189,.08)}.bad{color:var(--rose);border-color:rgba(255,154,170,.24);background:rgba(255,154,170,.08)}.artifact b,.engine b{display:block;font-size:13px;margin-bottom:6px}.artifact p,.engine p{margin:0;color:var(--muted);font-size:12px;line-height:1.55}.progressLabel{display:flex;justify-content:space-between;gap:10px;font-size:11px;color:var(--muted);margin-top:8px}
 .sideTabs{display:flex;gap:7px;margin-bottom:12px}.sideTabs .tag{flex:1;text-align:center;padding:10px 11px;font-size:12px;border-radius:14px}
 .mobileTabs{display:none}
-.temperWrap{position:fixed;inset:0;z-index:60;background:rgba(3,6,12,.66);backdrop-filter:blur(6px);display:grid;place-items:center;padding:16px}
-.temperWrap[hidden]{display:none}
-.temperCard{width:min(660px,100%);max-height:88vh;display:flex;flex-direction:column;gap:10px;padding:18px;border:1px solid var(--line2);border-radius:24px;background:linear-gradient(180deg,rgba(14,20,36,.97),rgba(8,12,24,.97));box-shadow:var(--shadow)}
-.temperCard h3{margin:0;font-size:17px;letter-spacing:-.02em}
-.temperCard textarea{flex:1;min-height:220px;resize:vertical;border:1px solid var(--line);border-radius:14px;background:rgba(255,255,255,.04);color:var(--ink);padding:12px;font:12.5px/1.65 ui-monospace,SFMono-Regular,Menlo,monospace;outline:none}
-.temperCard textarea:focus{border-color:rgba(137,216,255,.4)}
-.temperMsg{font-size:12px;line-height:1.55;color:var(--rose);white-space:pre-wrap;max-height:110px;overflow:auto}
-.temperMsg.ok{color:var(--green)}
-.temperBtns{display:flex;gap:8px;justify-content:flex-end}
 .inspectBody::-webkit-scrollbar,.panel::-webkit-scrollbar{width:10px}.inspectBody::-webkit-scrollbar-track,.panel::-webkit-scrollbar-track{background:transparent}.inspectBody::-webkit-scrollbar-thumb,.panel::-webkit-scrollbar-thumb{background:rgba(255,255,255,.11);border:3px solid transparent;background-clip:content-box;border-radius:999px}.inspectBody::-webkit-scrollbar-thumb:hover,.panel::-webkit-scrollbar-thumb:hover{background:rgba(137,216,255,.24);border:3px solid transparent;background-clip:content-box}
 @media(max-width:1180px){
   body{overflow:auto}
@@ -159,7 +150,7 @@ button:focus-visible,input:focus-visible{outline:2px solid rgba(137,216,255,.72)
   <header class="top">
     <div class="brand"><div class="mark">✦</div><div><h1>AI 마을</h1><p>주민이 걷고, 소식이 퍼지고, 작은 기술이 쌓이는 연구형 마을 시뮬레이션</p></div></div>
     <div class="stats" id="stats"></div>
-    <div class="controls"><button class="btn primary" id="pauseBtn">멈춤</button><button class="btn" id="stepBtn">한 걸음</button><button class="btn" id="speedBtn">속도 1x</button><button class="btn" id="directorBtn" title="사건 감독 교체">감독 🎭 카산드라</button><button class="btn" id="temperBtn" title="코드를 고치지 않고 마을 기질을 편집">기질 ✍️</button><button class="btn warn" id="saveBtn">저장</button><button class="btn" id="resetBtn">새 마을</button></div>
+    <div class="controls"><button class="btn primary" id="pauseBtn">멈춤</button><button class="btn" id="stepBtn">한 걸음</button><button class="btn" id="speedBtn">속도 1x</button><button class="btn" id="directorBtn" title="사건 감독 교체">감독 🎭 카산드라</button><button class="btn warn" id="saveBtn">저장</button><button class="btn" id="resetBtn">새 마을</button></div>
   </header>
 
   <div class="hud"><div class="chip">시간 <b id="clock">1일 07:00</b></div><div class="chip">마을 <b id="scene">아침 정리</b></div><div class="chip">입력 <b id="inputState">0</b></div></div>
@@ -187,17 +178,7 @@ button:focus-visible,input:focus-visible{outline:2px solid rgba(137,216,255,.72)
     <div class="panel" id="panel-work"><div class="grid2" id="workList"></div></div>
     <div class="panel" id="panel-research"><div class="grid2" id="researchList"></div></div>
   </section>
-</div>
-<div class="temperWrap" id="temperWrap" hidden>
-  <div class="temperCard">
-    <h3>마을 기질 ✍️ <span class="subtle" style="font-weight:400;font-size:12px">— 코드를 고치지 않고 마을을 편집한다</span></h3>
-    <p class="note subtle" style="margin:0;font-size:12px">한 줄에 규칙 하나, #으로 시작하면 주석. 적용하면 즉시 반영되고 이 기기에 남아 새 마을에도 이어진다.</p>
-    <textarea id="temperText" spellcheck="false"></textarea>
-    <div class="temperMsg" id="temperMsg"></div>
-    <div class="temperBtns"><button class="btn" id="temperClear">비우기</button><button class="btn" id="temperClose">닫기</button><button class="btn primary" id="temperApply">적용</button></div>
-  </div>
-</div>
-<script>
+</div><script>
 (()=>{
 'use strict';
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
@@ -266,7 +247,7 @@ const G={
 };
 function gen(sym,bind,depth){
   bind=bind||{};depth=depth||0; if(depth>8)return sym;
-  const rules=bind[sym]!==undefined?[bind[sym]]:poolOf(sym); if(!rules)return sym; // 기질 문장이 합류한 풀에서 뽑는다
+  const rules=bind[sym]!==undefined?[bind[sym]]:G[sym]; if(!rules)return sym;
   return String(pickFresh(rules,sym)).replace(/#([^#.]+)(?:\.(\w+))?#/g,(_,name,mod)=>{
     const v=gen(name,bind,depth+1), p=JOSA[mod]; if(!p)return v;
     const j=jongCode(v); if(mod==='euro')return v+(j>0&&j!==8?p[0]:p[1]); return v+(j>0?p[0]:p[1]);
@@ -576,38 +557,6 @@ function customTick(){
   if((state.corrections||0)>=3)seedCustom('되물음','들은 말은 옮기기 전에 겪은 사람에게 한 번 되물어본다');
   if((state.gatherWins||0)>=3)seedCustom('모임','달이 차오르면 누군가 저녁 자리를 연다');
   if((state.heals||0)>=3)seedCustom('화해','어긋난 다음 날에는 먼저 말을 거는 쪽이 이긴 것으로 친다');
-}
-// ── Kismet식 거의 자연어 규칙 표기: 마을 기질을 코드 밖에서 저작한다 — 한 줄에 규칙 하나.
-//    대화 수의 의지 가중치·문장 풀 추가·관습 씨앗을 편집기(기질 ✍️)로 밀어넣고,
-//    실행은 기존의 단순 가중치 합산이 맡는다 (docs/research/kismet.md, docs/temperament.md) ──
-let TEMPER={moves:{},pools:{},customs:[]};
-const TEMPER_KEY='ai-village-temperament';
-const poolOf=sym=>TEMPER.pools[sym]?(G[sym]||[]).concat(TEMPER.pools[sym]):G[sym]; // 기질 문장이 합류한 풀
-function parseTemper(text){
-  const t={moves:{},pools:{},customs:[]}, errors=[];
-  String(text||'').split('\n').forEach((raw,i)=>{
-    const line=raw.trim(); if(!line||line.startsWith('#'))return;
-    let m;
-    if(m=line.match(/^(\S+)\s*의지\s*([+-]\d+(?:\.\d+)?)$/)){
-      const move=m[1];
-      if(SOCIAL_RULES.some(r=>r.move===move))t.moves[move]=(t.moves[move]||0)+parseFloat(m[2]);
-      else errors.push(`${i+1}행: '${move}'라는 대화 수가 없어 — ${SOCIAL_RULES.map(r=>r.move).join('·')} 중에서.`);
-    } else if(m=line.match(/^문장\s+(\S+)\s*[:：]\s*(.+)$/)){
-      if(G[m[1]])(t.pools[m[1]]=t.pools[m[1]]||[]).push(m[2].trim());
-      else errors.push(`${i+1}행: '${m[1]}' 문장 풀이 없어 — ${Object.keys(G).slice(0,10).join('·')} 등.`);
-    } else if(m=line.match(/^관습(?:\(([^)]+)\))?\s*[:：]\s*(.+)$/)){
-      t.customs.push({key:m[1]||'기질',text:m[2].trim()});
-    } else errors.push(`${i+1}행: 알아듣지 못한 표기 — “${line.slice(0,28)}”`);
-  });
-  return {t,errors};
-}
-function applyTemper(text){
-  const {t,errors}=parseTemper(text);
-  TEMPER=t;
-  // 기질에서 온 관습만 갈아끼운다 — 시뮬레이션이 스스로 키운 관습은 건드리지 않는다
-  state.customs=state.customs.filter(c=>!c.temper||t.customs.some(x=>x.text===c.text));
-  t.customs.forEach(c=>{if(!state.customs.some(x=>x.text===c.text))state.customs.push({key:c.key,text:c.text,time:timeText(),temper:true})});
-  return errors;
 }
 // 약속: 대화에서 생기고, 닫히지 않은 동안은 다음 만남을 끌어당기는 중력이 된다
 function openPromises(a){return state.promises.filter(p=>p.status==='열림'&&(p.a===a.id||p.b===a.id))}
@@ -931,7 +880,7 @@ const SOCIAL_RULES=[
 ];
 function rankSocialMoves(speaker,listener,ctx){
   const ranked=SOCIAL_RULES.filter(r=>!r.when||r.when(speaker,listener,ctx))
-    .map(r=>({move:r.move,why:r.why,score:r.w(speaker,listener,ctx)+(TEMPER.moves[r.move]||0)+rnd()*10}))
+    .map(r=>({move:r.move,why:r.why,score:r.w(speaker,listener,ctx)+rnd()*10}))
     .sort((x,y)=>y.score-x.score);
   speaker.lastTalkScores=ranked.slice(0,3).map(r=>({label:`${r.move} · ${r.why}`,score:Math.round(r.score)}));
   return ranked[0].move;
@@ -956,7 +905,7 @@ function converse(a,b,lod=1){
   const ctx={recon,transferable,knownBoth,fresh,cite,canPromise,moodAvg:(speaker.mood+listener.mood)/2};
   const move=rankSocialMoves(speaker,listener,ctx);
   let line='',kind='대화',summary='',delta=2;
-  const topic=rnd()<.3?pick(speaker.taste.likes):pick(poolOf('주제')); // 취향이 대화 주제의 재료가 된다
+  const topic=rnd()<.3?pick(speaker.taste.likes):pick(G['주제']); // 취향이 대화 주제의 재료가 된다
   if(move==='화해'){
     // 바람을 품은 쪽이 먼저 손을 내민다 — 화해가 이뤄지면 중력의 이유 하나가 사라진다
     if(recon!==speaker){const t=speaker;speaker=listener;listener=t}
@@ -1451,7 +1400,6 @@ function researchCards(){return [
   {title:'Boids · 조향 이동',body:'주민의 걸음은 목표 직선이 아니라 arrive(감속 도착)·separation(밀집 회피)·wander(잔흔들림) 조향력의 합이다. 광장에 모일 때 자연스레 벌어지고, 서성임이 생긴다 — 관찰 재미의 절반은 움직임의 질감이다.'},
   {title:'Sugarscape · 자원 격자',body:'지형이 장식이 아니라 자라고 소모되는 들녘이다 — 온실과 물길 가까이가 기름지고, 쉼은 들녘을 걷어가며, 걷힌 자리는 다시 자랄 시간이 필요하다. 비가 오면 빨리 자라고, 들이 마르면 쉼이 얕아지고 마을의 활기가 내려간다. 풍년과 흉년이 사건이 아니라 시뮬레이션의 결과가 된다.'},
   {title:'Talk of the Town · 생애 사건',body:'구성원 자체가 변해야 마을이 오래 볼수록 다른 곳이 된다 — 굳은 기억이 성격을 사흘 넘게 기울이면 소명이 옮겨가고(전직), 활기가 도는 마을에는 나루터를 건너오는 새 얼굴이 있고, 관계가 오래 식은 이는 며칠을 기울다 나루터를 다시 건넌다(퇴장). 사람이 떠나도 이름은 연대기와 소문의 길에 남는다 — 유입과 떠남이 함께 있어야 세대가 흐른다.'},
-  {title:'Kismet · 마을 기질 표기',body:'거의 자연어로 된 한 줄 규칙("갈등 의지 -6", "문장 주제: 겨울 등불 축제", "관습: …")을 기질 편집기에 적으면 코드를 고치지 않고 대화 성향·문장 풀·관습이 바뀐다. 실행은 기존 가중치 합산이 맡는다 — 저작과 실행의 분리.'},
   {title:'단일 파일의 선',body:'실제 LLM 호출, 벡터 DB, 서버 작업 큐, 컴퓨터 화면 조작은 없다. 대신 구조의 움직임을 브라우저 규칙으로 압축했다.'}
 ]}
 // ── TotT drama.py식 이야기 발굴: 시뮬레이션은 원재료를 만들고, 이야기는 큐레이션이 찾아낸다 —
@@ -1617,29 +1565,9 @@ function init(){
   $('#backBtn').onclick=()=>setSelected(null);
   window.addEventListener('popstate',()=>{if(selected){selected=null;updateUI()}});
   $('#seedForm').addEventListener('submit',e=>{e.preventDefault();const v=$('#seedText').value.trim();if(v)submitInput(v,'seed')}); $('#eventBtn').onclick=()=>submitInput(sampleIncident(),'incident');
-  // 기질 편집기 (Kismet) — 저장된 기질은 시작할 때 조용히 적용된다
-  const TEMPER_TEMPLATE=['# 마을 기질 — 한 줄에 규칙 하나. #으로 시작하면 주석.','#',
-    '# ① 대화 수의 의지 기울이기:  <수> 의지 +N','#    수: '+SOCIAL_RULES.map(r=>r.move).join('·'),
-    '# 갈등 의지 -6','# 화해 의지 +8','#',
-    '# ② 문장 풀에 보태기:  문장 <풀>: <문장>   (#주제.eun# 같은 치환도 그대로 쓸 수 있어)',
-    '# 문장 주제: 겨울 등불 축제','# 문장 맞장구: 그 말, 오래 두고 생각할게.','#',
-    '# ③ 관습 심기:  관습: <문장>   /   관습(되물음): <문장>',
-    '#    괄호 키가 되물음·화해·모임·약속이면 주민 행동에도 되먹인다',
-    '# 관습: 저녁마다 광장에서 하루를 짧게 소리 내어 정리한다',''].join('\n');
-  applyTemper(localStorage.getItem(TEMPER_KEY)||'');
-  $('#temperBtn').onclick=()=>{$('#temperText').value=localStorage.getItem(TEMPER_KEY)||TEMPER_TEMPLATE;$('#temperMsg').textContent='';$('#temperMsg').classList.remove('ok');$('#temperWrap').hidden=false};
-  $('#temperClose').onclick=()=>{$('#temperWrap').hidden=true};
-  $('#temperWrap').addEventListener('click',e=>{if(e.target===$('#temperWrap'))$('#temperWrap').hidden=true});
-  $('#temperClear').onclick=()=>{$('#temperText').value=TEMPER_TEMPLATE;$('#temperMsg').textContent='';$('#temperMsg').classList.remove('ok')};
-  $('#temperApply').onclick=()=>{
-    const text=$('#temperText').value, errors=applyTemper(text), msg=$('#temperMsg');
-    localStorage.setItem(TEMPER_KEY,text);
-    const nMoves=Object.keys(TEMPER.moves).length, nSent=Object.values(TEMPER.pools).reduce((s,x)=>s+x.length,0);
-    msg.classList.toggle('ok',!errors.length);
-    msg.textContent=errors.length?errors.join('\n'):`적용됐어 — 의지 조정 ${nMoves}개 · 추가 문장 ${nSent}개 · 심은 관습 ${TEMPER.customs.length}개`;
-    if(!errors.length)toast('마을 기질이 스몄어');
-    updateUI();
-  };
+  // 기질 편집기 폐기 잔재 정리 (2026-07-19) — 저장돼 있던 기질과 기질産 관습을 걷어낸다
+  localStorage.removeItem('ai-village-temperament');
+  state.customs=state.customs.filter(c=>!c.temper);
   $('#pauseBtn').onclick=()=>{paused=!paused;$('#pauseBtn').textContent=paused?'다시 흐르게':'멈춤'}; $('#stepBtn').onclick=()=>{sim(.9);updateUI()}; $('#speedBtn').onclick=()=>{speed=speed===1?2:speed===2?4:1;$('#speedBtn').textContent=`속도 ${speed}x`}; $('#saveBtn').onclick=()=>save(); $('#resetBtn').onclick=reset; $('#directorBtn').onclick=cycleDirector; {const p=directorProfile();$('#directorBtn').textContent=`감독 ${p.icon} ${p.name}`}
   // Veloren rtsim 문법의 확장: 탭이 '닫힌' 시간만이 아니라 '가려진' 시간도 저해상도로 메꾼다
   // (rAF는 숨김 탭에서 멈추므로, 이 처리가 없으면 가려진 마을은 얼어붙는다)
