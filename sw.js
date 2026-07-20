@@ -1,7 +1,7 @@
-// LUNA-WORLD 서비스 워커 — 앱 껍데기를 캐시해 오프라인에서도 마을이 돈다.
-// 시뮬레이션 상태는 localStorage에 있으므로 껍데기만 있으면 완전 동작.
+// AI BOX 서비스 워커 — 앱 껍데기를 캐시해 오프라인에서도 열린다.
+// 카드는 localStorage에 있으므로 껍데기만 있으면 완전 동작.
 // HTML은 네트워크 우선(새 배포 즉시 반영), 정적 자산은 캐시 우선.
-const CACHE = 'luna-world-v2'; // v2: 홈 화면 아이콘 확대 — 캐시된 옛 아이콘을 밀어낸다
+const CACHE = 'ai-box-v1'; // v1: AI 마을 → AI BOX 전환, 옛 캐시를 밀어낸다
 const SHELL = ['./', 'index.html', 'manifest.webmanifest', 'favicon.svg', 'icon-192.png', 'icon-512.png'];
 
 self.addEventListener('install', e => {

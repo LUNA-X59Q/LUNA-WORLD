@@ -1,7 +1,7 @@
 {
-  "name": "AI마을",
-  "short_name": "AI마을",
-  "description": "LLM·API 호출 0 — 규칙만으로 주민들이 살아가는 브라우저 마을 시뮬레이션",
+  "name": "AI BOX",
+  "short_name": "AI BOX",
+  "description": "자유 · 정보 · 그림프롬프트 · 페르소나프롬프트를 카드로 모아두는 보드",
   "lang": "ko",
   "start_url": "./",
   "scope": "./",

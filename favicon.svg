@@ -1,12 +1,9 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
 <rect width="512" height="512" rx="120" fill="#ffffff"/>
-<g transform="translate(256,256) scale(1.4) translate(-256,-275)">
-<g stroke="#111111" stroke-linecap="round" stroke-linejoin="round">
-<path fill="none" stroke-width="13" d="M 158 268 L 158 392 Q 158 410 176 410 L 336 410 Q 354 410 354 392 L 354 268"/>
-<path fill="#ffffff" stroke-width="13" d="M 166 234 L 166 162 Q 166 152 176 152 L 198 152 Q 208 152 208 162 L 208 193"/>
-<path fill="#ffffff" stroke-width="13" d="M 124 272 L 256 140 L 388 272 L 367 293 L 256 182 L 145 293 Z"/>
-<rect x="190" y="320" width="48" height="48" rx="8" fill="none" stroke-width="13"/>
-<path fill="none" stroke-width="13" d="M 262 410 L 262 336 Q 262 320 278 320 L 302 320 Q 318 320 318 336 L 318 410"/>
+<g stroke="#111111" stroke-width="14" stroke-linecap="round" stroke-linejoin="round" fill="none">
+<rect x="118" y="164" width="276" height="62" rx="14"/>
+<path d="M142 226 L142 388 Q142 404 158 404 L354 404 Q370 404 370 388 L370 226"/>
+<path d="M216 226 L216 264 Q216 276 228 276 L284 276 Q296 276 296 264 L296 226"/>
 </g>
-</g>
+<text x="256" y="374" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-weight="bold" font-size="80" fill="#111111">AI</text>
 </svg>
