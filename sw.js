@@ -1,7 +1,7 @@
 // AI BOX 서비스 워커 — 앱 껍데기를 캐시해 오프라인에서도 열린다.
 // 카드는 localStorage에 있으므로 껍데기만 있으면 완전 동작.
 // HTML은 네트워크 우선(새 배포 즉시 반영), 정적 자산은 캐시 우선.
-const CACHE = 'ai-box-v12'; // v12: 화이트모드 색상 개편(라벤더-그레이+보라) · 🌗 아이콘 고정
+const CACHE = 'ai-box-v13'; // v13: 화이트모드 배경 중립 회색으로 정리(보라 포인트 제거)
 const SHELL = ['./', 'index.html', 'manifest.webmanifest', 'favicon.svg', 'icon-192.png', 'icon-512.png'];
 
 self.addEventListener('install', e => {
