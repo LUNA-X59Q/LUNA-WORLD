@@ -110,11 +110,11 @@ header{max-width:760px;margin:0 auto;display:flex;align-items:center;justify-con
 .detailPhoto{padding:0;overflow:hidden;cursor:zoom-in}
 .detailPhoto .detailImg{max-width:100%;height:auto;margin:0;border-radius:var(--r);cursor:zoom-in}
 
-/* 원본 보기(라이트박스): 사진을 탭하면 원본 픽셀 크기로, 상하좌우 스크롤하며 본다. */
+/* 원본 보기(라이트박스): 사진을 탭하면 원본 사진 전체를 화면에 꽉 차게 보여준다. */
 .lightbox{display:none;position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.94)}
 .lightbox.open{display:block}
-.lbScroll{position:absolute;inset:0;overflow:auto;-webkit-overflow-scrolling:touch;padding:0}
-.lbScroll img{display:block;max-width:none;margin:auto} /* 원본 크기 그대로(작으면 가운데) */
+.lbScroll{position:absolute;inset:0;overflow:hidden;display:flex;align-items:center;justify-content:center;padding:10px}
+.lbScroll img{display:block;max-width:100%;max-height:100%;width:auto;height:auto} /* 전체가 보이게 화면에 맞춤 */
 .lbClose{position:fixed;top:calc(env(safe-area-inset-top,0px) + 10px);right:12px;z-index:210;width:42px;height:42px;border-radius:50%;font-size:20px;display:grid;place-items:center;color:#fff;background:rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.3)}
 .lbHint{position:fixed;left:0;right:0;bottom:calc(env(safe-area-inset-bottom,0px) + 14px);z-index:210;text-align:center;font-size:12px;color:rgba(255,255,255,.7);pointer-events:none}
 
@@ -170,7 +170,7 @@ dialog textarea{min-height:130px;resize:vertical;line-height:1.5}
 <div class="lightbox" id="lightbox">
   <button class="lbClose" id="lbClose" aria-label="닫기">✕</button>
   <div class="lbScroll" id="lbScroll"><img id="lbImg" alt=""></div>
-  <div class="lbHint">원본 크기 · 스크롤해서 보기 · 탭하면 닫힘</div>
+  <div class="lbHint">원본 사진 · 탭하면 닫힘</div>
 </div>
 
 <dialog id="settingsDialog">
