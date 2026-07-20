@@ -232,9 +232,9 @@ $('#themeBtn').addEventListener('click',()=>{
 });
 
 /* ── 외부 글 소스: 깃허브 + 구글드라이브 (같은 파서·렌더를 공유) ── */
-// 깃허브: GitHub API로 posts/<카테고리>.md 를 읽는다(raw는 공개 레포만 되지만
-// API는 토큰만 있으면 비공개 레포도 됨). 토큰은 코드에 넣지 않고 설정에서 받아
-// 이 기기의 localStorage에만 저장한다 → 레포·타인에게 노출되지 않음.
+// 깃허브: GitHub API로 posts/<카테고리>/ 폴더 안의 파일들을 읽는다(드라이브처럼 파일 단위).
+// 파일 하나 = 글 하나(파일명=제목). API는 토큰만 있으면 비공개 레포도 됨. 토큰은 코드에
+// 넣지 않고 설정에서 받아 이 기기의 localStorage에만 저장한다 → 레포·타인에게 노출되지 않음.
 const GH_OWNER='LUNA-X59Q', GH_REPO='LUNA-WORLD', GH_BRANCH='main';
 const TOKKEY='ai-box-gh-token';
 const ghToken=()=>{try{return localStorage.getItem(TOKKEY)||''}catch(e){return ''}};
@@ -276,19 +276,47 @@ async function driveFileToPosts(f,key){
   return [{title:title||'(제목 없음)',date,body:text.trim(),ts}];
 }
 
+// 깃허브 파일 하나 → 글 배열(드라이브와 동일 규칙). 이미지는 이미지 카드로,
+// `## ` 헤딩이 있으면 그 단위로, 없으면 파일 하나를 카드 하나로(파일명=제목).
+async function ghFileToPosts(f,tok){
+  const name=String(f.name||'');
+  // 사진(이미지) 파일: raw URL을 그대로 이미지로 표시
+  if(/\.(png|jpe?g|gif|webp|bmp|svg|heic|heif|avif|tiff?)$/i.test(name)){
+    let title=name.replace(/\.[^.]+$/,''), date='';
+    const m=title.match(/\((\d{4}-\d{2}-\d{2})\)\s*$/); if(m){date=m[1]; title=title.slice(0,m.index).trim()}
+    return [{title:title||'(사진)',date,body:'',img:f.download_url,ts:0}];
+  }
+  if(!/\.(md|markdown|txt)$/i.test(name))return []; // md·txt 만 글로 취급(.gitkeep 등 무시)
+  const headers={'Accept':'application/vnd.github.raw'}; // raw = 본문 바로 반환
+  if(tok)headers['Authorization']='Bearer '+tok;
+  const r=await fetch(`${f.url}${f.url.includes('?')?'&':'?'}t=${Date.now()}`,{cache:'no-store',headers});
+  if(!r.ok)return [];
+  const text=await r.text();
+  const ts=Date.parse(r.headers.get('Last-Modified')||'')||0; // 파일 마지막 커밋 시각(보조 정렬)
+  const parsed=parseMD(text);
+  if(parsed.length)return parsed.reverse().map(p=>({...p,ts})); // 파일 안 여러 글은 아래쪽이 최신 → 위로
+  let title=name.replace(/\.(md|markdown|txt)$/i,''), date='';
+  const m=title.match(/\((\d{4}-\d{2}-\d{2})\)\s*$/); if(m){date=m[1]; title=title.slice(0,m.index).trim()}
+  return [{title:title||'(제목 없음)',date,body:text.trim(),ts}];
+}
+
 // 소스 정의: id → 배지 라벨 · 캐시 키 · load(카테고리)→글 배열(미설정/없음이면 [], 실패면 throw로 캐시 유지)
 const SOURCES=[
   {id:'gh', label:'GitHub', cacheKey:'ai-box-github-posts',
    async load(c){
-     const headers={'Accept':'application/vnd.github.raw'}; // raw 미디어 타입 = 본문 바로 반환
-     const tok=ghToken(); if(tok)headers['Authorization']='Bearer '+tok;
-     const path='posts/'+encodeURIComponent(c)+'.md';
-     const r=await fetch(`https://api.github.com/repos/${GH_OWNER}/${GH_REPO}/contents/${path}?ref=${GH_BRANCH}&t=${Date.now()}`,{cache:'no-store',headers});
-     if(r.status===404)return []; // 파일 없음/토큰 없음·무효 → 0개
-     if(!r.ok)throw 0; // 레이트리밋 등 → 캐시 유지
-     // Last-Modified = 파일의 마지막 커밋 시각(추가 호출 없이 헤더로 옴, CORS 기본 노출). 보조 정렬 기준.
-     const ts=Date.parse(r.headers.get('Last-Modified')||'')||0;
-     return parseMD(await r.text()).reverse().map(p=>({...p,ts})); // 파일 아래쪽(나중에 쓴 글)이 최신 → 위로
+     const tok=ghToken();
+     const headers={'Accept':'application/vnd.github+json'};
+     if(tok)headers['Authorization']='Bearer '+tok;
+     // posts/<카테고리>/ 폴더 안의 파일 목록 (드라이브의 폴더 방식과 동일)
+     const dir='posts/'+encodeURIComponent(c);
+     const lr=await fetch(`https://api.github.com/repos/${GH_OWNER}/${GH_REPO}/contents/${dir}?ref=${GH_BRANCH}&t=${Date.now()}`,{cache:'no-store',headers});
+     if(lr.status===404)return []; // 폴더 없음(글 없음) → 0개
+     if(!lr.ok)throw 0; // 레이트리밋 등 → 캐시 유지
+     const list=await lr.json();
+     if(!Array.isArray(list))return []; // 폴더가 아니면(파일 단건 등) 무시
+     const files=list.filter(f=>f.type==='file');
+     const groups=await Promise.all(files.map(f=>ghFileToPosts(f,tok).catch(()=>[])));
+     return groups.flat();
    }},
   {id:'dr', label:'Drive', cacheKey:'ai-box-drive-posts',
    async load(c){
