@@ -85,7 +85,6 @@ header{max-width:760px;margin:0 auto;display:flex;align-items:center;justify-con
 .detailTitle{font-size:19px;font-weight:800;letter-spacing:-.02em;margin:12px 0 8px;word-break:break-word}
 .detailMeta{font-size:12px;color:var(--muted);margin-bottom:14px;display:flex;gap:10px;flex-wrap:wrap}
 .detailContent{font-size:15px;line-height:1.75;color:var(--soft);white-space:pre-wrap;word-break:break-word;padding:16px;background:var(--card);border:1px solid var(--line);border-radius:var(--r)}
-.detailContent pre{white-space:pre-wrap;word-break:break-word;margin:6px 0;padding:12px 13px;border-radius:12px;background:rgba(0,0,0,.34);border:1px solid var(--line);font-size:13px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
 
 /* ── 글쓰기 모달 ── */
 dialog{border:1px solid var(--line2);border-radius:20px;background:var(--surface);color:var(--ink);padding:0;width:min(480px,calc(100vw - 32px));box-shadow:var(--shadow)}
@@ -256,17 +255,13 @@ function parseMD(md){
   return out.map(p=>({title:p.title,date:p.date,body:p.lines.join('\n').trim()}));
 }
 
-// 최소 마크다운 렌더: 줄바꿈(pre-wrap)·코드블록·굵게만, 라이브러리 없이
+// 본문 렌더: 그냥 글 형태(줄바꿈은 pre-wrap로 유지) + 굵게만. 코드블록은 지원 안 함.
+// ``` 펜스 줄은 제거해 가독성만 남긴다(수천 자도 그대로 표시·스크롤).
 function mdHtml(src){
-  return String(src).split('```').map((seg,i,arr)=>{
-    if(i%2)return '<pre>'+esc(seg.replace(/^[^\n]*\n/,'').replace(/\n$/,''))+'</pre>';
-    let t=seg;
-    if(i>0)t=t.replace(/^\n/,'');
-    if(i<arr.length-1)t=t.replace(/\n$/,'');
-    return esc(t).replace(/\*\*([^*]+)\*\*/g,'<b>$1</b>');
-  }).join('');
+  const t=String(src).replace(/^[ \t]*```.*$/gm,'').replace(/\n{3,}/g,'\n\n').trim();
+  return esc(t).replace(/\*\*([^*]+)\*\*/g,'<b>$1</b>');
 }
-const ghPreview=b=>String(b).replace(/```[^\n]*/g,'').replace(/\*\*/g,'').trim();
+const ghPreview=b=>String(b).replace(/^[ \t]*```.*$/gm,'').replace(/\*\*/g,'').replace(/\s+/g,' ').trim();
 
 let fetching=false;
 async function fetchRemote(){
