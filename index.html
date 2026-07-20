@@ -177,38 +177,64 @@ const GH_OWNER='LUNA-X59Q', GH_REPO='LUNA-WORLD', GH_BRANCH='main';
 const TOKKEY='ai-box-gh-token';
 const ghToken=()=>{try{return localStorage.getItem(TOKKEY)||''}catch(e){return ''}};
 
-// 구글드라이브: API 키와 카테고리별 파일 ID도 코드에 넣지 않고 설정에서 받아
-// 이 기기의 localStorage에만 저장한다(깃허브 토큰과 동일 원칙).
-// 파일은 "링크가 있는 모든 사용자"로 공개돼 있어야 API 키로 읽을 수 있다.
-const DKEY='ai-box-drive-key', DFILES='ai-box-drive-files';
+// 구글드라이브: API 키와 카테고리별 "폴더 ID"를 설정에서 받아 이 기기의
+// localStorage에만 저장한다(깃허브 토큰과 동일 원칙). 폴더를 지정하면 그 폴더 안의
+// 모든 문서를 조회한다. 폴더·문서는 "링크가 있는 모든 사용자"로 공개돼 있어야 한다.
+const DKEY='ai-box-drive-key', DFOLDERS='ai-box-drive-folders';
 const driveKey=()=>{try{return localStorage.getItem(DKEY)||''}catch(e){return ''}};
-const driveFiles=()=>{try{return JSON.parse(localStorage.getItem(DFILES))||{}}catch(e){return {}}};
+const driveFolders=()=>{try{return JSON.parse(localStorage.getItem(DFOLDERS))||{}}catch(e){return {}}};
 
-// 소스 정의: id → 배지 라벨 · 캐시 키 · 카테고리별 요청(Response 반환, 미설정이면 null)
+// 드라이브 파일 하나 → 글 배열. 일반 파일은 그대로, 구글 문서는 텍스트로 export.
+// `## ` 헤딩이 있으면 그 단위로, 없으면 파일 하나를 카드 하나로(파일명=제목, 수정일=날짜).
+async function driveFileToPosts(f,key){
+  const isDoc=f.mimeType==='application/vnd.google-apps.document';
+  const url=isDoc
+    ?`https://www.googleapis.com/drive/v3/files/${f.id}/export?mimeType=text/plain&key=${encodeURIComponent(key)}`
+    :`https://www.googleapis.com/drive/v3/files/${f.id}?alt=media&key=${encodeURIComponent(key)}`;
+  const r=await fetch(url,{cache:'no-store'});
+  if(!r.ok)return [];
+  const text=await r.text();
+  const parsed=parseMD(text);
+  if(parsed.length)return parsed;
+  let title=String(f.name||'').replace(/\.(md|markdown|txt)$/i,''), date=(f.modifiedTime||'').slice(0,10);
+  const m=title.match(/\((\d{4}-\d{2}-\d{2})\)\s*$/); if(m){date=m[1]; title=title.slice(0,m.index).trim()}
+  return [{title:title||'(제목 없음)',date,body:text.trim()}];
+}
+
+// 소스 정의: id → 배지 라벨 · 캐시 키 · load(카테고리)→글 배열(미설정/없음이면 [], 실패면 throw로 캐시 유지)
 const SOURCES=[
-  {id:'gh', label:'GitHub', cacheKey:'ai-box-github-md',
-   request:c=>{
-     const headers={'Accept':'application/vnd.github.raw'}; // raw 미디어 타입 = 본문 바로 반환(base64 디코드 불필요)
+  {id:'gh', label:'GitHub', cacheKey:'ai-box-github-posts',
+   async load(c){
+     const headers={'Accept':'application/vnd.github.raw'}; // raw 미디어 타입 = 본문 바로 반환
      const tok=ghToken(); if(tok)headers['Authorization']='Bearer '+tok;
      const path='posts/'+encodeURIComponent(c)+'.md';
-     return fetch(`https://api.github.com/repos/${GH_OWNER}/${GH_REPO}/contents/${path}?ref=${GH_BRANCH}&t=${Date.now()}`,{cache:'no-store',headers});
+     const r=await fetch(`https://api.github.com/repos/${GH_OWNER}/${GH_REPO}/contents/${path}?ref=${GH_BRANCH}&t=${Date.now()}`,{cache:'no-store',headers});
+     if(r.status===404)return []; // 파일 없음/토큰 없음·무효 → 0개
+     if(!r.ok)throw 0; // 레이트리밋 등 → 캐시 유지
+     return parseMD(await r.text());
    }},
-  {id:'dr', label:'Drive', cacheKey:'ai-box-drive-md',
-   request:c=>{
-     const key=driveKey(), id=driveFiles()[c];
-     if(!key||!id)return null; // 키나 파일 ID 없으면 드라이브 글 0개
-     return fetch(`https://www.googleapis.com/drive/v3/files/${encodeURIComponent(id)}?alt=media&key=${encodeURIComponent(key)}&t=${Date.now()}`,{cache:'no-store'});
+  {id:'dr', label:'Drive', cacheKey:'ai-box-drive-posts',
+   async load(c){
+     const key=driveKey(), folder=driveFolders()[c];
+     if(!key||!folder)return []; // 키/폴더 미설정 → 0개
+     const q=encodeURIComponent(`'${folder}' in parents and trashed=false`);
+     const fields=encodeURIComponent('files(id,name,mimeType,modifiedTime)');
+     const lr=await fetch(`https://www.googleapis.com/drive/v3/files?q=${q}&key=${encodeURIComponent(key)}&fields=${fields}&orderBy=modifiedTime%20desc&pageSize=100&t=${Date.now()}`,{cache:'no-store'});
+     if(lr.status===404)return []; // 폴더 없음/비공개 → 0개
+     if(!lr.ok)throw 0;
+     const files=((await lr.json()).files||[]).filter(f=>f.mimeType!=='application/vnd.google-apps.folder');
+     const groups=await Promise.all(files.map(f=>driveFileToPosts(f,key).catch(()=>[])));
+     return groups.flat();
    }}, // googleapis는 CORS 허용이라 브라우저에서 바로 fetch 가능
 ];
 const srcById=id=>SOURCES.find(s=>s.id===id);
 
-// 소스별 상태: id → { md:{카테고리→원본}, posts:{카테고리→파싱된 글 배열} }
-// 성공한 응답은 localStorage에 캐시 → 오프라인·실패 시 마지막 판 표시
+// 소스별 상태: id → { posts:{카테고리→글 배열} }. 파싱된 글을 localStorage에 캐시(오프라인·실패 시 마지막 판).
 const remote={};
 for(const s of SOURCES){
-  let md={}; try{md=JSON.parse(localStorage.getItem(s.cacheKey))||{}}catch(e){md={}}
-  const rp={}; CATS.forEach(c=>rp[c]=parseMD(md[c]||''));
-  remote[s.id]={md,posts:rp};
+  let posts={}; try{posts=JSON.parse(localStorage.getItem(s.cacheKey))||{}}catch(e){posts={}}
+  CATS.forEach(c=>{if(!Array.isArray(posts[c]))posts[c]=[]});
+  remote[s.id]={posts};
 }
 
 // "## 제목 (YYYY-MM-DD)" 헤딩 하나가 글 하나. 첫 헤딩 이전 내용과 코드 블록 안의 "## "는 무시.
@@ -246,21 +272,13 @@ let fetching=false;
 async function fetchRemote(){
   if(fetching)return; fetching=true;
   const btn=$('#refreshBtn'); btn.classList.add('spin');
-  await Promise.all(SOURCES.flatMap(s=>{
-    const st=remote[s.id];
-    return CATS.map(async c=>{
-      let req; try{req=s.request(c)}catch(e){req=null}
-      if(!req){st.md[c]=''; st.posts[c]=[]; return} // 미설정 = 글 0개
-      try{
-        const r=await req;
-        // 404 = 파일 없음, 비공개인데 토큰 없음/무효도 404 → 그 카테고리 글 0개
-        if(r.status===404){st.md[c]=''; st.posts[c]=[]; return}
-        if(!r.ok)return; // 그 외 실패(레이트리밋 등) — 마지막 캐시 유지
-        st.md[c]=await r.text(); st.posts[c]=parseMD(st.md[c]);
-      }catch(e){/* 오프라인 등 — 마지막 캐시 유지 */}
-    });
-  }));
-  for(const s of SOURCES){try{localStorage.setItem(s.cacheKey,JSON.stringify(remote[s.id].md))}catch(e){}}
+  await Promise.all(SOURCES.flatMap(s=>CATS.map(async c=>{
+    try{
+      const list=await s.load(c);
+      if(Array.isArray(list))remote[s.id].posts[c]=list;
+    }catch(e){/* 실패(오프라인·레이트리밋 등) — 마지막 캐시 유지 */}
+  })));
+  for(const s of SOURCES){try{localStorage.setItem(s.cacheKey,JSON.stringify(remote[s.id].posts))}catch(e){}}
   fetching=false; btn.classList.remove('spin'); render();
 }
 $('#refreshBtn').addEventListener('click',fetchRemote);
@@ -352,9 +370,9 @@ $('#detailDel').addEventListener('click',()=>{
   if(history.state&&history.state.v==='detail')history.back(); else closeDetail();
 });
 
-/* 설정 — GitHub 토큰 · 드라이브 키/파일 ID (모두 이 기기에만 저장) */
+/* 설정 — GitHub 토큰 · 드라이브 키/폴더 ID (모두 이 기기에만 저장) */
 const sdlg=$('#settingsDialog');
-$('#driveFilesWrap').innerHTML=CATS.map((c,i)=>`<input class="fDriveId" data-cat="${esc(c)}" placeholder="${esc(c)} 파일 ID" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" inputmode="text" name="ai-box-df${i}" data-lpignore="true" data-1p-ignore data-form-type="other">`).join('');
+$('#driveFilesWrap').innerHTML=CATS.map((c,i)=>`<input class="fDriveFolder" data-cat="${esc(c)}" placeholder="${esc(c)} 폴더 ID" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" inputmode="text" name="ai-box-df${i}" data-lpignore="true" data-1p-ignore data-form-type="other">`).join('');
 // 오토필/자동완성 바(열쇠·카드·지도)가 뜨지 않게: 평소엔 readonly, 만질 때만 편집 가능
 document.querySelectorAll('#settingsForm input').forEach(inp=>{
   inp.readOnly=true;
@@ -366,23 +384,23 @@ document.querySelectorAll('#settingsForm input').forEach(inp=>{
 $('#settingsBtn').addEventListener('click',()=>{
   $('#fToken').value=ghToken();
   $('#fDriveKey').value=driveKey();
-  const df=driveFiles();
-  document.querySelectorAll('.fDriveId').forEach(inp=>inp.value=df[inp.dataset.cat]||'');
+  const df=driveFolders();
+  document.querySelectorAll('.fDriveFolder').forEach(inp=>inp.value=df[inp.dataset.cat]||'');
   sdlg.showModal();
 });
 $('#tokenClearBtn').addEventListener('click',()=>{
-  try{[TOKKEY,DKEY,DFILES].forEach(k=>localStorage.removeItem(k))}catch(e){}
+  try{[TOKKEY,DKEY,DFOLDERS].forEach(k=>localStorage.removeItem(k))}catch(e){}
   $('#fToken').value=''; $('#fDriveKey').value='';
-  document.querySelectorAll('.fDriveId').forEach(inp=>inp.value='');
+  document.querySelectorAll('.fDriveFolder').forEach(inp=>inp.value='');
   sdlg.close(); fetchRemote();
 });
 $('#settingsForm').addEventListener('submit',()=>{
   const t=$('#fToken').value.trim(), dk=$('#fDriveKey').value.trim();
-  const df={}; document.querySelectorAll('.fDriveId').forEach(inp=>{const v=inp.value.trim(); if(v)df[inp.dataset.cat]=v});
+  const df={}; document.querySelectorAll('.fDriveFolder').forEach(inp=>{const v=inp.value.trim(); if(v)df[inp.dataset.cat]=v});
   try{
     t?localStorage.setItem(TOKKEY,t):localStorage.removeItem(TOKKEY);
     dk?localStorage.setItem(DKEY,dk):localStorage.removeItem(DKEY);
-    Object.keys(df).length?localStorage.setItem(DFILES,JSON.stringify(df)):localStorage.removeItem(DFILES);
+    Object.keys(df).length?localStorage.setItem(DFOLDERS,JSON.stringify(df)):localStorage.removeItem(DFOLDERS);
   }catch(e){}
   fetchRemote(); // 설정 반영해 즉시 다시 불러오기
 });
