@@ -71,6 +71,7 @@ header{max-width:760px;margin:0 auto;display:flex;align-items:center;justify-con
 .postHead{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:7px}
 .cat{font-size:11px;padding:3px 9px;border-radius:999px;background:rgba(137,216,255,.16);border:1px solid rgba(137,216,255,.32);color:var(--blue);white-space:nowrap}
 .src{font-size:11px;padding:3px 9px;border-radius:999px;background:rgba(217,183,255,.14);border:1px solid rgba(217,183,255,.34);color:var(--violet);white-space:nowrap}
+.src.src-dr{background:rgba(129,236,178,.13);border-color:rgba(129,236,178,.34);color:#8fecb2}
 .postMeta{font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .postTitle{font-size:15px;font-weight:700;letter-spacing:-.015em;margin-bottom:5px;word-break:break-word}
 .postPreview{font-size:13px;color:var(--muted);line-height:1.55;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;word-break:break-word}
@@ -162,13 +163,40 @@ let posts=[];
 try{posts=JSON.parse(localStorage.getItem(KEY))||[]}catch(e){posts=[]}
 let cat=CATS[0], curId=null;
 
-/* ── 깃허브 글: posts/<카테고리>.md 를 fetch해 카드로 렌더 ── */
+/* ── 외부 글 소스: 깃허브 + 구글드라이브 (같은 파서·렌더를 공유) ── */
 const RAW='https://raw.githubusercontent.com/LUNA-X59Q/LUNA-WORLD/main/posts/';
-const GHKEY='ai-box-github-md';
-let ghMd={}; // 카테고리 → 원본 MD (성공한 응답 캐시 — 오프라인·실패 시 마지막 판 표시)
-try{ghMd=JSON.parse(localStorage.getItem(GHKEY))||{}}catch(e){ghMd={}}
-const gh={}; // 카테고리 → 파싱된 글 배열
-CATS.forEach(c=>gh[c]=parseMD(ghMd[c]||''));
+
+// 구글드라이브 설정 — 두 값을 채우면 드라이브 소스가 자동으로 켜진다(비어 있으면 꺼짐).
+//  발급 ① 구글 클라우드 콘솔 → "Google Drive API" 사용 설정 → "API 키" 생성
+//  발급 ② 카테고리별 파일을 "링크가 있는 모든 사용자"로 공개 → 공유 링크 속 파일 ID를 아래에 입력
+//         (링크: .../file/d/<이 부분이 파일ID>/view)
+//  주의  API 키는 읽기 전용 공개 파일에만 접근하므로 HTML에 노출돼도 위험이 낮다.
+const DRIVE_KEY=''; // 예: 'AIzaSyXXXXXXXXXXXXXXXXXXXXXXXXX'
+const DRIVE_FILES={ // 카테고리 → 드라이브 파일 ID (모르는 칸은 비워두면 그 카테고리는 드라이브 글 0개)
+  '자유':'', '정보':'', '그림프롬프트':'', '페르소나프롬프트':'',
+};
+
+// 소스 정의: id → 배지 라벨 · 캐시 키 · 카테고리별 요청 URL 생성기
+const SOURCES=[
+  {id:'gh', label:'GitHub', cacheKey:'ai-box-github-md',
+   url:c=>RAW+encodeURIComponent(c)+'.md?t='+Date.now()}, // raw CDN 캐시(~5분) 우회용 타임스탬프
+];
+if(DRIVE_KEY){
+  SOURCES.push({id:'dr', label:'Drive', cacheKey:'ai-box-drive-md',
+   url:c=>DRIVE_FILES[c]
+     ?`https://www.googleapis.com/drive/v3/files/${encodeURIComponent(DRIVE_FILES[c])}?alt=media&key=${encodeURIComponent(DRIVE_KEY)}`
+     :''}); // googleapis는 CORS 허용이라 브라우저에서 바로 fetch 가능
+}
+const srcById=id=>SOURCES.find(s=>s.id===id);
+
+// 소스별 상태: id → { md:{카테고리→원본}, posts:{카테고리→파싱된 글 배열} }
+// 성공한 응답은 localStorage에 캐시 → 오프라인·실패 시 마지막 판 표시
+const remote={};
+for(const s of SOURCES){
+  let md={}; try{md=JSON.parse(localStorage.getItem(s.cacheKey))||{}}catch(e){md={}}
+  const rp={}; CATS.forEach(c=>rp[c]=parseMD(md[c]||''));
+  remote[s.id]={md,posts:rp};
+}
 
 // "## 제목 (YYYY-MM-DD)" 헤딩 하나가 글 하나. 첫 헤딩 이전 내용과 코드 블록 안의 "## "는 무시.
 function parseMD(md){
@@ -202,23 +230,26 @@ function mdHtml(src){
 const ghPreview=b=>String(b).replace(/```[^\n]*/g,'').replace(/\*\*/g,'').trim();
 
 let fetching=false;
-async function fetchGH(){
+async function fetchRemote(){
   if(fetching)return; fetching=true;
   const btn=$('#refreshBtn'); btn.classList.add('spin');
-  await Promise.all(CATS.map(async c=>{
-    try{
-      // raw CDN 캐시(최대 ~5분) 우회를 위해 타임스탬프를 붙인다
-      const r=await fetch(RAW+encodeURIComponent(c)+'.md?t='+Date.now(),{cache:'no-store'});
-      if(r.status===404){ghMd[c]=''; gh[c]=[]; return} // 파일 없음 = 깃허브 글 0개
-      if(!r.ok)return; // 그 외 실패 — 마지막 캐시 유지
-      const md=await r.text();
-      ghMd[c]=md; gh[c]=parseMD(md);
-    }catch(e){/* 오프라인 등 — 마지막 캐시 유지 */}
+  await Promise.all(SOURCES.flatMap(s=>{
+    const st=remote[s.id];
+    return CATS.map(async c=>{
+      const url=s.url(c);
+      if(!url){st.md[c]=''; st.posts[c]=[]; return} // 파일 ID 미설정 = 글 0개
+      try{
+        const r=await fetch(url,{cache:'no-store'});
+        if(r.status===404){st.md[c]=''; st.posts[c]=[]; return} // 파일 없음/비공개 = 글 0개
+        if(!r.ok)return; // 그 외 실패 — 마지막 캐시 유지
+        st.md[c]=await r.text(); st.posts[c]=parseMD(st.md[c]);
+      }catch(e){/* 오프라인 등 — 마지막 캐시 유지 */}
+    });
   }));
-  try{localStorage.setItem(GHKEY,JSON.stringify(ghMd))}catch(e){}
+  for(const s of SOURCES){try{localStorage.setItem(s.cacheKey,JSON.stringify(remote[s.id].md))}catch(e){}}
   fetching=false; btn.classList.remove('spin'); render();
 }
-$('#refreshBtn').addEventListener('click',fetchGH);
+$('#refreshBtn').addEventListener('click',fetchRemote);
 
 function save(){localStorage.setItem(KEY,JSON.stringify(posts))}
 function relTime(t){
@@ -241,23 +272,23 @@ tabs.addEventListener('click',e=>{
 /* 목록 */
 function render(){
   document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('on',b.dataset.cat===cat));
-  // 깃허브 글(파일 순서 = 최신순) 먼저, 그 아래 로컬 카드
-  const ghCards=(gh[cat]||[]).map((p,i)=>`<article class="post" data-gh="${i}">
-        <div class="postHead"><span style="display:flex;gap:6px"><span class="cat">${esc(cat)}</span><span class="src">GitHub</span></span><span class="postMeta">${esc(p.date)}</span></div>
+  // 외부 글(깃허브 → 드라이브 순, 각 파일 순서 = 최신순) 먼저, 그 아래 로컬 카드
+  const remoteCards=SOURCES.flatMap(s=>(remote[s.id].posts[cat]||[]).map((p,i)=>`<article class="post" data-src="${s.id}" data-i="${i}">
+        <div class="postHead"><span style="display:flex;gap:6px"><span class="cat">${esc(cat)}</span><span class="src src-${s.id}">${esc(s.label)}</span></span><span class="postMeta">${esc(p.date)}</span></div>
         <div class="postTitle">${esc(p.title)}</div>
         ${p.body?`<div class="postPreview">${esc(ghPreview(p.body))}</div>`:''}
-      </article>`);
+      </article>`));
   const localCards=posts.filter(p=>p.cat===cat).map(p=>`<article class="post" data-id="${p.id}">
         <div class="postHead"><span class="cat">${esc(p.cat)}</span><span class="postMeta">${relTime(p.time)}</span></div>
         <div class="postTitle">${esc(p.title)}</div>
         ${p.body?`<div class="postPreview">${esc(p.body)}</div>`:''}
       </article>`);
-  const cards=[...ghCards,...localCards];
+  const cards=[...remoteCards,...localCards];
   $('#posts').innerHTML=cards.length?cards.join(''):`<div class="empty">📦 아직 게시글이 없어요.</div>`;
 }
 $('#posts').addEventListener('click',e=>{
   const el=e.target.closest('.post'); if(!el)return;
-  if(el.dataset.gh!==undefined)openGhDetail(+el.dataset.gh);
+  if(el.dataset.src)openRemoteDetail(el.dataset.src,+el.dataset.i);
   else openDetail(el.dataset.id);
 });
 
@@ -276,14 +307,15 @@ function openDetail(id){
   detail.classList.add('open');
   if(!(history.state&&history.state.v==='detail'))history.pushState({v:'detail'},'');
 }
-// 깃허브 글은 원본이 레포에 있으므로 앱에서 삭제 불가 — 삭제 버튼을 숨긴다
-function openGhDetail(i){
-  const p=(gh[cat]||[])[i]; if(!p)return;
+// 외부 글은 원본이 레포/드라이브에 있으므로 앱에서 삭제 불가 — 삭제 버튼을 숨긴다
+function openRemoteDetail(srcId,i){
+  const s=srcById(srcId); if(!s)return;
+  const p=(remote[srcId].posts[cat]||[])[i]; if(!p)return;
   curId=null;
   $('#detailDel').style.display='none';
   $('#detailHeadTitle').textContent=p.title;
   $('#detailInner').innerHTML=
-    `<span class="cat">${esc(cat)}</span> <span class="src">GitHub</span>`+
+    `<span class="cat">${esc(cat)}</span> <span class="src src-${s.id}">${esc(s.label)}</span>`+
     `<div class="detailTitle">${esc(p.title)}</div>`+
     (p.date?`<div class="detailMeta"><span>${esc(p.date)}</span></div>`:'')+
     (p.body?`<div class="detailContent">${mdHtml(p.body)}</div>`:'');
@@ -315,7 +347,7 @@ $('#writeForm').addEventListener('submit',()=>{
 });
 
 render();
-fetchGH(); // 앱 열 때마다 깃허브 글 자동 갱신
+fetchRemote(); // 앱 열 때마다 외부 글(깃허브·드라이브) 자동 갱신
 if('serviceWorker' in navigator&&location.protocol!=='file:')navigator.serviceWorker.register('sw.js').catch(()=>{});
 })();
 </script>
