@@ -1,7 +1,7 @@
 {
   "name": "AI BOX",
   "short_name": "AI BOX",
-  "description": "자유 · 정보 · 그림프롬프트 · 페르소나프롬프트를 카드로 모아두는 보드",
+  "description": "자유 · 정보 · 그림프롬프트 · 프롬프트를 카드로 모아두는 보드",
   "lang": "ko",
   "start_url": "./",
   "scope": "./",

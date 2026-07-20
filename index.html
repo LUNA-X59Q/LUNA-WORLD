@@ -85,7 +85,6 @@ header{max-width:760px;margin:0 auto;display:flex;align-items:center;justify-con
 .detailTitle{font-size:19px;font-weight:800;letter-spacing:-.02em;margin:12px 0 8px;word-break:break-word}
 .detailMeta{font-size:12px;color:var(--muted);margin-bottom:14px;display:flex;gap:10px;flex-wrap:wrap}
 .detailContent{font-size:15px;line-height:1.75;color:var(--soft);white-space:pre-wrap;word-break:break-word;padding:16px;background:var(--card);border:1px solid var(--line);border-radius:var(--r)}
-.detailContent pre{white-space:pre-wrap;word-break:break-word;margin:6px 0;padding:12px 13px;border-radius:12px;background:rgba(0,0,0,.34);border:1px solid var(--line);font-size:13px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
 
 /* ── 글쓰기 모달 ── */
 dialog{border:1px solid var(--line2);border-radius:20px;background:var(--surface);color:var(--ink);padding:0;width:min(480px,calc(100vw - 32px));box-shadow:var(--shadow)}
@@ -158,7 +157,7 @@ dialog textarea{min-height:130px;resize:vertical;line-height:1.5}
 <script>
 (()=>{
 'use strict';
-const CATS=['자유','정보','그림프롬프트','페르소나프롬프트'];
+const CATS=['자유','정보','그림프롬프트','프롬프트'];
 const KEY='ai-box-cards';
 // 이전 앱(AI 마을 시뮬레이션)의 저장 데이터는 정리한다
 ['ai-village-polished-research','ai-village-temperament'].forEach(k=>localStorage.removeItem(k));
@@ -256,17 +255,13 @@ function parseMD(md){
   return out.map(p=>({title:p.title,date:p.date,body:p.lines.join('\n').trim()}));
 }
 
-// 최소 마크다운 렌더: 줄바꿈(pre-wrap)·코드블록·굵게만, 라이브러리 없이
+// 본문 렌더: 그냥 글 형태(줄바꿈은 pre-wrap로 유지) + 굵게만. 코드블록은 지원 안 함.
+// ``` 펜스 줄은 제거해 가독성만 남긴다(수천 자도 그대로 표시·스크롤).
 function mdHtml(src){
-  return String(src).split('```').map((seg,i,arr)=>{
-    if(i%2)return '<pre>'+esc(seg.replace(/^[^\n]*\n/,'').replace(/\n$/,''))+'</pre>';
-    let t=seg;
-    if(i>0)t=t.replace(/^\n/,'');
-    if(i<arr.length-1)t=t.replace(/\n$/,'');
-    return esc(t).replace(/\*\*([^*]+)\*\*/g,'<b>$1</b>');
-  }).join('');
+  const t=String(src).replace(/^[ \t]*```.*$/gm,'').replace(/\n{3,}/g,'\n\n').trim();
+  return esc(t).replace(/\*\*([^*]+)\*\*/g,'<b>$1</b>');
 }
-const ghPreview=b=>String(b).replace(/```[^\n]*/g,'').replace(/\*\*/g,'').trim();
+const ghPreview=b=>String(b).replace(/^[ \t]*```.*$/gm,'').replace(/\*\*/g,'').replace(/\s+/g,' ').trim();
 
 let fetching=false;
 async function fetchRemote(){
@@ -304,12 +299,16 @@ tabs.addEventListener('click',e=>{
 /* 목록 */
 function render(){
   document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('on',b.dataset.cat===cat));
-  // 외부 글(깃허브 → 드라이브 순, 각 파일 순서 = 최신순) 먼저, 그 아래 로컬 카드
-  const remoteCards=SOURCES.flatMap(s=>(remote[s.id].posts[cat]||[]).map((p,i)=>`<article class="post" data-src="${s.id}" data-i="${i}">
+  // 외부 글을 날짜(YYYY-MM-DD) 최신순으로 정렬 → 최근 글이 위로. 무날짜는 뒤로(원래 순서 유지).
+  // data-i는 소스별 원본 배열의 인덱스를 그대로 유지해 상세 조회가 어긋나지 않게 한다.
+  const remoteItems=[];
+  SOURCES.forEach(s=>(remote[s.id].posts[cat]||[]).forEach((p,i)=>remoteItems.push({s,p,i})));
+  remoteItems.sort((a,b)=>String(b.p.date||'').localeCompare(String(a.p.date||'')));
+  const remoteCards=remoteItems.map(({s,p,i})=>`<article class="post" data-src="${s.id}" data-i="${i}">
         <div class="postHead"><span style="display:flex;gap:6px"><span class="cat">${esc(cat)}</span><span class="src src-${s.id}">${esc(s.label)}</span></span><span class="postMeta">${esc(p.date)}</span></div>
         <div class="postTitle">${esc(p.title)}</div>
         ${p.body?`<div class="postPreview">${esc(ghPreview(p.body))}</div>`:''}
-      </article>`));
+      </article>`);
   const localCards=posts.filter(p=>p.cat===cat).map(p=>`<article class="post" data-id="${p.id}">
         <div class="postHead"><span class="cat">${esc(p.cat)}</span><span class="postMeta">${relTime(p.time)}</span></div>
         <div class="postTitle">${esc(p.title)}</div>

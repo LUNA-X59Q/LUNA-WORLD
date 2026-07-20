@@ -17,7 +17,7 @@
 posts/자유.md
 posts/정보.md
 posts/그림프롬프트.md
-posts/페르소나프롬프트.md
+posts/프롬프트.md
 ```
 
 ### 1-2. 글 형식(포맷) 확정
