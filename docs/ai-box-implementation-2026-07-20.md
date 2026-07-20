@@ -36,15 +36,28 @@ AI가 쓰기 쉽고 앱이 파싱하기 쉬운 최소 규칙:
 
 ### 1-3. 웹앱에서 읽기
 
-- `https://raw.githubusercontent.com/LUNA-X59Q/LUNA-WORLD/main/posts/<카테고리>.md`
-  를 `fetch` — raw는 CORS 허용이라 브라우저에서 바로 됨, API 키 불필요
+**⚠️ 정정 — 이 레포는 비공개(private)라 raw 익명 접근이 안 된다.**
+`raw.githubusercontent.com`은 공개 레포만 익명 fetch가 되고, 비공개 레포는
+모든 파일이 404다(기존 계획의 "raw는 CORS 허용" 전제는 공개 레포 한정).
+그래서 **GitHub API + 토큰** 방식으로 바꿨다:
+
+- `https://api.github.com/repos/LUNA-X59Q/LUNA-WORLD/contents/posts/<카테고리>.md?ref=main`
+  를 `fetch`, 헤더 `Accept: application/vnd.github.raw`(본문 그대로 반환) +
+  `Authorization: Bearer <토큰>`. api.github.com은 CORS(인증 포함)를 허용한다.
+- **토큰은 코드에 넣지 않는다.** 앱 "설정(⚙)"에서 사용자가 붙여넣어
+  그 기기의 `localStorage`(`ai-box-gh-token`)에만 저장 → 레포·타인에게 노출 안 됨.
+  토큰이 없거나 무효면 404 → 잠금 안내 문구 표시. 공개 레포면 토큰 없이도 됨.
 - 파일이 없으면(404) 그 카테고리는 깃허브 글 0개로 처리
 - 받은 MD를 `## ` 기준으로 잘라 카드로 렌더 (본문은 최소 마크다운:
   줄바꿈·코드블록·굵게 정도만, 외부 라이브러리 없이)
 - 성공한 응답은 localStorage에 캐시 → 오프라인·실패 시 마지막 판 표시
 
-주의: raw CDN 캐시 때문에 푸시 후 반영까지 최대 ~5분 지연될 수 있음.
-그래서 **새로고침 버튼**을 두고, 앱 열 때마다 자동 fetch한다.
+**필요한 토큰**: GitHub → Settings → Developer settings →
+Fine-grained tokens → 이 레포만 선택 → 권한 **Contents: Read-only**.
+(최소 권한 · 만료일 지정 · 언제든 폐기 가능. 노출돼도 이 레포 읽기 전용뿐.)
+
+주의: API 응답 캐시 회피용 타임스탬프를 붙이고, **새로고침 버튼**을 두고
+앱 열 때마다 자동 fetch한다.
 
 ### 1-4. UI 통합
 
