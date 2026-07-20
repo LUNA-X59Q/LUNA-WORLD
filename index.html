@@ -100,6 +100,7 @@ dialog form{display:grid;gap:10px;padding:20px}
 dialog h2{margin:0 0 4px;font-size:17px;letter-spacing:-.02em}
 dialog .hint{margin:0;font-size:12px;line-height:1.55;color:var(--muted)}
 dialog .hint b{color:var(--soft);font-weight:700}
+dialog input.masked{-webkit-text-security:disc;text-security:disc} /* 비밀번호 타입 없이 값 가리기 → 오토필/열쇠 아이콘 방지 */
 dialog .sgroup{display:grid;gap:8px;padding:12px;border:1px solid var(--line);border-radius:14px;background:rgba(255,255,255,.02)}
 dialog .sgroup h3{margin:0;font-size:13px;color:var(--soft);letter-spacing:-.01em}
 #driveFilesWrap{display:grid;gap:8px}
@@ -143,16 +144,16 @@ dialog textarea{min-height:130px;resize:vertical;line-height:1.5}
 </div>
 
 <dialog id="settingsDialog">
-  <form method="dialog" id="settingsForm">
+  <form method="dialog" id="settingsForm" autocomplete="off">
     <h2>⚙️ 설정</h2>
     <p class="hint">입력값은 이 기기에만 저장됩니다.</p>
     <div class="sgroup">
       <h3>GitHub</h3>
-      <input id="fToken" type="password" placeholder="토큰 (github_pat_… / ghp_…)" autocomplete="off" spellcheck="false">
+      <input id="fToken" class="masked" type="text" placeholder="토큰 (github_pat_… / ghp_…)" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" inputmode="text" name="ai-box-gh" data-lpignore="true" data-1p-ignore data-form-type="other">
     </div>
     <div class="sgroup">
       <h3>구글 드라이브</h3>
-      <input id="fDriveKey" type="password" placeholder="API 키 (AIza…)" autocomplete="off" spellcheck="false">
+      <input id="fDriveKey" class="masked" type="text" placeholder="API 키 (AIza…)" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" inputmode="text" name="ai-box-dk" data-lpignore="true" data-1p-ignore data-form-type="other">
       <div id="driveFilesWrap"></div>
     </div>
     <div class="actions">
@@ -385,7 +386,15 @@ $('#writeForm').addEventListener('submit',()=>{
 
 /* 설정 — GitHub 토큰 · 드라이브 키/파일 ID (모두 이 기기에만 저장) */
 const sdlg=$('#settingsDialog');
-$('#driveFilesWrap').innerHTML=CATS.map(c=>`<input class="fDriveId" data-cat="${esc(c)}" placeholder="${esc(c)} 파일 ID" autocomplete="off" spellcheck="false">`).join('');
+$('#driveFilesWrap').innerHTML=CATS.map((c,i)=>`<input class="fDriveId" data-cat="${esc(c)}" placeholder="${esc(c)} 파일 ID" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" inputmode="text" name="ai-box-df${i}" data-lpignore="true" data-1p-ignore data-form-type="other">`).join('');
+// 오토필/자동완성 바(열쇠·카드·지도)가 뜨지 않게: 평소엔 readonly, 만질 때만 편집 가능
+document.querySelectorAll('#settingsForm input').forEach(inp=>{
+  inp.readOnly=true;
+  const edit=()=>{inp.readOnly=false};
+  inp.addEventListener('pointerdown',edit);
+  inp.addEventListener('focus',edit);
+  inp.addEventListener('blur',()=>{inp.readOnly=true});
+});
 $('#settingsBtn').addEventListener('click',()=>{
   $('#fToken').value=ghToken();
   $('#fDriveKey').value=driveKey();
