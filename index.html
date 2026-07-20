@@ -25,12 +25,31 @@
   --blue:#89d8ff;
   --violet:#d9b7ff;
   --shadow:0 20px 70px rgba(0,0,0,.4);
+  --topbar:rgba(6,8,20,.86);
+  --optbg:#10182b;
   --r:18px;
+}
+/* ── 화이트(라이트) 모드 — 다크 값들을 밝게 덮어쓴다 ── */
+:root[data-theme="light"]{
+  color-scheme:light;
+  --bg:#eef2f8;
+  --surface:rgba(255,255,255,.94);
+  --card:linear-gradient(180deg,#ffffff,#f7f9fd);
+  --ink:#111a2c;
+  --soft:#33425c;
+  --muted:#5f6f88;
+  --line:rgba(15,30,60,.14);
+  --line2:rgba(15,30,60,.22);
+  --blue:#1e73c8;
+  --violet:#7b4fd0;
+  --shadow:0 20px 70px rgba(20,40,80,.16);
+  --topbar:rgba(238,242,248,.86);
+  --optbg:#ffffff;
 }
 *{box-sizing:border-box}
 html,body{margin:0}
 body{min-height:100vh}
-html{background:#060814}
+html{background:var(--bg)}
 body{
   color:var(--ink);
   font-family:ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;
@@ -41,8 +60,8 @@ button{border:0;background:none;cursor:pointer}
 button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px solid rgba(137,216,255,.72);outline-offset:2px}
 
 /* ── 상단 바 + 탭 ── */
-.topbar{position:sticky;top:0;z-index:10;background:rgba(6,8,20,.86);backdrop-filter:blur(18px)}
-header{max-width:760px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px 12px}
+.topbar{position:sticky;top:0;z-index:10;background:var(--topbar);backdrop-filter:blur(18px)}
+header{max-width:760px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px 9px}
 .brand{display:flex;align-items:center;gap:11px}
 .mark{width:40px;height:40px;border-radius:13px;display:block;box-shadow:0 0 36px rgba(137,216,255,.2),inset 0 0 0 1px rgba(255,255,255,.5)}
 .brand h1{margin:0;font-size:21px;letter-spacing:-.03em}
@@ -51,11 +70,11 @@ header{max-width:760px;margin:0 auto;display:flex;align-items:center;justify-con
 .refreshBtn:hover{background:rgba(255,255,255,.09)}
 .refreshBtn.spin svg{animation:spin .8s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
-.tabs{max-width:760px;margin:0 auto;display:flex;overflow-x:auto;scrollbar-width:none;border-bottom:1px solid var(--line)}
+.tabs{max-width:760px;margin:0 auto;display:flex;overflow-x:auto;scrollbar-width:none;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
 .tabs::-webkit-scrollbar{display:none}
 .tab{flex:1;min-width:max-content;padding:14px 14px 12px;border-bottom:2.5px solid transparent;margin-bottom:-1px;color:var(--muted);font-size:14px;white-space:nowrap;text-align:center;transition:color .16s,border-color .16s}
 .tab:hover{color:var(--soft)}
-.tab.on{color:#fff;font-weight:800;border-bottom-color:var(--blue)}
+.tab.on{color:var(--ink);font-weight:800;border-bottom-color:var(--blue)}
 
 /* ── 글 목록 ── */
 .wrap{max-width:760px;margin:0 auto;padding:14px 14px 70px}
@@ -74,7 +93,7 @@ header{max-width:760px;margin:0 auto;display:flex;align-items:center;justify-con
 /* ── 글 상세 ── */
 .detail{display:none;position:fixed;inset:0;z-index:100;background:var(--bg);flex-direction:column}
 .detail.open{display:flex}
-.detailHead{display:flex;align-items:center;gap:6px;padding:12px 14px;border-bottom:1px solid var(--line);background:rgba(6,8,20,.86);backdrop-filter:blur(18px)}
+.detailHead{display:flex;align-items:center;gap:6px;padding:12px 14px;border-bottom:1px solid var(--line);background:var(--topbar);backdrop-filter:blur(18px)}
 .backBtn{width:38px;height:38px;border-radius:12px;font-size:21px;display:grid;place-items:center;color:var(--soft);transition:.14s}
 .backBtn:hover{background:rgba(255,255,255,.07)}
 .detailHead h2{flex:1;margin:0;font-size:16px;letter-spacing:-.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -85,6 +104,18 @@ header{max-width:760px;margin:0 auto;display:flex;align-items:center;justify-con
 .detailTitle{font-size:19px;font-weight:800;letter-spacing:-.02em;margin:12px 0 8px;word-break:break-word}
 .detailMeta{font-size:12px;color:var(--muted);margin-bottom:14px;display:flex;gap:10px;flex-wrap:wrap}
 .detailContent{font-size:15px;line-height:1.75;color:var(--soft);white-space:pre-wrap;word-break:break-word;padding:16px;background:var(--card);border:1px solid var(--line);border-radius:var(--r)}
+.detailImg{max-width:100%;height:auto;border-radius:12px;display:block;margin:6px 0}
+.detailContent .detailImg{margin:10px 0}
+/* 사진 카드: 기본은 화면 폭에 맞춰 전체를 보여준다(세로 비율 유지). 탭하면 원본 크기로 확대. */
+.detailPhoto{padding:0;overflow:hidden;cursor:zoom-in}
+.detailPhoto .detailImg{max-width:100%;height:auto;margin:0;border-radius:var(--r);cursor:zoom-in}
+
+/* 원본 보기(라이트박스): 사진을 탭하면 원본 사진 전체를 화면에 꽉 차게 보여준다. */
+.lightbox{display:none;position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.94)}
+.lightbox.open{display:block}
+.lbScroll{position:absolute;inset:0;overflow:hidden;display:flex;align-items:center;justify-content:center;padding:10px}
+.lbScroll img{display:block;max-width:100%;max-height:100%;width:auto;height:auto} /* 전체가 보이게 화면에 맞춤 */
+.lbClose{position:fixed;top:calc(env(safe-area-inset-top,0px) + 10px);right:12px;z-index:210;width:42px;height:42px;border-radius:50%;font-size:20px;display:grid;place-items:center;color:#fff;background:rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.3)}
 
 /* ── 글쓰기 모달 ── */
 dialog{border:1px solid var(--line2);border-radius:20px;background:var(--surface);color:var(--ink);padding:0;width:min(480px,calc(100vw - 32px));box-shadow:var(--shadow)}
@@ -99,7 +130,7 @@ dialog .sgroup h3{margin:0;font-size:13px;color:var(--soft);letter-spacing:-.01e
 #driveFilesWrap{display:grid;gap:8px}
 dialog select,dialog input,dialog textarea{border:1px solid var(--line);border-radius:13px;background:rgba(255,255,255,.05);padding:11px 12px;font-size:14px;outline:none}
 dialog select:focus,dialog input:focus,dialog textarea:focus{border-color:rgba(137,216,255,.5)}
-dialog select option{background:#10182b}
+dialog select option{background:var(--optbg)}
 dialog textarea{min-height:130px;resize:vertical;line-height:1.5}
 .actions{display:flex;gap:8px;margin-top:4px}
 .actions button{flex:1;padding:11px;border-radius:13px;font-size:13px;font-weight:700;border:1px solid var(--line);background:rgba(255,255,255,.05)}
@@ -117,6 +148,7 @@ dialog textarea{min-height:130px;resize:vertical;line-height:1.5}
   <header>
     <div class="brand"><img class="mark" src="favicon.svg" alt="AI BOX 로고"><h1>AI BOX</h1></div>
     <div class="headBtns">
+      <button class="refreshBtn" id="themeBtn" aria-label="화면 모드 전환" title="화이트/다크 모드 전환"><span id="themeIcon" style="font-size:18px;line-height:1">🌗</span></button>
       <button class="refreshBtn" id="settingsBtn" aria-label="설정" title="설정 (GitHub 토큰)"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
       <button class="refreshBtn" id="refreshBtn" aria-label="새로고침" title="글 새로고침"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><polyline points="21 3 21 9 15 9"/></svg></button>
     </div>
@@ -132,6 +164,11 @@ dialog textarea{min-height:130px;resize:vertical;line-height:1.5}
     <button class="delBtn" id="detailDel" aria-label="삭제">🗑</button>
   </div>
   <div class="detailBody"><div class="detailInner" id="detailInner"></div></div>
+</div>
+
+<div class="lightbox" id="lightbox">
+  <button class="lbClose" id="lbClose" aria-label="닫기">✕</button>
+  <div class="lbScroll" id="lbScroll"><img id="lbImg" alt=""></div>
 </div>
 
 <dialog id="settingsDialog">
@@ -168,6 +205,22 @@ let posts=[];
 try{posts=JSON.parse(localStorage.getItem(KEY))||[]}catch(e){posts=[]}
 let cat=CATS[0], curId=null;
 
+/* ── 화면 모드(다크/화이트) — 이 기기에만 저장. 기본은 다크 ── */
+const THEMEKEY='ai-box-theme';
+function applyTheme(t){
+  document.documentElement.dataset.theme=t;
+  const icon=$('#themeIcon'); if(icon)icon.textContent=t==='light'?'🌙':'🌗';
+  const meta=document.querySelector('meta[name=theme-color]');
+  if(meta)meta.setAttribute('content',t==='light'?'#eef2f8':'#10182b');
+}
+let theme='dark'; try{theme=localStorage.getItem(THEMEKEY)||'dark'}catch(e){}
+applyTheme(theme);
+$('#themeBtn').addEventListener('click',()=>{
+  theme=theme==='light'?'dark':'light';
+  try{localStorage.setItem(THEMEKEY,theme)}catch(e){}
+  applyTheme(theme);
+});
+
 /* ── 외부 글 소스: 깃허브 + 구글드라이브 (같은 파서·렌더를 공유) ── */
 // 깃허브: GitHub API로 posts/<카테고리>.md 를 읽는다(raw는 공개 레포만 되지만
 // API는 토큰만 있으면 비공개 레포도 됨). 토큰은 코드에 넣지 않고 설정에서 받아
@@ -187,7 +240,18 @@ const driveFolders=()=>{try{return JSON.parse(localStorage.getItem(DFOLDERS))||{
 // `## ` 헤딩이 있으면 그 단위로, 없으면 파일 하나를 카드 하나로(파일명=제목, 수정일=날짜).
 // 파일 안에서 아래쪽(나중에 쓴 글)이 최신이므로 reverse해 최신을 앞에 둔다.
 async function driveFileToPosts(f,key){
-  const isDoc=f.mimeType==='application/vnd.google-apps.document';
+  const mime=f.mimeType||'';
+  // 사진(이미지) 파일: alt=media로 텍스트를 읽으면 바이너리가 깨진 문자열로 보인다.
+  // → 텍스트 대신 이미지 카드로 만들어 그대로 표시한다(공개 파일은 API 키로 바로 로드됨).
+  if(mime.startsWith('image/')){
+    const src=`https://www.googleapis.com/drive/v3/files/${f.id}?alt=media&key=${encodeURIComponent(key)}`;
+    const ts=Date.parse(f.modifiedTime||'')||0;
+    let title=String(f.name||'').replace(/\.(png|jpe?g|gif|webp|bmp|svg|heic|heif|avif|tiff?)$/i,'');
+    let date=(f.modifiedTime||'').slice(0,10);
+    const m=title.match(/\((\d{4}-\d{2}-\d{2})\)\s*$/); if(m){date=m[1]; title=title.slice(0,m.index).trim()}
+    return [{title:title||'(사진)',date,body:'',img:src,ts}];
+  }
+  const isDoc=mime==='application/vnd.google-apps.document';
   const url=isDoc
     ?`https://www.googleapis.com/drive/v3/files/${f.id}/export?mimeType=text/plain&key=${encodeURIComponent(key)}`
     :`https://www.googleapis.com/drive/v3/files/${f.id}?alt=media&key=${encodeURIComponent(key)}`;
@@ -262,8 +326,15 @@ function parseMD(md){
 // 본문 렌더: 그냥 글 형태(줄바꿈은 pre-wrap로 유지) + 굵게만. 코드블록은 지원 안 함.
 // ``` 펜스 줄은 제거해 가독성만 남긴다(수천 자도 그대로 표시·스크롤).
 function mdHtml(src){
-  const t=String(src).replace(/^[ \t]*```.*$/gm,'').replace(/\n{3,}/g,'\n\n').trim();
-  return esc(t).replace(/\*\*([^*]+)\*\*/g,'<b>$1</b>');
+  let t=String(src).replace(/^[ \t]*```.*$/gm,'').replace(/\n{3,}/g,'\n\n').trim();
+  // 이미지 마크다운 ![설명](URL) → <img>. 이스케이프 전에 NUL 자리표시자로 빼둔다(일반 텍스트엔 없음).
+  const imgs=[];
+  t=t.replace(/!\[([^\]]*)\]\((https?:\/\/[^\s)]+)\)/g,(_,alt,url)=>{
+    imgs.push(`<img class="detailImg" src="${esc(url)}" alt="${esc(alt)}" loading="lazy">`);
+    return ' '+(imgs.length-1)+' ';
+  });
+  let html=esc(t).replace(/\*\*([^*]+)\*\*/g,'<b>$1</b>');
+  return html.replace(/ (\d+) /g,(_,i)=>imgs[+i]);
 }
 const ghPreview=b=>String(b).replace(/^[ \t]*```.*$/gm,'').replace(/\*\*/g,'').replace(/\s+/g,' ').trim();
 
@@ -363,12 +434,33 @@ function openRemoteDetail(srcId,i){
     `<span class="cat">${esc(cat)}</span> <span class="src src-${s.id}">${esc(s.label)}</span>`+
     `<div class="detailTitle">${esc(p.title)}</div>`+
     (p.date?`<div class="detailMeta"><span>${esc(p.date)}</span></div>`:'')+
+    (p.img?`<div class="detailContent detailPhoto"><img class="detailImg" src="${esc(p.img)}" alt="${esc(p.title)}"></div>`:'')+
     (p.body?`<div class="detailContent">${mdHtml(p.body)}</div>`:'');
   detail.classList.add('open');
   if(!(history.state&&history.state.v==='detail'))history.pushState({v:'detail'},'');
 }
 function closeDetail(){detail.classList.remove('open');curId=null}
-window.addEventListener('popstate',()=>closeDetail());
+
+/* 원본 보기(라이트박스) — 상세의 사진을 탭하면 원본 픽셀 크기로 연다 */
+const lightbox=$('#lightbox'), lbImg=$('#lbImg'), lbScroll=$('#lbScroll');
+function openLightbox(src){
+  if(!src)return;
+  lbImg.src=src; lbScroll.scrollTo(0,0);
+  lightbox.classList.add('open');
+  history.pushState({v:'lightbox'},'');
+}
+function closeLightbox(){lightbox.classList.remove('open'); lbImg.removeAttribute('src')}
+$('#detailInner').addEventListener('click',e=>{
+  const im=e.target.closest('.detailImg'); if(!im)return; // 상세 사진·본문 이미지 탭
+  openLightbox(im.currentSrc||im.src);
+});
+$('#lbClose').addEventListener('click',()=>history.back());
+$('#lbScroll').addEventListener('click',()=>history.back()); // 아무 곳이나 탭하면 닫힘
+
+window.addEventListener('popstate',()=>{
+  if(lightbox.classList.contains('open'))closeLightbox(); // 라이트박스 먼저 닫기
+  else closeDetail();
+});
 $('#detailBack').addEventListener('click',()=>{
   if(history.state&&history.state.v==='detail')history.back(); else closeDetail();
 });
