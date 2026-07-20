@@ -1,7 +1,7 @@
 // AI BOX 서비스 워커 — 앱 껍데기를 캐시해 오프라인에서도 열린다.
 // 카드는 localStorage에 있으므로 껍데기만 있으면 완전 동작.
 // HTML은 네트워크 우선(새 배포 즉시 반영), 정적 자산은 캐시 우선.
-const CACHE = 'ai-box-v2'; // v2: 집 모양 앱 로고 복원 — 캐시된 상자 아이콘을 밀어낸다
+const CACHE = 'ai-box-v3'; // v3: 깃허브 글 연동 — 외부 요청은 캐시하지 않는다
 const SHELL = ['./', 'index.html', 'manifest.webmanifest', 'favicon.svg', 'icon-192.png', 'icon-512.png'];
 
 self.addEventListener('install', e => {
@@ -16,6 +16,8 @@ self.addEventListener('activate', e => {
 });
 self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET') return;
+  // 깃허브 raw 등 외부 요청은 항상 네트워크로 — 캐시 우선에 걸리면 글 갱신이 안 된다
+  if (new URL(e.request.url).origin !== location.origin) return;
   if (e.request.mode === 'navigate') {
     e.respondWith(
       fetch(e.request)

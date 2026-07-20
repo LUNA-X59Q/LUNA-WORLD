@@ -52,6 +52,11 @@ header{max-width:760px;margin:0 auto;display:flex;align-items:center;justify-con
 .brand h1{margin:0;font-size:21px;letter-spacing:-.03em}
 .writeBtn{padding:10px 18px;border-radius:999px;border:1px solid rgba(137,216,255,.34);background:linear-gradient(135deg,rgba(137,216,255,.22),rgba(217,183,255,.15));font-size:13px;font-weight:700;transition:.16s}
 .writeBtn:hover{transform:translateY(-1px);background:rgba(137,216,255,.24)}
+.headBtns{display:flex;align-items:center;gap:8px}
+.refreshBtn{width:38px;height:38px;border-radius:999px;font-size:16px;display:grid;place-items:center;color:var(--soft);border:1px solid var(--line);background:rgba(255,255,255,.04);transition:.16s}
+.refreshBtn:hover{background:rgba(255,255,255,.09)}
+.refreshBtn.spin svg{animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
 .tabs{max-width:760px;margin:0 auto;display:flex;overflow-x:auto;scrollbar-width:none;border-bottom:1px solid var(--line)}
 .tabs::-webkit-scrollbar{display:none}
 .tab{flex:1;min-width:max-content;padding:14px 14px 12px;border-bottom:2.5px solid transparent;margin-bottom:-1px;color:var(--muted);font-size:14px;white-space:nowrap;text-align:center;transition:color .16s,border-color .16s}
@@ -65,6 +70,7 @@ header{max-width:760px;margin:0 auto;display:flex;align-items:center;justify-con
 .post:active{transform:none;background:rgba(255,255,255,.03)}
 .postHead{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:7px}
 .cat{font-size:11px;padding:3px 9px;border-radius:999px;background:rgba(137,216,255,.16);border:1px solid rgba(137,216,255,.32);color:var(--blue);white-space:nowrap}
+.src{font-size:11px;padding:3px 9px;border-radius:999px;background:rgba(217,183,255,.14);border:1px solid rgba(217,183,255,.34);color:var(--violet);white-space:nowrap}
 .postMeta{font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .postTitle{font-size:15px;font-weight:700;letter-spacing:-.015em;margin-bottom:5px;word-break:break-word}
 .postPreview{font-size:13px;color:var(--muted);line-height:1.55;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;word-break:break-word}
@@ -84,6 +90,7 @@ header{max-width:760px;margin:0 auto;display:flex;align-items:center;justify-con
 .detailTitle{font-size:19px;font-weight:800;letter-spacing:-.02em;margin:12px 0 8px;word-break:break-word}
 .detailMeta{font-size:12px;color:var(--muted);margin-bottom:14px;display:flex;gap:10px;flex-wrap:wrap}
 .detailContent{font-size:15px;line-height:1.75;color:var(--soft);white-space:pre-wrap;word-break:break-word;padding:16px;background:var(--card);border:1px solid var(--line);border-radius:var(--r)}
+.detailContent pre{white-space:pre-wrap;word-break:break-word;margin:6px 0;padding:12px 13px;border-radius:12px;background:rgba(0,0,0,.34);border:1px solid var(--line);font-size:13px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
 
 /* ── 글쓰기 모달 ── */
 dialog{border:1px solid var(--line2);border-radius:20px;background:var(--surface);color:var(--ink);padding:0;width:min(480px,calc(100vw - 32px));box-shadow:var(--shadow)}
@@ -110,7 +117,10 @@ dialog textarea{min-height:130px;resize:vertical;line-height:1.5}
 <div class="topbar">
   <header>
     <div class="brand"><img class="mark" src="favicon.svg" alt="AI BOX 로고"><h1>AI BOX</h1></div>
-    <button class="writeBtn" id="writeBtn">✏️ 글쓰기</button>
+    <div class="headBtns">
+      <button class="refreshBtn" id="refreshBtn" aria-label="새로고침" title="깃허브 글 새로고침"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><polyline points="21 3 21 9 15 9"/></svg></button>
+      <button class="writeBtn" id="writeBtn">✏️ 글쓰기</button>
+    </div>
   </header>
   <nav class="tabs" id="tabs"></nav>
 </div>
@@ -152,6 +162,64 @@ let posts=[];
 try{posts=JSON.parse(localStorage.getItem(KEY))||[]}catch(e){posts=[]}
 let cat=CATS[0], curId=null;
 
+/* ── 깃허브 글: posts/<카테고리>.md 를 fetch해 카드로 렌더 ── */
+const RAW='https://raw.githubusercontent.com/LUNA-X59Q/LUNA-WORLD/main/posts/';
+const GHKEY='ai-box-github-md';
+let ghMd={}; // 카테고리 → 원본 MD (성공한 응답 캐시 — 오프라인·실패 시 마지막 판 표시)
+try{ghMd=JSON.parse(localStorage.getItem(GHKEY))||{}}catch(e){ghMd={}}
+const gh={}; // 카테고리 → 파싱된 글 배열
+CATS.forEach(c=>gh[c]=parseMD(ghMd[c]||''));
+
+// "## 제목 (YYYY-MM-DD)" 헤딩 하나가 글 하나. 첫 헤딩 이전 내용과 코드 블록 안의 "## "는 무시.
+function parseMD(md){
+  const out=[]; let cur=null, inCode=false;
+  for(const line of String(md).split(/\r?\n/)){
+    if(line.trimStart().startsWith('```')){inCode=!inCode; if(cur)cur.lines.push(line); continue}
+    if(!inCode&&line.startsWith('## ')){
+      let title=line.slice(3).trim(), date='';
+      const m=title.match(/\((\d{4}-\d{2}-\d{2})\)\s*$/);
+      if(m){date=m[1]; title=title.slice(0,m.index).trim()}
+      if(cur)out.push(cur);
+      cur={title:title||'(제목 없음)',date,lines:[]};
+      continue;
+    }
+    if(cur)cur.lines.push(line);
+  }
+  if(cur)out.push(cur);
+  return out.map(p=>({title:p.title,date:p.date,body:p.lines.join('\n').trim()}));
+}
+
+// 최소 마크다운 렌더: 줄바꿈(pre-wrap)·코드블록·굵게만, 라이브러리 없이
+function mdHtml(src){
+  return String(src).split('```').map((seg,i,arr)=>{
+    if(i%2)return '<pre>'+esc(seg.replace(/^[^\n]*\n/,'').replace(/\n$/,''))+'</pre>';
+    let t=seg;
+    if(i>0)t=t.replace(/^\n/,'');
+    if(i<arr.length-1)t=t.replace(/\n$/,'');
+    return esc(t).replace(/\*\*([^*]+)\*\*/g,'<b>$1</b>');
+  }).join('');
+}
+const ghPreview=b=>String(b).replace(/```[^\n]*/g,'').replace(/\*\*/g,'').trim();
+
+let fetching=false;
+async function fetchGH(){
+  if(fetching)return; fetching=true;
+  const btn=$('#refreshBtn'); btn.classList.add('spin');
+  await Promise.all(CATS.map(async c=>{
+    try{
+      // raw CDN 캐시(최대 ~5분) 우회를 위해 타임스탬프를 붙인다
+      const r=await fetch(RAW+encodeURIComponent(c)+'.md?t='+Date.now(),{cache:'no-store'});
+      if(r.status===404){ghMd[c]=''; gh[c]=[]; return} // 파일 없음 = 깃허브 글 0개
+      if(!r.ok)return; // 그 외 실패 — 마지막 캐시 유지
+      const md=await r.text();
+      ghMd[c]=md; gh[c]=parseMD(md);
+    }catch(e){/* 오프라인 등 — 마지막 캐시 유지 */}
+  }));
+  try{localStorage.setItem(GHKEY,JSON.stringify(ghMd))}catch(e){}
+  fetching=false; btn.classList.remove('spin'); render();
+}
+$('#refreshBtn').addEventListener('click',fetchGH);
+
 function save(){localStorage.setItem(KEY,JSON.stringify(posts))}
 function relTime(t){
   const diff=(Date.now()-t)/1000;
@@ -173,18 +241,24 @@ tabs.addEventListener('click',e=>{
 /* 목록 */
 function render(){
   document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('on',b.dataset.cat===cat));
-  const list=posts.filter(p=>p.cat===cat);
-  $('#posts').innerHTML=list.length
-    ?list.map(p=>`<article class="post" data-id="${p.id}">
+  // 깃허브 글(파일 순서 = 최신순) 먼저, 그 아래 로컬 카드
+  const ghCards=(gh[cat]||[]).map((p,i)=>`<article class="post" data-gh="${i}">
+        <div class="postHead"><span style="display:flex;gap:6px"><span class="cat">${esc(cat)}</span><span class="src">GitHub</span></span><span class="postMeta">${esc(p.date)}</span></div>
+        <div class="postTitle">${esc(p.title)}</div>
+        ${p.body?`<div class="postPreview">${esc(ghPreview(p.body))}</div>`:''}
+      </article>`);
+  const localCards=posts.filter(p=>p.cat===cat).map(p=>`<article class="post" data-id="${p.id}">
         <div class="postHead"><span class="cat">${esc(p.cat)}</span><span class="postMeta">${relTime(p.time)}</span></div>
         <div class="postTitle">${esc(p.title)}</div>
         ${p.body?`<div class="postPreview">${esc(p.body)}</div>`:''}
-      </article>`).join('')
-    :`<div class="empty">📦 아직 게시글이 없어요.</div>`;
+      </article>`);
+  const cards=[...ghCards,...localCards];
+  $('#posts').innerHTML=cards.length?cards.join(''):`<div class="empty">📦 아직 게시글이 없어요.</div>`;
 }
 $('#posts').addEventListener('click',e=>{
   const el=e.target.closest('.post'); if(!el)return;
-  openDetail(el.dataset.id);
+  if(el.dataset.gh!==undefined)openGhDetail(+el.dataset.gh);
+  else openDetail(el.dataset.id);
 });
 
 /* 상세 */
@@ -192,12 +266,27 @@ const detail=$('#detail');
 function openDetail(id){
   const p=posts.find(x=>String(x.id)===String(id)); if(!p)return;
   curId=p.id;
+  $('#detailDel').style.display='';
   $('#detailHeadTitle').textContent=p.title;
   $('#detailInner').innerHTML=
     `<span class="cat">${esc(p.cat)}</span>`+
     `<div class="detailTitle">${esc(p.title)}</div>`+
     `<div class="detailMeta"><span>${new Date(p.time).toLocaleString('ko-KR')}</span></div>`+
     (p.body?`<div class="detailContent">${esc(p.body)}</div>`:'');
+  detail.classList.add('open');
+  if(!(history.state&&history.state.v==='detail'))history.pushState({v:'detail'},'');
+}
+// 깃허브 글은 원본이 레포에 있으므로 앱에서 삭제 불가 — 삭제 버튼을 숨긴다
+function openGhDetail(i){
+  const p=(gh[cat]||[])[i]; if(!p)return;
+  curId=null;
+  $('#detailDel').style.display='none';
+  $('#detailHeadTitle').textContent=p.title;
+  $('#detailInner').innerHTML=
+    `<span class="cat">${esc(cat)}</span> <span class="src">GitHub</span>`+
+    `<div class="detailTitle">${esc(p.title)}</div>`+
+    (p.date?`<div class="detailMeta"><span>${esc(p.date)}</span></div>`:'')+
+    (p.body?`<div class="detailContent">${mdHtml(p.body)}</div>`:'');
   detail.classList.add('open');
   if(!(history.state&&history.state.v==='detail'))history.pushState({v:'detail'},'');
 }
@@ -226,6 +315,7 @@ $('#writeForm').addEventListener('submit',()=>{
 });
 
 render();
+fetchGH(); // 앱 열 때마다 깃허브 글 자동 갱신
 if('serviceWorker' in navigator&&location.protocol!=='file:')navigator.serviceWorker.register('sw.js').catch(()=>{});
 })();
 </script>
