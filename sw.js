@@ -1,7 +1,7 @@
 // AI BOX 서비스 워커 — 앱 껍데기를 캐시해 오프라인에서도 열린다.
 // 카드는 localStorage에 있으므로 껍데기만 있으면 완전 동작.
 // HTML은 네트워크 우선(새 배포 즉시 반영), 정적 자산은 캐시 우선.
-const CACHE = 'ai-box-v9'; // v9: 라이트박스 하단 안내 문구 제거
+const CACHE = 'ai-box-v10'; // v10: 옛 캐시(luna-world 등) 정리 + 새 SW 제어 시 자동 새로고침
 const SHELL = ['./', 'index.html', 'manifest.webmanifest', 'favicon.svg', 'icon-192.png', 'icon-512.png'];
 
 self.addEventListener('install', e => {
