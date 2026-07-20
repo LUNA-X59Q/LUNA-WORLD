@@ -304,12 +304,16 @@ tabs.addEventListener('click',e=>{
 /* 목록 */
 function render(){
   document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('on',b.dataset.cat===cat));
-  // 외부 글(깃허브 → 드라이브 순, 각 파일 순서 = 최신순) 먼저, 그 아래 로컬 카드
-  const remoteCards=SOURCES.flatMap(s=>(remote[s.id].posts[cat]||[]).map((p,i)=>`<article class="post" data-src="${s.id}" data-i="${i}">
+  // 외부 글을 날짜(YYYY-MM-DD) 최신순으로 정렬 → 최근 글이 위로. 무날짜는 뒤로(원래 순서 유지).
+  // data-i는 소스별 원본 배열의 인덱스를 그대로 유지해 상세 조회가 어긋나지 않게 한다.
+  const remoteItems=[];
+  SOURCES.forEach(s=>(remote[s.id].posts[cat]||[]).forEach((p,i)=>remoteItems.push({s,p,i})));
+  remoteItems.sort((a,b)=>String(b.p.date||'').localeCompare(String(a.p.date||'')));
+  const remoteCards=remoteItems.map(({s,p,i})=>`<article class="post" data-src="${s.id}" data-i="${i}">
         <div class="postHead"><span style="display:flex;gap:6px"><span class="cat">${esc(cat)}</span><span class="src src-${s.id}">${esc(s.label)}</span></span><span class="postMeta">${esc(p.date)}</span></div>
         <div class="postTitle">${esc(p.title)}</div>
         ${p.body?`<div class="postPreview">${esc(ghPreview(p.body))}</div>`:''}
-      </article>`));
+      </article>`);
   const localCards=posts.filter(p=>p.cat===cat).map(p=>`<article class="post" data-id="${p.id}">
         <div class="postHead"><span class="cat">${esc(p.cat)}</span><span class="postMeta">${relTime(p.time)}</span></div>
         <div class="postTitle">${esc(p.title)}</div>
