@@ -406,6 +406,8 @@ $('#settingsForm').addEventListener('submit',()=>{
 
 render();
 fetchRemote(); // 앱 열 때마다 외부 글(깃허브·드라이브) 자동 갱신
+// 저장공간을 "영구"로 요청 → 브라우저가 용량 부족 시 자동으로 지우지 않게(설정값 보존)
+if(navigator.storage&&navigator.storage.persist)navigator.storage.persist().catch(()=>{});
 if('serviceWorker' in navigator&&location.protocol!=='file:')navigator.serviceWorker.register('sw.js').catch(()=>{});
 })();
 </script>
