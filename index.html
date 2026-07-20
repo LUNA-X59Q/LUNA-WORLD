@@ -98,6 +98,8 @@ dialog{border:1px solid var(--line2);border-radius:20px;background:var(--surface
 dialog::backdrop{background:rgba(3,5,10,.6);backdrop-filter:blur(4px)}
 dialog form{display:grid;gap:10px;padding:20px}
 dialog h2{margin:0 0 4px;font-size:17px;letter-spacing:-.02em}
+dialog .hint{margin:0;font-size:12px;line-height:1.55;color:var(--muted)}
+dialog .hint b{color:var(--soft);font-weight:700}
 dialog select,dialog input,dialog textarea{border:1px solid var(--line);border-radius:13px;background:rgba(255,255,255,.05);padding:11px 12px;font-size:14px;outline:none}
 dialog select:focus,dialog input:focus,dialog textarea:focus{border-color:rgba(137,216,255,.5)}
 dialog select option{background:#10182b}
@@ -119,7 +121,8 @@ dialog textarea{min-height:130px;resize:vertical;line-height:1.5}
   <header>
     <div class="brand"><img class="mark" src="favicon.svg" alt="AI BOX 로고"><h1>AI BOX</h1></div>
     <div class="headBtns">
-      <button class="refreshBtn" id="refreshBtn" aria-label="새로고침" title="깃허브 글 새로고침"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><polyline points="21 3 21 9 15 9"/></svg></button>
+      <button class="refreshBtn" id="settingsBtn" aria-label="설정" title="설정 (GitHub 토큰)"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
+      <button class="refreshBtn" id="refreshBtn" aria-label="새로고침" title="글 새로고침"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><polyline points="21 3 21 9 15 9"/></svg></button>
       <button class="writeBtn" id="writeBtn">✏️ 글쓰기</button>
     </div>
   </header>
@@ -135,6 +138,19 @@ dialog textarea{min-height:130px;resize:vertical;line-height:1.5}
   </div>
   <div class="detailBody"><div class="detailInner" id="detailInner"></div></div>
 </div>
+
+<dialog id="settingsDialog">
+  <form method="dialog" id="settingsForm">
+    <h2>⚙️ 설정</h2>
+    <p class="hint">비공개 레포의 글을 보려면 <b>GitHub 토큰</b>이 필요해요. 토큰은 <b>이 기기에만</b> 저장되고 레포나 다른 사람에게 노출되지 않습니다.</p>
+    <input id="fToken" type="password" placeholder="GitHub 토큰 (github_pat_... 또는 ghp_...)" autocomplete="off" spellcheck="false">
+    <p class="hint">발급: GitHub → Settings → Developer settings → <b>Fine-grained tokens</b> → 이 레포만 선택 → 권한 <b>Contents: Read-only</b>. 공개 레포라면 토큰 없이도 보입니다.</p>
+    <div class="actions">
+      <button type="button" id="tokenClearBtn">토큰 삭제</button>
+      <button type="submit" class="primary">저장</button>
+    </div>
+  </form>
+</dialog>
 
 <dialog id="writeDialog">
   <form method="dialog" id="writeForm">
@@ -164,7 +180,12 @@ try{posts=JSON.parse(localStorage.getItem(KEY))||[]}catch(e){posts=[]}
 let cat=CATS[0], curId=null;
 
 /* ── 외부 글 소스: 깃허브 + 구글드라이브 (같은 파서·렌더를 공유) ── */
-const RAW='https://raw.githubusercontent.com/LUNA-X59Q/LUNA-WORLD/main/posts/';
+// 깃허브: GitHub API로 posts/<카테고리>.md 를 읽는다(raw는 공개 레포만 되지만
+// API는 토큰만 있으면 비공개 레포도 됨). 토큰은 코드에 넣지 않고 설정에서 받아
+// 이 기기의 localStorage에만 저장한다 → 레포·타인에게 노출되지 않음.
+const GH_OWNER='LUNA-X59Q', GH_REPO='LUNA-WORLD', GH_BRANCH='main';
+const TOKKEY='ai-box-gh-token';
+const ghToken=()=>{try{return localStorage.getItem(TOKKEY)||''}catch(e){return ''}};
 
 // 구글드라이브 설정 — 두 값을 채우면 드라이브 소스가 자동으로 켜진다(비어 있으면 꺼짐).
 //  발급 ① 구글 클라우드 콘솔 → "Google Drive API" 사용 설정 → "API 키" 생성
@@ -176,16 +197,21 @@ const DRIVE_FILES={ // 카테고리 → 드라이브 파일 ID (모르는 칸은
   '자유':'', '정보':'', '그림프롬프트':'', '페르소나프롬프트':'',
 };
 
-// 소스 정의: id → 배지 라벨 · 캐시 키 · 카테고리별 요청 URL 생성기
+// 소스 정의: id → 배지 라벨 · 캐시 키 · 카테고리별 요청(Response 반환, 없으면 null)
 const SOURCES=[
   {id:'gh', label:'GitHub', cacheKey:'ai-box-github-md',
-   url:c=>RAW+encodeURIComponent(c)+'.md?t='+Date.now()}, // raw CDN 캐시(~5분) 우회용 타임스탬프
+   request:c=>{
+     const headers={'Accept':'application/vnd.github.raw'}; // raw 미디어 타입 = 본문 바로 반환(base64 디코드 불필요)
+     const tok=ghToken(); if(tok)headers['Authorization']='Bearer '+tok;
+     const path='posts/'+encodeURIComponent(c)+'.md';
+     return fetch(`https://api.github.com/repos/${GH_OWNER}/${GH_REPO}/contents/${path}?ref=${GH_BRANCH}&t=${Date.now()}`,{cache:'no-store',headers});
+   }},
 ];
 if(DRIVE_KEY){
   SOURCES.push({id:'dr', label:'Drive', cacheKey:'ai-box-drive-md',
-   url:c=>DRIVE_FILES[c]
-     ?`https://www.googleapis.com/drive/v3/files/${encodeURIComponent(DRIVE_FILES[c])}?alt=media&key=${encodeURIComponent(DRIVE_KEY)}`
-     :''}); // googleapis는 CORS 허용이라 브라우저에서 바로 fetch 가능
+   request:c=>DRIVE_FILES[c]
+     ?fetch(`https://www.googleapis.com/drive/v3/files/${encodeURIComponent(DRIVE_FILES[c])}?alt=media&key=${encodeURIComponent(DRIVE_KEY)}&t=${Date.now()}`,{cache:'no-store'})
+     :null}); // googleapis는 CORS 허용이라 브라우저에서 바로 fetch 가능
 }
 const srcById=id=>SOURCES.find(s=>s.id===id);
 
@@ -236,12 +262,13 @@ async function fetchRemote(){
   await Promise.all(SOURCES.flatMap(s=>{
     const st=remote[s.id];
     return CATS.map(async c=>{
-      const url=s.url(c);
-      if(!url){st.md[c]=''; st.posts[c]=[]; return} // 파일 ID 미설정 = 글 0개
+      let req; try{req=s.request(c)}catch(e){req=null}
+      if(!req){st.md[c]=''; st.posts[c]=[]; return} // 미설정 = 글 0개
       try{
-        const r=await fetch(url,{cache:'no-store'});
-        if(r.status===404){st.md[c]=''; st.posts[c]=[]; return} // 파일 없음/비공개 = 글 0개
-        if(!r.ok)return; // 그 외 실패 — 마지막 캐시 유지
+        const r=await req;
+        // 404 = 파일 없음, 비공개인데 토큰 없음/무효도 404 → 그 카테고리 글 0개
+        if(r.status===404){st.md[c]=''; st.posts[c]=[]; return}
+        if(!r.ok)return; // 그 외 실패(레이트리밋 등) — 마지막 캐시 유지
         st.md[c]=await r.text(); st.posts[c]=parseMD(st.md[c]);
       }catch(e){/* 오프라인 등 — 마지막 캐시 유지 */}
     });
@@ -284,7 +311,10 @@ function render(){
         ${p.body?`<div class="postPreview">${esc(p.body)}</div>`:''}
       </article>`);
   const cards=[...remoteCards,...localCards];
-  $('#posts').innerHTML=cards.length?cards.join(''):`<div class="empty">📦 아직 게시글이 없어요.</div>`;
+  const emptyMsg=ghToken()
+    ?'📦 아직 게시글이 없어요.'
+    :'🔒 비공개 레포의 글을 보려면 설정(⚙)에서 GitHub 토큰을 넣어주세요.';
+  $('#posts').innerHTML=cards.length?cards.join(''):`<div class="empty">${emptyMsg}</div>`;
 }
 $('#posts').addEventListener('click',e=>{
   const el=e.target.closest('.post'); if(!el)return;
@@ -344,6 +374,19 @@ $('#writeForm').addEventListener('submit',()=>{
   const title=$('#fTitle').value.trim(); if(!title)return;
   posts.unshift({id:Date.now(),cat:fCat.value,title,body:$('#fBody').value.trim(),time:Date.now()});
   save(); cat=fCat.value; render();
+});
+
+/* 설정 — GitHub 토큰(이 기기에만 저장) */
+const sdlg=$('#settingsDialog');
+$('#settingsBtn').addEventListener('click',()=>{$('#fToken').value=ghToken();sdlg.showModal()});
+$('#tokenClearBtn').addEventListener('click',()=>{
+  try{localStorage.removeItem(TOKKEY)}catch(e){}
+  $('#fToken').value=''; sdlg.close(); fetchRemote();
+});
+$('#settingsForm').addEventListener('submit',()=>{
+  const t=$('#fToken').value.trim();
+  try{t?localStorage.setItem(TOKKEY,t):localStorage.removeItem(TOKKEY)}catch(e){}
+  fetchRemote(); // 토큰 반영해 즉시 다시 불러오기
 });
 
 render();
