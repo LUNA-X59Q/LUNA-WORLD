@@ -48,7 +48,7 @@ button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-vis
 .topbar{position:sticky;top:0;z-index:10;background:rgba(6,8,20,.86);backdrop-filter:blur(18px)}
 header{max-width:760px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px 12px}
 .brand{display:flex;align-items:center;gap:11px}
-.mark{width:40px;height:40px;border-radius:13px;display:grid;place-items:center;color:#06101a;font-weight:900;font-size:14px;letter-spacing:-.04em;background:conic-gradient(from 220deg,var(--blue),var(--violet),#ffe28a,#a8f3bd,var(--blue));box-shadow:0 0 36px rgba(137,216,255,.2),inset 0 0 0 1px rgba(255,255,255,.5)}
+.mark{width:40px;height:40px;border-radius:13px;display:block;box-shadow:0 0 36px rgba(137,216,255,.2),inset 0 0 0 1px rgba(255,255,255,.5)}
 .brand h1{margin:0;font-size:21px;letter-spacing:-.03em}
 .writeBtn{padding:10px 18px;border-radius:999px;border:1px solid rgba(137,216,255,.34);background:linear-gradient(135deg,rgba(137,216,255,.22),rgba(217,183,255,.15));font-size:13px;font-weight:700;transition:.16s}
 .writeBtn:hover{transform:translateY(-1px);background:rgba(137,216,255,.24)}
@@ -109,7 +109,7 @@ dialog textarea{min-height:130px;resize:vertical;line-height:1.5}
 <body>
 <div class="topbar">
   <header>
-    <div class="brand"><div class="mark">AI</div><h1>AI BOX</h1></div>
+    <div class="brand"><img class="mark" src="favicon.svg" alt="AI BOX 로고"><h1>AI BOX</h1></div>
     <button class="writeBtn" id="writeBtn">✏️ 글쓰기</button>
   </header>
   <nav class="tabs" id="tabs"></nav>
@@ -128,7 +128,6 @@ dialog textarea{min-height:130px;resize:vertical;line-height:1.5}
 <dialog id="writeDialog">
   <form method="dialog" id="writeForm">
     <h2>✏️ 글쓰기</h2>
-    <input id="fAuthor" placeholder="닉네임 (비우면 익명)" autocomplete="off" maxlength="20">
     <select id="fCat"></select>
     <input id="fTitle" placeholder="제목" autocomplete="off" maxlength="200" required>
     <textarea id="fBody" placeholder="내용을 자유롭게 작성하세요..." maxlength="20000"></textarea>
@@ -177,7 +176,7 @@ function render(){
   const list=posts.filter(p=>p.cat===cat);
   $('#posts').innerHTML=list.length
     ?list.map(p=>`<article class="post" data-id="${p.id}">
-        <div class="postHead"><span class="cat">${esc(p.cat)}</span><span class="postMeta">${esc(p.author||'익명')} · ${relTime(p.time)}</span></div>
+        <div class="postHead"><span class="cat">${esc(p.cat)}</span><span class="postMeta">${relTime(p.time)}</span></div>
         <div class="postTitle">${esc(p.title)}</div>
         ${p.body?`<div class="postPreview">${esc(p.body)}</div>`:''}
       </article>`).join('')
@@ -197,7 +196,7 @@ function openDetail(id){
   $('#detailInner').innerHTML=
     `<span class="cat">${esc(p.cat)}</span>`+
     `<div class="detailTitle">${esc(p.title)}</div>`+
-    `<div class="detailMeta"><span>${esc(p.author||'익명')}</span><span>${new Date(p.time).toLocaleString('ko-KR')}</span></div>`+
+    `<div class="detailMeta"><span>${new Date(p.time).toLocaleString('ko-KR')}</span></div>`+
     (p.body?`<div class="detailContent">${esc(p.body)}</div>`:'');
   detail.classList.add('open');
   if(!(history.state&&history.state.v==='detail'))history.pushState({v:'detail'},'');
@@ -222,7 +221,7 @@ $('#writeBtn').addEventListener('click',()=>{$('#writeForm').reset();fCat.value=
 $('#cancelBtn').addEventListener('click',()=>dlg.close());
 $('#writeForm').addEventListener('submit',()=>{
   const title=$('#fTitle').value.trim(); if(!title)return;
-  posts.unshift({id:Date.now(),cat:fCat.value,title,body:$('#fBody').value.trim(),author:$('#fAuthor').value.trim(),time:Date.now()});
+  posts.unshift({id:Date.now(),cat:fCat.value,title,body:$('#fBody').value.trim(),time:Date.now()});
   save(); cat=fCat.value; render();
 });
 
