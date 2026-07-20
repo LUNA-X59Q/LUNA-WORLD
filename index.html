@@ -106,8 +106,17 @@ header{max-width:760px;margin:0 auto;display:flex;align-items:center;justify-con
 .detailContent{font-size:15px;line-height:1.75;color:var(--soft);white-space:pre-wrap;word-break:break-word;padding:16px;background:var(--card);border:1px solid var(--line);border-radius:var(--r)}
 .detailImg{max-width:100%;height:auto;border-radius:12px;display:block;margin:6px 0}
 .detailContent .detailImg{margin:10px 0}
-.detailPhoto{padding:0;overflow:hidden}
-.detailPhoto .detailImg{margin:0;border-radius:var(--r)}
+/* 사진 카드: 기본은 화면 폭에 맞춰 전체를 보여준다(세로 비율 유지). 탭하면 원본 크기로 확대. */
+.detailPhoto{padding:0;overflow:hidden;cursor:zoom-in}
+.detailPhoto .detailImg{max-width:100%;height:auto;margin:0;border-radius:var(--r);cursor:zoom-in}
+
+/* 원본 보기(라이트박스): 사진을 탭하면 원본 픽셀 크기로, 상하좌우 스크롤하며 본다. */
+.lightbox{display:none;position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.94)}
+.lightbox.open{display:block}
+.lbScroll{position:absolute;inset:0;overflow:auto;-webkit-overflow-scrolling:touch;padding:0}
+.lbScroll img{display:block;max-width:none;margin:auto} /* 원본 크기 그대로(작으면 가운데) */
+.lbClose{position:fixed;top:calc(env(safe-area-inset-top,0px) + 10px);right:12px;z-index:210;width:42px;height:42px;border-radius:50%;font-size:20px;display:grid;place-items:center;color:#fff;background:rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.3)}
+.lbHint{position:fixed;left:0;right:0;bottom:calc(env(safe-area-inset-bottom,0px) + 14px);z-index:210;text-align:center;font-size:12px;color:rgba(255,255,255,.7);pointer-events:none}
 
 /* ── 글쓰기 모달 ── */
 dialog{border:1px solid var(--line2);border-radius:20px;background:var(--surface);color:var(--ink);padding:0;width:min(480px,calc(100vw - 32px));box-shadow:var(--shadow)}
@@ -156,6 +165,12 @@ dialog textarea{min-height:130px;resize:vertical;line-height:1.5}
     <button class="delBtn" id="detailDel" aria-label="삭제">🗑</button>
   </div>
   <div class="detailBody"><div class="detailInner" id="detailInner"></div></div>
+</div>
+
+<div class="lightbox" id="lightbox">
+  <button class="lbClose" id="lbClose" aria-label="닫기">✕</button>
+  <div class="lbScroll" id="lbScroll"><img id="lbImg" alt=""></div>
+  <div class="lbHint">원본 크기 · 스크롤해서 보기 · 탭하면 닫힘</div>
 </div>
 
 <dialog id="settingsDialog">
@@ -427,7 +442,27 @@ function openRemoteDetail(srcId,i){
   if(!(history.state&&history.state.v==='detail'))history.pushState({v:'detail'},'');
 }
 function closeDetail(){detail.classList.remove('open');curId=null}
-window.addEventListener('popstate',()=>closeDetail());
+
+/* 원본 보기(라이트박스) — 상세의 사진을 탭하면 원본 픽셀 크기로 연다 */
+const lightbox=$('#lightbox'), lbImg=$('#lbImg'), lbScroll=$('#lbScroll');
+function openLightbox(src){
+  if(!src)return;
+  lbImg.src=src; lbScroll.scrollTo(0,0);
+  lightbox.classList.add('open');
+  history.pushState({v:'lightbox'},'');
+}
+function closeLightbox(){lightbox.classList.remove('open'); lbImg.removeAttribute('src')}
+$('#detailInner').addEventListener('click',e=>{
+  const im=e.target.closest('.detailImg'); if(!im)return; // 상세 사진·본문 이미지 탭
+  openLightbox(im.currentSrc||im.src);
+});
+$('#lbClose').addEventListener('click',()=>history.back());
+$('#lbScroll').addEventListener('click',()=>history.back()); // 아무 곳이나 탭하면 닫힘
+
+window.addEventListener('popstate',()=>{
+  if(lightbox.classList.contains('open'))closeLightbox(); // 라이트박스 먼저 닫기
+  else closeDetail();
+});
 $('#detailBack').addEventListener('click',()=>{
   if(history.state&&history.state.v==='detail')history.back(); else closeDetail();
 });
