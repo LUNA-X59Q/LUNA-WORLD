@@ -303,14 +303,16 @@ tabs.addEventListener('click',e=>{
 /* 목록 */
 function render(){
   document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('on',b.dataset.cat===cat));
-  // 정렬(최신 위): ① 글 날짜(YYYY-MM-DD) 내림차순 → ② 파일 시각(ts) 내림차순(다른 소스·같은 날 구분)
-  // → ③ 그래도 같으면 저장 순서(최신→과거) 유지(안정 정렬). ts는 깃허브 Last-Modified·드라이브 수정시각.
-  // data-i는 소스별 원본 배열의 인덱스를 그대로 유지해 상세 조회가 어긋나지 않게 한다.
+  // 정렬(최신 위): 글마다 하나의 시간값으로 환산해 순수 시간순으로 섞는다.
+  //  - 제목에 날짜(YYYY-MM-DD)가 있으면 그 날짜, 없으면 파일 시각(ts)을 쓴다.
+  //    → 소스(깃허브/드라이브)나 날짜 유무와 무관하게 시간순. 같으면 ts, 그래도 같으면 저장순(안정).
+  //  - ts: 깃허브 Last-Modified·드라이브 수정시각. data-i는 소스별 원본 인덱스를 유지(상세 조회용).
+  const keyOf=p=>p.date?Date.parse(p.date+'T00:00:00Z'):(p.ts||0);
   const remoteItems=[];
   SOURCES.forEach(s=>(remote[s.id].posts[cat]||[]).forEach((p,i)=>remoteItems.push({s,p,i})));
   remoteItems.sort((a,b)=>{
-    const d=String(b.p.date||'').localeCompare(String(a.p.date||''));
-    if(d)return d;
+    const k=keyOf(b.p)-keyOf(a.p);
+    if(k)return k;
     return (b.p.ts||0)-(a.p.ts||0);
   });
   const remoteCards=remoteItems.map(({s,p,i})=>`<article class="post" data-src="${s.id}" data-i="${i}">
