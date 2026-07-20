@@ -1,7 +1,7 @@
 // AI BOX 서비스 워커 — 앱 껍데기를 캐시해 오프라인에서도 열린다.
 // 카드는 localStorage에 있으므로 껍데기만 있으면 완전 동작.
 // HTML은 네트워크 우선(새 배포 즉시 반영), 정적 자산은 캐시 우선.
-const CACHE = 'ai-box-v18'; // v18: 목록을 카드 박스 → 구분선(줄) 방식으로, 내용 미리보기 제거(제목까지만)
+const CACHE = 'ai-box-v19'; // v19: 한 파일 = 하나의 글로 고정(## 헤딩으로 글 쪼개지 않음, 섹션 제목으로 렌더)
 const SHELL = ['./', 'index.html', 'manifest.webmanifest', 'favicon.svg', 'icon-192.png', 'icon-512.png'];
 
 self.addEventListener('install', e => {

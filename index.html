@@ -116,6 +116,12 @@ header{max-width:760px;margin:0 auto;display:flex;align-items:center;justify-con
 .detailContent.rich{white-space:normal}
 .detailContent.rich p{margin:0 0 .72em}
 .detailContent.rich p:last-child{margin-bottom:0}
+/* 본문 안 섹션 제목(#·##·###) — 글을 쪼개지 않고 문서 안에서 소제목으로 구분 */
+.detailContent.rich .dh{color:var(--ink);font-weight:800;letter-spacing:-.01em;line-height:1.35;margin:1.25em 0 .5em}
+.detailContent.rich .dh:first-child{margin-top:0}
+.detailContent.rich h2.dh{font-size:18px}
+.detailContent.rich h3.dh{font-size:16.5px}
+.detailContent.rich h4.dh{font-size:15px;color:var(--soft)}
 .detailImg{max-width:100%;height:auto;border-radius:12px;display:block;margin:6px 0}
 .detailContent .detailImg{margin:10px 0}
 /* 사진 카드: 기본은 화면 폭에 맞춰 전체를 보여준다(세로 비율 유지). 탭하면 원본 크기로 확대. */
@@ -251,9 +257,9 @@ const DKEY='ai-box-drive-key', DFOLDERS='ai-box-drive-folders';
 const driveKey=()=>{try{return localStorage.getItem(DKEY)||''}catch(e){return ''}};
 const driveFolders=()=>{try{return JSON.parse(localStorage.getItem(DFOLDERS))||{}}catch(e){return {}}};
 
-// 드라이브 파일 하나 → 글 배열(최신→과거 순). 일반 파일은 그대로, 구글 문서는 텍스트로 export.
-// `## ` 헤딩이 있으면 그 단위로, 없으면 파일 하나를 카드 하나로(파일명=제목, 수정일=날짜).
-// 파일 안에서 아래쪽(나중에 쓴 글)이 최신이므로 reverse해 최신을 앞에 둔다.
+// 드라이브 파일 하나 → 글 하나(파일명=제목, 수정일=날짜). 일반 파일은 그대로, 구글 문서는 텍스트로 export.
+// 문서 안의 `## `·`### ` 헤딩은 "섹션 제목"으로 본문에 그대로 렌더링된다(글을 쪼개지 않는다).
+// → 큰 자료를 섹션별로 나눠 써도 한 파일 = 하나의 글로 유지된다.
 async function driveFileToPosts(f,key){
   const mime=f.mimeType||'';
   // 사진(이미지) 파일: alt=media로 텍스트를 읽으면 바이너리가 깨진 문자열로 보인다.
@@ -274,15 +280,13 @@ async function driveFileToPosts(f,key){
   if(!r.ok)return [];
   const text=await r.text();
   const ts=Date.parse(f.modifiedTime||'')||0; // 문서 수정 시각(보조 정렬 기준)
-  const parsed=parseMD(text);
-  if(parsed.length)return parsed.reverse().map(p=>({...p,ts})); // 최신 글이 위로
   let title=String(f.name||'').replace(/\.(md|markdown|txt)$/i,''), date=(f.modifiedTime||'').slice(0,10);
   const m=title.match(/\((\d{4}-\d{2}-\d{2})\)\s*$/); if(m){date=m[1]; title=title.slice(0,m.index).trim()}
   return [{title:title||'(제목 없음)',date,body:text.trim(),ts}];
 }
 
-// 깃허브 파일 하나 → 글 배열(드라이브와 동일 규칙). 이미지는 이미지 카드로,
-// `## ` 헤딩이 있으면 그 단위로, 없으면 파일 하나를 카드 하나로(파일명=제목).
+// 깃허브 파일 하나 → 글 하나(드라이브와 동일 규칙). 이미지는 이미지 카드로,
+// 그 외에는 파일 하나를 카드 하나로(파일명=제목). `## `·`### `는 본문 섹션 제목으로 렌더링.
 async function ghFileToPosts(f,tok){
   const name=String(f.name||'');
   // 사진(이미지) 파일: raw URL을 그대로 이미지로 표시
@@ -298,8 +302,6 @@ async function ghFileToPosts(f,tok){
   if(!r.ok)return [];
   const text=await r.text();
   const ts=Date.parse(r.headers.get('Last-Modified')||'')||0; // 파일 마지막 커밋 시각(보조 정렬)
-  const parsed=parseMD(text);
-  if(parsed.length)return parsed.reverse().map(p=>({...p,ts})); // 파일 안 여러 글은 아래쪽이 최신 → 위로
   let title=name.replace(/\.(md|markdown|txt)$/i,''), date='';
   const m=title.match(/\((\d{4}-\d{2}-\d{2})\)\s*$/); if(m){date=m[1]; title=title.slice(0,m.index).trim()}
   return [{title:title||'(제목 없음)',date,body:text.trim(),ts}];
@@ -347,25 +349,6 @@ for(const s of SOURCES){
   remote[s.id]={posts};
 }
 
-// "## 제목 (YYYY-MM-DD)" 헤딩 하나가 글 하나. 첫 헤딩 이전 내용과 코드 블록 안의 "## "는 무시.
-function parseMD(md){
-  const out=[]; let cur=null, inCode=false;
-  for(const line of String(md).split(/\r?\n/)){
-    if(line.trimStart().startsWith('```')){inCode=!inCode; if(cur)cur.lines.push(line); continue}
-    if(!inCode&&line.startsWith('## ')){
-      let title=line.slice(3).trim(), date='';
-      const m=title.match(/\((\d{4}-\d{2}-\d{2})\)\s*$/);
-      if(m){date=m[1]; title=title.slice(0,m.index).trim()}
-      if(cur)out.push(cur);
-      cur={title:title||'(제목 없음)',date,lines:[]};
-      continue;
-    }
-    if(cur)cur.lines.push(line);
-  }
-  if(cur)out.push(cur);
-  return out.map(p=>({title:p.title,date:p.date,body:p.lines.join('\n').trim()}));
-}
-
 // 본문 렌더: 그냥 글 형태(줄바꿈은 pre-wrap로 유지) + 굵게만. 코드블록은 지원 안 함.
 // ``` 펜스 줄은 제거해 가독성만 남긴다(수천 자도 그대로 표시·스크롤).
 function mdHtml(src){
@@ -378,11 +361,20 @@ function mdHtml(src){
   });
   // 빈 줄로 문단을 나눠 문단마다 <p>로 감싼다(문단 사이는 CSS margin으로 여백).
   // 문단 안의 한 줄 줄바꿈은 <br>로 그대로 유지한다.
-  const html=t.split(/\n{2,}/).map(block=>{
-    const inner=esc(block).replace(/\*\*([^*]+)\*\*/g,'<b>$1</b>').replace(/\n/g,'<br>');
-    return '<p>'+inner+'</p>';
-  }).join('');
-  return html.replace(/ (\d+) /g,(_,i)=>imgs[+i]);
+  const inline=s=>esc(s).replace(/\*\*([^*]+)\*\*/g,'<b>$1</b>');
+  // 줄 단위로 문단(<p>)과 섹션 제목(#·##·###)을 만든다. 빈 줄/헤딩에서 문단을 끊는다.
+  // 헤딩 앞뒤에 빈 줄이 없어도(구글 문서 텍스트 export 등) 제목으로 정확히 잡힌다.
+  const out=[]; let para=[];
+  const flush=()=>{ if(para.length){ out.push('<p>'+para.map(inline).join('<br>')+'</p>'); para=[]; } };
+  for(const line of t.split('\n')){
+    const hm=line.match(/^(#{1,6})\s+(.+)$/);
+    if(hm){ flush(); const lvl=Math.min(hm[1].length+1,4); // # -> h2, ## -> h3, ### 이하 -> h4
+      out.push(`<h${lvl} class="dh">${inline(hm[2].trim())}</h${lvl}>`); }
+    else if(line.trim()==='') flush();
+    else para.push(line);
+  }
+  flush();
+  return out.join('').replace(/ (\d+) /g,(_,i)=>imgs[+i]);
 }
 // 로컬(내 기기) 글: 마크다운 없이 텍스트만 문단 <p>로 감싸 여백을 맞춘다.
 const plainHtml=src=>String(src).replace(/\r\n?/g,'\n').replace(/[^\S\r\n]+$/gm,'').replace(/\n{3,}/g,'\n\n').trim().split(/\n{2,}/)
