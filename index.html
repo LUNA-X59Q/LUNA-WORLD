@@ -368,7 +368,7 @@ function parseMD(md){
 // 본문 렌더: 그냥 글 형태(줄바꿈은 pre-wrap로 유지) + 굵게만. 코드블록은 지원 안 함.
 // ``` 펜스 줄은 제거해 가독성만 남긴다(수천 자도 그대로 표시·스크롤).
 function mdHtml(src){
-  let t=String(src).replace(/^[ \t]*```.*$/gm,'').replace(/\n{3,}/g,'\n\n').trim();
+  let t=String(src).replace(/^[ \t]*```.*$/gm,'').replace(/[^\S\r\n]+$/gm,'').replace(/\n{3,}/g,'\n\n').trim();
   // 이미지 마크다운 ![설명](URL) → <img>. 이스케이프 전에 NUL 자리표시자로 빼둔다(일반 텍스트엔 없음).
   const imgs=[];
   t=t.replace(/!\[([^\]]*)\]\((https?:\/\/[^\s)]+)\)/g,(_,alt,url)=>{
@@ -384,7 +384,7 @@ function mdHtml(src){
   return html.replace(/ (\d+) /g,(_,i)=>imgs[+i]);
 }
 // 로컬(내 기기) 글: 마크다운 없이 텍스트만 문단 <p>로 감싸 여백을 맞춘다.
-const plainHtml=src=>String(src).replace(/\n{3,}/g,'\n\n').trim().split(/\n{2,}/)
+const plainHtml=src=>String(src).replace(/[^\S\r\n]+$/gm,'').replace(/\n{3,}/g,'\n\n').trim().split(/\n{2,}/)
   .map(b=>'<p>'+esc(b).replace(/\n/g,'<br>')+'</p>').join('');
 const ghPreview=b=>String(b).replace(/^[ \t]*```.*$/gm,'').replace(/\*\*/g,'').replace(/\s+/g,' ').trim();
 
