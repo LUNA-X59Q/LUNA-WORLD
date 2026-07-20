@@ -116,7 +116,6 @@ header{max-width:760px;margin:0 auto;display:flex;align-items:center;justify-con
 .lbScroll{position:absolute;inset:0;overflow:hidden;display:flex;align-items:center;justify-content:center;padding:10px}
 .lbScroll img{display:block;max-width:100%;max-height:100%;width:auto;height:auto} /* 전체가 보이게 화면에 맞춤 */
 .lbClose{position:fixed;top:calc(env(safe-area-inset-top,0px) + 10px);right:12px;z-index:210;width:42px;height:42px;border-radius:50%;font-size:20px;display:grid;place-items:center;color:#fff;background:rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.3)}
-.lbHint{position:fixed;left:0;right:0;bottom:calc(env(safe-area-inset-bottom,0px) + 14px);z-index:210;text-align:center;font-size:12px;color:rgba(255,255,255,.7);pointer-events:none}
 
 /* ── 글쓰기 모달 ── */
 dialog{border:1px solid var(--line2);border-radius:20px;background:var(--surface);color:var(--ink);padding:0;width:min(480px,calc(100vw - 32px));box-shadow:var(--shadow)}
@@ -170,7 +169,6 @@ dialog textarea{min-height:130px;resize:vertical;line-height:1.5}
 <div class="lightbox" id="lightbox">
   <button class="lbClose" id="lbClose" aria-label="닫기">✕</button>
   <div class="lbScroll" id="lbScroll"><img id="lbImg" alt=""></div>
-  <div class="lbHint">원본 사진 · 탭하면 닫힘</div>
 </div>
 
 <dialog id="settingsDialog">
