@@ -34,11 +34,7 @@ html{background:#060814}
 body{
   color:var(--ink);
   font-family:ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;
-  background:var(--bg);
-  background-image:
-    radial-gradient(circle at 12% -8%,rgba(137,216,255,.28),transparent 34%),
-    radial-gradient(circle at 80% 0%,rgba(217,183,255,.18),transparent 31%);
-  background-repeat:no-repeat;
+  background:var(--bg); /* 단색 배경 */
 }
 button,input,textarea,select{font:inherit;color:inherit}
 button{border:0;background:none;cursor:pointer}
@@ -50,8 +46,6 @@ header{max-width:760px;margin:0 auto;display:flex;align-items:center;justify-con
 .brand{display:flex;align-items:center;gap:11px}
 .mark{width:40px;height:40px;border-radius:13px;display:block;box-shadow:0 0 36px rgba(137,216,255,.2),inset 0 0 0 1px rgba(255,255,255,.5)}
 .brand h1{margin:0;font-size:21px;letter-spacing:-.03em}
-.writeBtn{padding:10px 18px;border-radius:999px;border:1px solid rgba(137,216,255,.34);background:linear-gradient(135deg,rgba(137,216,255,.22),rgba(217,183,255,.15));font-size:13px;font-weight:700;transition:.16s}
-.writeBtn:hover{transform:translateY(-1px);background:rgba(137,216,255,.24)}
 .headBtns{display:flex;align-items:center;gap:8px}
 .refreshBtn{width:38px;height:38px;border-radius:999px;font-size:16px;display:grid;place-items:center;color:var(--soft);border:1px solid var(--line);background:rgba(255,255,255,.04);transition:.16s}
 .refreshBtn:hover{background:rgba(255,255,255,.09)}
@@ -78,7 +72,7 @@ header{max-width:760px;margin:0 auto;display:flex;align-items:center;justify-con
 .empty{padding:110px 20px;text-align:center;font-size:15px;color:var(--soft)}
 
 /* ── 글 상세 ── */
-.detail{display:none;position:fixed;inset:0;z-index:100;background:var(--bg);background-image:radial-gradient(circle at 12% -8%,rgba(137,216,255,.22),transparent 34%),radial-gradient(circle at 80% 0%,rgba(217,183,255,.14),transparent 31%);background-repeat:no-repeat;flex-direction:column}
+.detail{display:none;position:fixed;inset:0;z-index:100;background:var(--bg);flex-direction:column}
 .detail.open{display:flex}
 .detailHead{display:flex;align-items:center;gap:6px;padding:12px 14px;border-bottom:1px solid var(--line);background:rgba(6,8,20,.86);backdrop-filter:blur(18px)}
 .backBtn{width:38px;height:38px;border-radius:12px;font-size:21px;display:grid;place-items:center;color:var(--soft);transition:.14s}
@@ -115,7 +109,6 @@ dialog textarea{min-height:130px;resize:vertical;line-height:1.5}
 @media(max-width:560px){
   .brand h1{font-size:19px}
   .mark{width:37px;height:37px;border-radius:12px;font-size:13px}
-  .writeBtn{padding:9px 15px;font-size:12px}
   .tab{font-size:13px;padding:13px 12px 11px}
 }
 </style>
@@ -127,7 +120,6 @@ dialog textarea{min-height:130px;resize:vertical;line-height:1.5}
     <div class="headBtns">
       <button class="refreshBtn" id="settingsBtn" aria-label="설정" title="설정 (GitHub 토큰)"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
       <button class="refreshBtn" id="refreshBtn" aria-label="새로고침" title="글 새로고침"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><polyline points="21 3 21 9 15 9"/></svg></button>
-      <button class="writeBtn" id="writeBtn">✏️ 글쓰기</button>
     </div>
   </header>
   <nav class="tabs" id="tabs"></nav>
@@ -159,19 +151,6 @@ dialog textarea{min-height:130px;resize:vertical;line-height:1.5}
     <div class="actions">
       <button type="button" id="tokenClearBtn">전체 삭제</button>
       <button type="submit" class="primary">저장</button>
-    </div>
-  </form>
-</dialog>
-
-<dialog id="writeDialog">
-  <form method="dialog" id="writeForm">
-    <h2>✏️ 글쓰기</h2>
-    <select id="fCat"></select>
-    <input id="fTitle" placeholder="제목" autocomplete="off" maxlength="200" required>
-    <textarea id="fBody" placeholder="내용을 자유롭게 작성하세요..." maxlength="20000"></textarea>
-    <div class="actions">
-      <button type="button" id="cancelBtn">취소</button>
-      <button type="submit" class="primary">게시</button>
     </div>
   </form>
 </dialog>
@@ -371,17 +350,6 @@ $('#detailDel').addEventListener('click',()=>{
   posts=posts.filter(p=>p.id!==curId);
   save(); render();
   if(history.state&&history.state.v==='detail')history.back(); else closeDetail();
-});
-
-/* 글쓰기 */
-const dlg=$('#writeDialog'), fCat=$('#fCat');
-fCat.innerHTML=CATS.map(c=>`<option value="${c}">${c}</option>`).join('');
-$('#writeBtn').addEventListener('click',()=>{$('#writeForm').reset();fCat.value=cat;dlg.showModal()});
-$('#cancelBtn').addEventListener('click',()=>dlg.close());
-$('#writeForm').addEventListener('submit',()=>{
-  const title=$('#fTitle').value.trim(); if(!title)return;
-  posts.unshift({id:Date.now(),cat:fCat.value,title,body:$('#fBody').value.trim(),time:Date.now()});
-  save(); cat=fCat.value; render();
 });
 
 /* 설정 — GitHub 토큰 · 드라이브 키/파일 ID (모두 이 기기에만 저장) */
