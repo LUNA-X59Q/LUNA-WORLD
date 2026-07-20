@@ -183,8 +183,9 @@ const DKEY='ai-box-drive-key', DFOLDERS='ai-box-drive-folders';
 const driveKey=()=>{try{return localStorage.getItem(DKEY)||''}catch(e){return ''}};
 const driveFolders=()=>{try{return JSON.parse(localStorage.getItem(DFOLDERS))||{}}catch(e){return {}}};
 
-// 드라이브 파일 하나 → 글 배열. 일반 파일은 그대로, 구글 문서는 텍스트로 export.
+// 드라이브 파일 하나 → 글 배열(최신→과거 순). 일반 파일은 그대로, 구글 문서는 텍스트로 export.
 // `## ` 헤딩이 있으면 그 단위로, 없으면 파일 하나를 카드 하나로(파일명=제목, 수정일=날짜).
+// 파일 안에서 아래쪽(나중에 쓴 글)이 최신이므로 reverse해 최신을 앞에 둔다.
 async function driveFileToPosts(f,key){
   const isDoc=f.mimeType==='application/vnd.google-apps.document';
   const url=isDoc
@@ -194,7 +195,7 @@ async function driveFileToPosts(f,key){
   if(!r.ok)return [];
   const text=await r.text();
   const parsed=parseMD(text);
-  if(parsed.length)return parsed;
+  if(parsed.length)return parsed.reverse(); // 최신 글이 위로
   let title=String(f.name||'').replace(/\.(md|markdown|txt)$/i,''), date=(f.modifiedTime||'').slice(0,10);
   const m=title.match(/\((\d{4}-\d{2}-\d{2})\)\s*$/); if(m){date=m[1]; title=title.slice(0,m.index).trim()}
   return [{title:title||'(제목 없음)',date,body:text.trim()}];
@@ -210,7 +211,7 @@ const SOURCES=[
      const r=await fetch(`https://api.github.com/repos/${GH_OWNER}/${GH_REPO}/contents/${path}?ref=${GH_BRANCH}&t=${Date.now()}`,{cache:'no-store',headers});
      if(r.status===404)return []; // 파일 없음/토큰 없음·무효 → 0개
      if(!r.ok)throw 0; // 레이트리밋 등 → 캐시 유지
-     return parseMD(await r.text());
+     return parseMD(await r.text()).reverse(); // 파일 아래쪽(나중에 쓴 글)이 최신 → 위로
    }},
   {id:'dr', label:'Drive', cacheKey:'ai-box-drive-posts',
    async load(c){
@@ -299,7 +300,8 @@ tabs.addEventListener('click',e=>{
 /* 목록 */
 function render(){
   document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('on',b.dataset.cat===cat));
-  // 외부 글을 날짜(YYYY-MM-DD) 최신순으로 정렬 → 최근 글이 위로. 무날짜는 뒤로(원래 순서 유지).
+  // 소스 배열은 이미 최신→과거 순으로 저장됨(load에서 reverse). 그 위에 날짜(YYYY-MM-DD)
+  // 내림차순 "안정" 정렬 → 날짜가 다르면 날짜순, 같거나 없으면 최신(나중에 쓴)글이 위로 유지.
   // data-i는 소스별 원본 배열의 인덱스를 그대로 유지해 상세 조회가 어긋나지 않게 한다.
   const remoteItems=[];
   SOURCES.forEach(s=>(remote[s.id].posts[cat]||[]).forEach((p,i)=>remoteItems.push({s,p,i})));
