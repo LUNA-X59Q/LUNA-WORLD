@@ -196,8 +196,11 @@ dialog textarea{min-height:130px;resize:vertical;line-height:1.5}
 'use strict';
 const CATS=['자유','정보','그림프롬프트','프롬프트'];
 const KEY='ai-box-cards';
-// 이전 앱(AI 마을 시뮬레이션)의 저장 데이터는 정리한다
-['ai-village-polished-research','ai-village-temperament'].forEach(k=>localStorage.removeItem(k));
+// 이전 앱(AI 마을 시뮬레이션, LUNA-WORLD)의 저장 데이터는 모두 정리한다
+try{
+  const stale=k=>/^(ai-village|luna-world)/i.test(k);
+  Object.keys(localStorage).filter(stale).forEach(k=>localStorage.removeItem(k));
+}catch(e){}
 
 const $=s=>document.querySelector(s);
 const esc=s=>String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
@@ -511,7 +514,15 @@ render();
 fetchRemote(); // 앱 열 때마다 외부 글(깃허브·드라이브) 자동 갱신
 // 저장공간을 "영구"로 요청 → 브라우저가 용량 부족 시 자동으로 지우지 않게(설정값 보존)
 if(navigator.storage&&navigator.storage.persist)navigator.storage.persist().catch(()=>{});
-if('serviceWorker' in navigator&&location.protocol!=='file:')navigator.serviceWorker.register('sw.js').catch(()=>{});
+if('serviceWorker' in navigator&&location.protocol!=='file:'){
+  // 새 서비스 워커가 제어권을 잡으면(=새 버전 배포·옛 캐시 정리) 한 번만 새로고침해
+  // 이전 버전(옛 AI 마을 껍데기)이 잠깐 남아 보이던 현상을 없앤다.
+  let refreshing=false;
+  navigator.serviceWorker.addEventListener('controllerchange',()=>{
+    if(refreshing)return; refreshing=true; location.reload();
+  });
+  navigator.serviceWorker.register('sw.js').catch(()=>{});
+}
 })();
 </script>
 </body>
