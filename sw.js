@@ -1,7 +1,7 @@
 // AI BOX 서비스 워커 — 앱 껍데기를 캐시해 오프라인에서도 열린다.
 // 카드는 localStorage에 있으므로 껍데기만 있으면 완전 동작.
 // HTML은 네트워크 우선(새 배포 즉시 반영), 정적 자산은 캐시 우선.
-const CACHE = 'ai-box-v14'; // v14: 깃허브도 폴더 안 파일 단위로 읽기(드라이브와 동일)
+const CACHE = 'ai-box-v15'; // v15: 본문 문단 간 여백 축소(빈 줄 대신 <p> margin)
 const SHELL = ['./', 'index.html', 'manifest.webmanifest', 'favicon.svg', 'icon-192.png', 'icon-512.png'];
 
 self.addEventListener('install', e => {

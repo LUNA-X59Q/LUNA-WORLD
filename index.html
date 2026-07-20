@@ -110,7 +110,11 @@ header{max-width:760px;margin:0 auto;display:flex;align-items:center;justify-con
 .detailInner{max-width:760px;margin:0 auto;padding:18px 16px 16px}
 .detailTitle{font-size:19px;font-weight:800;letter-spacing:-.02em;margin:12px 0 8px;word-break:break-word}
 .detailMeta{font-size:12px;color:var(--muted);margin-bottom:14px;display:flex;gap:10px;flex-wrap:wrap}
-.detailContent{font-size:15px;line-height:1.75;color:var(--soft);white-space:pre-wrap;word-break:break-word;padding:16px;background:var(--card);border:1px solid var(--line);border-radius:var(--r)}
+.detailContent{font-size:15px;line-height:1.65;color:var(--soft);white-space:pre-wrap;word-break:break-word;padding:16px;background:var(--card);border:1px solid var(--line);border-radius:var(--r)}
+/* 본문 문단: 빈 줄(pre-wrap)이 아니라 작은 margin으로 구분 → 문단 사이 여백을 알맞게 */
+.detailContent.rich{white-space:normal}
+.detailContent.rich p{margin:0 0 .72em}
+.detailContent.rich p:last-child{margin-bottom:0}
 .detailImg{max-width:100%;height:auto;border-radius:12px;display:block;margin:6px 0}
 .detailContent .detailImg{margin:10px 0}
 /* 사진 카드: 기본은 화면 폭에 맞춰 전체를 보여준다(세로 비율 유지). 탭하면 원본 크기로 확대. */
@@ -371,9 +375,17 @@ function mdHtml(src){
     imgs.push(`<img class="detailImg" src="${esc(url)}" alt="${esc(alt)}" loading="lazy">`);
     return ' '+(imgs.length-1)+' ';
   });
-  let html=esc(t).replace(/\*\*([^*]+)\*\*/g,'<b>$1</b>');
+  // 빈 줄로 문단을 나눠 문단마다 <p>로 감싼다(문단 사이는 CSS margin으로 여백).
+  // 문단 안의 한 줄 줄바꿈은 <br>로 그대로 유지한다.
+  const html=t.split(/\n{2,}/).map(block=>{
+    const inner=esc(block).replace(/\*\*([^*]+)\*\*/g,'<b>$1</b>').replace(/\n/g,'<br>');
+    return '<p>'+inner+'</p>';
+  }).join('');
   return html.replace(/ (\d+) /g,(_,i)=>imgs[+i]);
 }
+// 로컬(내 기기) 글: 마크다운 없이 텍스트만 문단 <p>로 감싸 여백을 맞춘다.
+const plainHtml=src=>String(src).replace(/\n{3,}/g,'\n\n').trim().split(/\n{2,}/)
+  .map(b=>'<p>'+esc(b).replace(/\n/g,'<br>')+'</p>').join('');
 const ghPreview=b=>String(b).replace(/^[ \t]*```.*$/gm,'').replace(/\*\*/g,'').replace(/\s+/g,' ').trim();
 
 let fetching=false;
@@ -457,7 +469,7 @@ function openDetail(id){
     `<span class="cat">${esc(p.cat)}</span>`+
     `<div class="detailTitle">${esc(p.title)}</div>`+
     `<div class="detailMeta"><span>${new Date(p.time).toLocaleString('ko-KR')}</span></div>`+
-    (p.body?`<div class="detailContent">${esc(p.body)}</div>`:'');
+    (p.body?`<div class="detailContent rich">${plainHtml(p.body)}</div>`:'');
   detail.classList.add('open');
   if(!(history.state&&history.state.v==='detail'))history.pushState({v:'detail'},'');
 }
@@ -473,7 +485,7 @@ function openRemoteDetail(srcId,i){
     `<div class="detailTitle">${esc(p.title)}</div>`+
     (p.date?`<div class="detailMeta"><span>${esc(p.date)}</span></div>`:'')+
     (p.img?`<div class="detailContent detailPhoto"><img class="detailImg" src="${esc(p.img)}" alt="${esc(p.title)}"></div>`:'')+
-    (p.body?`<div class="detailContent">${mdHtml(p.body)}</div>`:'');
+    (p.body?`<div class="detailContent rich">${mdHtml(p.body)}</div>`:'');
   detail.classList.add('open');
   if(!(history.state&&history.state.v==='detail'))history.pushState({v:'detail'},'');
 }
