@@ -194,10 +194,6 @@ dialog textarea{min-height:130px;resize:vertical;line-height:1.5}
     <h2>⚙️ 설정</h2>
     <p class="hint">입력값은 이 기기에만 저장됩니다.</p>
     <div class="sgroup">
-      <h3>GitHub</h3>
-      <input id="fToken" class="masked" type="text" placeholder="토큰 (github_pat_… / ghp_…)" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" inputmode="text" name="ai-box-gh" data-lpignore="true" data-1p-ignore data-form-type="other">
-    </div>
-    <div class="sgroup">
       <h3>구글 드라이브</h3>
       <input id="fDriveKey" class="masked" type="text" placeholder="API 키 (AIza…)" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" inputmode="text" name="ai-box-dk" data-lpignore="true" data-1p-ignore data-form-type="other">
       <div id="driveFilesWrap"></div>
@@ -244,11 +240,8 @@ $('#themeBtn').addEventListener('click',()=>{
 
 /* ── 외부 글 소스: 깃허브 + 구글드라이브 (같은 파서·렌더를 공유) ── */
 // 깃허브: GitHub API로 posts/<카테고리>/ 폴더 안의 파일들을 읽는다(드라이브처럼 파일 단위).
-// 파일 하나 = 글 하나(파일명=제목). API는 토큰만 있으면 비공개 레포도 됨. 토큰은 코드에
-// 넣지 않고 설정에서 받아 이 기기의 localStorage에만 저장한다 → 레포·타인에게 노출되지 않음.
+// 파일 하나 = 글 하나(파일명=제목). 레포가 공개(public)라 토큰 없이 그대로 읽는다.
 const GH_OWNER='LUNA-X59Q', GH_REPO='LUNA-WORLD', GH_BRANCH='main';
-const TOKKEY='ai-box-gh-token';
-const ghToken=()=>{try{return localStorage.getItem(TOKKEY)||''}catch(e){return ''}};
 
 // 구글드라이브: API 키와 카테고리별 "폴더 ID"를 설정에서 받아 이 기기의
 // localStorage에만 저장한다(깃허브 토큰과 동일 원칙). 폴더를 지정하면 그 폴더 안의
@@ -287,7 +280,7 @@ async function driveFileToPosts(f,key){
 
 // 깃허브 파일 하나 → 글 하나(드라이브와 동일 규칙). 이미지는 이미지 카드로,
 // 그 외에는 파일 하나를 카드 하나로(파일명=제목). `## `·`### `는 본문 섹션 제목으로 렌더링.
-async function ghFileToPosts(f,tok){
+async function ghFileToPosts(f){
   const name=String(f.name||'');
   // 사진(이미지) 파일: raw URL을 그대로 이미지로 표시
   if(/\.(png|jpe?g|gif|webp|bmp|svg|heic|heif|avif|tiff?)$/i.test(name)){
@@ -296,8 +289,7 @@ async function ghFileToPosts(f,tok){
     return [{title:title||'(사진)',date,body:'',img:f.download_url,ts:0}];
   }
   if(!/\.(md|markdown|txt)$/i.test(name))return []; // md·txt 만 글로 취급(.gitkeep 등 무시)
-  const headers={'Accept':'application/vnd.github.raw'}; // raw = 본문 바로 반환
-  if(tok)headers['Authorization']='Bearer '+tok;
+  const headers={'Accept':'application/vnd.github.raw'}; // raw = 본문 바로 반환 (공개 레포라 인증 불필요)
   const r=await fetch(`${f.url}${f.url.includes('?')?'&':'?'}t=${Date.now()}`,{cache:'no-store',headers});
   if(!r.ok)return [];
   const text=await r.text();
@@ -311,9 +303,7 @@ async function ghFileToPosts(f,tok){
 const SOURCES=[
   {id:'gh', label:'GitHub', cacheKey:'ai-box-github-posts',
    async load(c){
-     const tok=ghToken();
-     const headers={'Accept':'application/vnd.github+json'};
-     if(tok)headers['Authorization']='Bearer '+tok;
+     const headers={'Accept':'application/vnd.github+json'}; // 공개 레포라 인증 불필요
      // posts/<카테고리>/ 폴더 안의 파일 목록 (드라이브의 폴더 방식과 동일)
      const dir='posts/'+encodeURIComponent(c);
      const lr=await fetch(`https://api.github.com/repos/${GH_OWNER}/${GH_REPO}/contents/${dir}?ref=${GH_BRANCH}&t=${Date.now()}`,{cache:'no-store',headers});
@@ -322,7 +312,7 @@ const SOURCES=[
      const list=await lr.json();
      if(!Array.isArray(list))return []; // 폴더가 아니면(파일 단건 등) 무시
      const files=list.filter(f=>f.type==='file');
-     const groups=await Promise.all(files.map(f=>ghFileToPosts(f,tok).catch(()=>[])));
+     const groups=await Promise.all(files.map(f=>ghFileToPosts(f).catch(()=>[])));
      return groups.flat();
    }},
   {id:'dr', label:'Drive', cacheKey:'ai-box-drive-posts',
@@ -437,9 +427,9 @@ function render(){
         <div class="postTitle">${esc(p.title)}</div>
       </article>`);
   const cards=[...remoteCards,...localCards];
-  const emptyMsg=(ghToken()||driveKey())
+  const emptyMsg=driveKey()
     ?'📦 아직 게시글이 없어요.'
-    :'🔒 설정(⚙)에서 GitHub 토큰이나 드라이브 키를 넣어주세요.';
+    :'🔒 설정(⚙)에서 드라이브 API 키를 넣어주세요.';
   $('#posts').innerHTML=cards.length?cards.join(''):`<div class="empty">${emptyMsg}</div>`;
 }
 $('#posts').addEventListener('click',e=>{
@@ -524,23 +514,21 @@ document.querySelectorAll('#settingsForm input').forEach(inp=>{
   inp.addEventListener('blur',()=>{inp.readOnly=true});
 });
 $('#settingsBtn').addEventListener('click',()=>{
-  $('#fToken').value=ghToken();
   $('#fDriveKey').value=driveKey();
   const df=driveFolders();
   document.querySelectorAll('.fDriveFolder').forEach(inp=>inp.value=df[inp.dataset.cat]||'');
   sdlg.showModal();
 });
 $('#tokenClearBtn').addEventListener('click',()=>{
-  try{[TOKKEY,DKEY,DFOLDERS].forEach(k=>localStorage.removeItem(k))}catch(e){}
-  $('#fToken').value=''; $('#fDriveKey').value='';
+  try{[DKEY,DFOLDERS].forEach(k=>localStorage.removeItem(k))}catch(e){}
+  $('#fDriveKey').value='';
   document.querySelectorAll('.fDriveFolder').forEach(inp=>inp.value='');
   sdlg.close(); fetchRemote();
 });
 $('#settingsForm').addEventListener('submit',()=>{
-  const t=$('#fToken').value.trim(), dk=$('#fDriveKey').value.trim();
+  const dk=$('#fDriveKey').value.trim();
   const df={}; document.querySelectorAll('.fDriveFolder').forEach(inp=>{const v=inp.value.trim(); if(v)df[inp.dataset.cat]=v});
   try{
-    t?localStorage.setItem(TOKKEY,t):localStorage.removeItem(TOKKEY);
     dk?localStorage.setItem(DKEY,dk):localStorage.removeItem(DKEY);
     Object.keys(df).length?localStorage.setItem(DFOLDERS,JSON.stringify(df)):localStorage.removeItem(DFOLDERS);
   }catch(e){}
