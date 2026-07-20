@@ -1,7 +1,7 @@
 // AI BOX 서비스 워커 — 앱 껍데기를 캐시해 오프라인에서도 열린다.
 // 카드는 localStorage에 있으므로 껍데기만 있으면 완전 동작.
 // HTML은 네트워크 우선(새 배포 즉시 반영), 정적 자산은 캐시 우선.
-const CACHE = 'ai-box-v20'; // v20: 공개 레포 전환 — GitHub 토큰 입력 제거(설정은 드라이브 키만)
+const CACHE = 'ai-box-v21'; // v21: '메모리' 카테고리 추가 — AI가 유저 정보를 기록하는 곳
 const SHELL = ['./', 'index.html', 'manifest.webmanifest', 'favicon.svg', 'icon-192.png', 'icon-512.png'];
 
 self.addEventListener('install', e => {
