@@ -128,6 +128,20 @@ header{max-width:760px;margin:0 auto;display:flex;align-items:center;justify-con
 .detailPhoto{padding:0;overflow:hidden;cursor:zoom-in}
 .detailPhoto .detailImg{max-width:100%;height:auto;margin:0;border-radius:var(--r);cursor:zoom-in}
 
+/* ── 검색 페이지 — 상세와 같은 앱 내 오버레이(뒤로가기로 복귀) ── */
+.search{display:none;position:fixed;inset:0;z-index:90;background:var(--bg);flex-direction:column}
+.search.open{display:flex}
+.searchCtrls{max-width:760px;margin:0 auto;width:100%;display:grid;gap:8px;padding:12px 16px 4px}
+.searchRow{display:flex;gap:8px}
+.searchRow select{flex:1;min-width:0}
+.search select,.search input{border:1px solid var(--line);border-radius:13px;background:rgba(255,255,255,.05);padding:11px 12px;font-size:14px;outline:none}
+.search select:focus,.search input:focus{border-color:rgba(137,216,255,.5)}
+.search select option{background:var(--optbg)}
+.searchBody{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch}
+.searchInner{max-width:760px;margin:0 auto;padding:4px 14px 70px}
+.postSnip{font-size:12.5px;color:var(--muted);margin-top:5px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;word-break:break-word}
+:root[data-theme="light"] .search select,:root[data-theme="light"] .search input{background:#f6f7fb}
+
 /* 원본 보기(라이트박스): 사진을 탭하면 원본 사진 전체를 화면에 꽉 차게 보여준다. */
 .lightbox{display:none;position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.94)}
 .lightbox.open{display:block}
@@ -166,6 +180,7 @@ dialog textarea{min-height:130px;resize:vertical;line-height:1.5}
   <header>
     <div class="brand"><img class="mark" src="favicon.svg" alt="AI BOX 로고"><h1>AI BOX</h1></div>
     <div class="headBtns">
+      <button class="refreshBtn" id="searchBtn" aria-label="검색" title="글 검색"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.2" y2="16.2"/></svg></button>
       <button class="refreshBtn" id="themeBtn" aria-label="화면 모드 전환" title="화이트/다크 모드 전환"><span id="themeIcon" style="font-size:18px;line-height:1">🌗</span></button>
       <button class="refreshBtn" id="settingsBtn" aria-label="설정" title="설정 (드라이브 연동)"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
       <button class="refreshBtn" id="refreshBtn" aria-label="새로고침" title="글 새로고침"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><polyline points="21 3 21 9 15 9"/></svg></button>
@@ -182,6 +197,25 @@ dialog textarea{min-height:130px;resize:vertical;line-height:1.5}
     <button class="delBtn" id="detailDel" aria-label="삭제">🗑</button>
   </div>
   <div class="detailBody"><div class="detailInner" id="detailInner"></div></div>
+</div>
+
+<div class="search" id="search">
+  <div class="detailHead">
+    <button class="backBtn" id="searchBack" aria-label="뒤로">←</button>
+    <h2>검색</h2>
+  </div>
+  <div class="searchCtrls">
+    <div class="searchRow">
+      <select id="searchCat" aria-label="검색 범위"></select>
+      <select id="searchType" aria-label="검색 유형">
+        <option value="tb">제목+내용</option>
+        <option value="t">제목</option>
+        <option value="b">내용</option>
+      </select>
+    </div>
+    <input id="searchInput" type="search" placeholder="검색어 입력" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false">
+  </div>
+  <div class="searchBody"><div class="searchInner" id="searchResults"></div></div>
 </div>
 
 <div class="lightbox" id="lightbox">
@@ -434,7 +468,7 @@ function render(){
 }
 $('#posts').addEventListener('click',e=>{
   const el=e.target.closest('.post'); if(!el)return;
-  if(el.dataset.src)openRemoteDetail(el.dataset.src,+el.dataset.i);
+  if(el.dataset.src)openRemoteDetail(el.dataset.src,cat,+el.dataset.i);
   else openDetail(el.dataset.id);
 });
 
@@ -454,14 +488,15 @@ function openDetail(id){
   if(!(history.state&&history.state.v==='detail'))history.pushState({v:'detail'},'');
 }
 // 외부 글은 원본이 레포/드라이브에 있으므로 앱에서 삭제 불가 — 삭제 버튼을 숨긴다
-function openRemoteDetail(srcId,i){
+// c: 글이 속한 카테고리(목록에서는 현재 탭, 검색에서는 결과의 카테고리)
+function openRemoteDetail(srcId,c,i){
   const s=srcById(srcId); if(!s)return;
-  const p=(remote[srcId].posts[cat]||[])[i]; if(!p)return;
+  const p=(remote[srcId].posts[c]||[])[i]; if(!p)return;
   curId=null;
   $('#detailDel').style.display='none';
   $('#detailHeadTitle').textContent=p.title;
   $('#detailInner').innerHTML=
-    `<span class="cat">${esc(cat)}</span> <span class="src src-${s.id}">${esc(s.label)}</span>`+
+    `<span class="cat">${esc(c)}</span> <span class="src src-${s.id}">${esc(s.label)}</span>`+
     `<div class="detailTitle">${esc(p.title)}</div>`+
     (p.date?`<div class="detailMeta"><span>${esc(p.date)}</span></div>`:'')+
     (p.img?`<div class="detailContent detailPhoto"><img class="detailImg" src="${esc(p.img)}" alt="${esc(p.title)}"></div>`:'')+
@@ -489,7 +524,8 @@ $('#lbScroll').addEventListener('click',()=>history.back()); // 아무 곳이나
 
 window.addEventListener('popstate',()=>{
   if(lightbox.classList.contains('open'))closeLightbox(); // 라이트박스 먼저 닫기
-  else closeDetail();
+  else if(detail.classList.contains('open'))closeDetail(); // 그다음 상세
+  else closeSearch(); // 마지막으로 검색 페이지
 });
 $('#detailBack').addEventListener('click',()=>{
   if(history.state&&history.state.v==='detail')history.back(); else closeDetail();
@@ -500,6 +536,66 @@ $('#detailDel').addEventListener('click',()=>{
   posts=posts.filter(p=>p.id!==curId);
   save(); render();
   if(history.state&&history.state.v==='detail')history.back(); else closeDetail();
+});
+
+/* ── 검색 — 앱 내 오버레이 페이지. 이미 받아둔 글(원격 캐시+로컬)에서 즉시 찾는다 ── */
+const searchEl=$('#search'), searchInput=$('#searchInput');
+$('#searchCat').innerHTML='<option value="">전체</option>'+CATS.map(c=>`<option value="${esc(c)}">${esc(c)}</option>`).join('');
+function openSearch(){
+  searchEl.classList.add('open');
+  if(!(history.state&&history.state.v==='search'))history.pushState({v:'search'},'');
+  runSearch(); searchInput.focus();
+}
+function closeSearch(){searchEl.classList.remove('open')}
+$('#searchBtn').addEventListener('click',openSearch);
+$('#searchBack').addEventListener('click',()=>{
+  if(history.state&&history.state.v==='search')history.back(); else closeSearch();
+});
+// 본문 일치 시 검색어 주변 문맥만 잘라 미리보기 한 줄로 보여준다
+function snip(body,q){
+  const i=body.toLowerCase().indexOf(q); if(i<0)return '';
+  const s=Math.max(0,i-24), e=Math.min(body.length,i+q.length+56);
+  return (s>0?'…':'')+body.slice(s,e).replace(/\s+/g,' ')+(e<body.length?'…':'');
+}
+function runSearch(){
+  const q=searchInput.value.trim().toLowerCase();
+  const selCat=$('#searchCat').value, type=$('#searchType').value;
+  const box=$('#searchResults');
+  if(!q){box.innerHTML='<div class="empty">🔍 검색어를 입력해주세요.</div>';return}
+  const useT=type!=='b', useB=type!=='t';
+  const hit=p=>{
+    const tHit=useT&&String(p.title||'').toLowerCase().includes(q);
+    const bHit=useB&&String(p.body||'').toLowerCase().includes(q);
+    return tHit||bHit?{bHit}:null;
+  };
+  const cards=[];
+  for(const c of (selCat?[selCat]:CATS)){
+    SOURCES.forEach(s=>(remote[s.id].posts[c]||[]).forEach((p,i)=>{
+      const h=hit(p); if(!h)return;
+      cards.push(`<article class="post" data-src="${s.id}" data-cat="${esc(c)}" data-i="${i}">
+        <div class="postHead"><span style="display:flex;gap:6px"><span class="cat">${esc(c)}</span><span class="src src-${s.id}">${esc(s.label)}</span></span><span class="postMeta">${esc(p.date)}</span></div>
+        <div class="postTitle">${esc(p.title)}</div>
+        ${h.bHit?`<div class="postSnip">${esc(snip(p.body,q))}</div>`:''}
+      </article>`);
+    }));
+    posts.filter(p=>p.cat===c).forEach(p=>{
+      const h=hit(p); if(!h)return;
+      cards.push(`<article class="post" data-id="${p.id}">
+        <div class="postHead"><span class="cat">${esc(p.cat)}</span><span class="postMeta">${relTime(p.time)}</span></div>
+        <div class="postTitle">${esc(p.title)}</div>
+        ${h.bHit?`<div class="postSnip">${esc(snip(p.body,q))}</div>`:''}
+      </article>`);
+    });
+  }
+  box.innerHTML=cards.length?cards.join(''):'<div class="empty">📭 검색 결과가 없어요.</div>';
+}
+searchInput.addEventListener('input',runSearch);
+$('#searchCat').addEventListener('change',runSearch);
+$('#searchType').addEventListener('change',runSearch);
+$('#searchResults').addEventListener('click',e=>{
+  const el=e.target.closest('.post'); if(!el)return;
+  if(el.dataset.src)openRemoteDetail(el.dataset.src,el.dataset.cat,+el.dataset.i);
+  else openDetail(el.dataset.id);
 });
 
 /* 설정 — 드라이브 키/폴더 ID (모두 이 기기에만 저장) */
