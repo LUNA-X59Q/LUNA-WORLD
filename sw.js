@@ -1,8 +1,8 @@
 // AI BOX 서비스 워커 — 앱 껍데기를 캐시해 오프라인에서도 열린다.
 // 카드는 localStorage에 있으므로 껍데기만 있으면 완전 동작.
 // HTML은 네트워크 우선(새 배포 즉시 반영), 정적 자산은 캐시 우선.
-const CACHE = 'ai-box-v21'; // v21: '메모리' 카테고리 추가 — AI가 유저 정보를 기록하는 곳
-const SHELL = ['./', 'index.html', 'manifest.webmanifest', 'favicon.svg', 'icon-192.png', 'icon-512.png'];
+const CACHE = 'ai-box-v22'; // v22: NUL 자리표시자 이스케이프 + 캐시에 설치 아이콘 추가
+const SHELL = ['./', 'index.html', 'manifest.webmanifest', 'favicon.svg', 'icon-192.png', 'icon-512.png', 'icon-512-maskable.png', 'apple-touch-icon.png'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()));

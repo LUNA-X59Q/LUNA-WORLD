@@ -167,7 +167,7 @@ dialog textarea{min-height:130px;resize:vertical;line-height:1.5}
     <div class="brand"><img class="mark" src="favicon.svg" alt="AI BOX 로고"><h1>AI BOX</h1></div>
     <div class="headBtns">
       <button class="refreshBtn" id="themeBtn" aria-label="화면 모드 전환" title="화이트/다크 모드 전환"><span id="themeIcon" style="font-size:18px;line-height:1">🌗</span></button>
-      <button class="refreshBtn" id="settingsBtn" aria-label="설정" title="설정 (GitHub 토큰)"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
+      <button class="refreshBtn" id="settingsBtn" aria-label="설정" title="설정 (드라이브 연동)"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
       <button class="refreshBtn" id="refreshBtn" aria-label="새로고침" title="글 새로고침"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><polyline points="21 3 21 9 15 9"/></svg></button>
     </div>
   </header>
@@ -347,7 +347,7 @@ function mdHtml(src){
   const imgs=[];
   t=t.replace(/!\[([^\]]*)\]\((https?:\/\/[^\s)]+)\)/g,(_,alt,url)=>{
     imgs.push(`<img class="detailImg" src="${esc(url)}" alt="${esc(alt)}" loading="lazy">`);
-    return ' '+(imgs.length-1)+' ';
+    return '\x00'+(imgs.length-1)+'\x00';
   });
   // 빈 줄로 문단을 나눠 문단마다 <p>로 감싼다(문단 사이는 CSS margin으로 여백).
   // 문단 안의 한 줄 줄바꿈은 <br>로 그대로 유지한다.
@@ -364,7 +364,7 @@ function mdHtml(src){
     else para.push(line);
   }
   flush();
-  return out.join('').replace(/ (\d+) /g,(_,i)=>imgs[+i]);
+  return out.join('').replace(/\x00(\d+)\x00/g,(_,i)=>imgs[+i]);
 }
 // 로컬(내 기기) 글: 마크다운 없이 텍스트만 문단 <p>로 감싸 여백을 맞춘다.
 const plainHtml=src=>String(src).replace(/\r\n?/g,'\n').replace(/[^\S\r\n]+$/gm,'').replace(/\n{3,}/g,'\n\n').trim().split(/\n{2,}/)
@@ -502,7 +502,7 @@ $('#detailDel').addEventListener('click',()=>{
   if(history.state&&history.state.v==='detail')history.back(); else closeDetail();
 });
 
-/* 설정 — GitHub 토큰 · 드라이브 키/폴더 ID (모두 이 기기에만 저장) */
+/* 설정 — 드라이브 키/폴더 ID (모두 이 기기에만 저장) */
 const sdlg=$('#settingsDialog');
 $('#driveFilesWrap').innerHTML=CATS.map((c,i)=>`<input class="fDriveFolder" data-cat="${esc(c)}" placeholder="${esc(c)} 폴더 ID" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" inputmode="text" name="ai-box-df${i}" data-lpignore="true" data-1p-ignore data-form-type="other">`).join('');
 // 오토필/자동완성 바(열쇠·카드·지도)가 뜨지 않게: 평소엔 readonly, 만질 때만 편집 가능
