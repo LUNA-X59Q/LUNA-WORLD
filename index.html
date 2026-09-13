@@ -111,6 +111,14 @@ header{max-width:760px;margin:0 auto;display:flex;align-items:center;justify-con
 .detailInner{max-width:760px;margin:0 auto;padding:18px 16px 16px}
 .detailTitle{font-size:19px;font-weight:800;letter-spacing:-.02em;margin:12px 0 8px;word-break:break-word}
 .detailMeta{font-size:12px;color:var(--muted);margin-bottom:14px;display:flex;gap:10px;flex-wrap:wrap}
+.detailMeta>span{align-self:center}
+/* 본문 복사 버튼 — 날짜 바로 옆에 붙는 작은 아이콘 버튼 */
+.copyBtn{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border:1px solid var(--line);border-radius:999px;background:rgba(255,255,255,.05);color:var(--soft);font-size:12px;font-weight:600;line-height:1;transition:.16s}
+.copyBtn:hover{background:rgba(255,255,255,.09);color:var(--ink)}
+.copyBtn:active{transform:scale(.96)}
+.copyBtn.done{color:var(--blue);border-color:rgba(137,216,255,.42)}
+:root[data-theme="light"] .copyBtn{background:#f4f5fa}
+:root[data-theme="light"] .copyBtn:hover{background:#e9ecf4}
 .detailContent{font-size:15px;line-height:1.65;color:var(--soft);white-space:pre-wrap;word-break:break-word;padding:16px;background:var(--card);border:1px solid var(--line);border-radius:var(--r)}
 /* 본문 문단: 빈 줄(pre-wrap)이 아니라 작은 margin으로 구분 → 문단 사이 여백을 알맞게 */
 .detailContent.rich{white-space:normal}
@@ -474,15 +482,36 @@ $('#posts').addEventListener('click',e=>{
 
 /* 상세 */
 const detail=$('#detail');
+/* 본문 복사 — 아이콘은 메뉴의 'Copy as text'와 같은 겹친 사각형 모양 */
+const COPY_SVG='<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2.5"/><path d="M6 15H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v1"/></svg>';
+const DONE_SVG='<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>';
+let curBody='';
+// 날짜와 복사 버튼을 한 줄에 — 복사할 본문이 있는 글에만 버튼을 둔다
+function metaRow(dateHtml,hasBody){
+  if(!dateHtml&&!hasBody)return '';
+  return `<div class="detailMeta">`+
+    (dateHtml?`<span>${dateHtml}</span>`:'')+
+    (hasBody?`<button class="copyBtn" type="button" aria-label="본문 복사" title="본문 복사">${COPY_SVG}<span>복사</span></button>`:'')+
+    `</div>`;
+}
+async function copyText(t){
+  try{ await navigator.clipboard.writeText(t); return true }catch(e){}
+  try{ // clipboard API를 쓸 수 없는 환경(비보안 컨텍스트 등) 대비
+    const ta=document.createElement('textarea');
+    ta.value=t; ta.setAttribute('readonly',''); ta.style.cssText='position:fixed;top:-1000px;opacity:0';
+    document.body.appendChild(ta); ta.select(); ta.setSelectionRange(0,ta.value.length);
+    const ok=document.execCommand('copy'); ta.remove(); return ok;
+  }catch(e){ return false }
+}
 function openDetail(id){
   const p=posts.find(x=>String(x.id)===String(id)); if(!p)return;
-  curId=p.id;
+  curId=p.id; curBody=p.body||'';
   $('#detailDel').style.display='';
   $('#detailHeadTitle').textContent=p.title;
   $('#detailInner').innerHTML=
     `<span class="cat">${esc(p.cat)}</span>`+
     `<div class="detailTitle">${esc(p.title)}</div>`+
-    `<div class="detailMeta"><span>${new Date(p.time).toLocaleString('ko-KR')}</span></div>`+
+    metaRow(new Date(p.time).toLocaleString('ko-KR'),!!p.body)+
     (p.body?`<div class="detailContent rich">${plainHtml(p.body)}</div>`:'');
   detail.classList.add('open');
   if(!(history.state&&history.state.v==='detail'))history.pushState({v:'detail'},'');
@@ -492,13 +521,13 @@ function openDetail(id){
 function openRemoteDetail(srcId,c,i){
   const s=srcById(srcId); if(!s)return;
   const p=(remote[srcId].posts[c]||[])[i]; if(!p)return;
-  curId=null;
+  curId=null; curBody=p.body||'';
   $('#detailDel').style.display='none';
   $('#detailHeadTitle').textContent=p.title;
   $('#detailInner').innerHTML=
     `<span class="cat">${esc(c)}</span> <span class="src src-${s.id}">${esc(s.label)}</span>`+
     `<div class="detailTitle">${esc(p.title)}</div>`+
-    (p.date?`<div class="detailMeta"><span>${esc(p.date)}</span></div>`:'')+
+    metaRow(p.date?esc(p.date):'',!!p.body)+
     (p.img?`<div class="detailContent detailPhoto"><img class="detailImg" src="${esc(p.img)}" alt="${esc(p.title)}"></div>`:'')+
     (p.body?`<div class="detailContent rich">${mdHtml(p.body)}</div>`:'');
   detail.classList.add('open');
@@ -518,6 +547,12 @@ function closeLightbox(){lightbox.classList.remove('open'); lbImg.removeAttribut
 $('#detailInner').addEventListener('click',e=>{
   const im=e.target.closest('.detailImg'); if(!im)return; // 상세 사진·본문 이미지 탭
   openLightbox(im.currentSrc||im.src);
+});
+$('#detailInner').addEventListener('click',async e=>{
+  const b=e.target.closest('.copyBtn'); if(!b)return; // 본문 복사
+  if(!await copyText(curBody)){alert('복사하지 못했습니다.');return}
+  b.classList.add('done'); b.innerHTML=DONE_SVG+'<span>복사됨</span>';
+  clearTimeout(b._t); b._t=setTimeout(()=>{b.classList.remove('done'); b.innerHTML=COPY_SVG+'<span>복사</span>'},1400);
 });
 $('#lbClose').addEventListener('click',()=>history.back());
 $('#lbScroll').addEventListener('click',()=>history.back()); // 아무 곳이나 탭하면 닫힘
